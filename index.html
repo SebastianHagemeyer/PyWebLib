@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PyPlayground: Run Python in your browser</title>
+  <meta name="description" content="A free, open-source playground for running real Python in your browser. No install, no setup. Powered by Pyodide." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" href="favicon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="./" class="logo">
+        <img class="logo-mark" src="favicon.svg" alt="" width="32" height="32" />
+        <span>PyPlayground</span>
+      </a>
+      <a class="header-link" href="https://pyodide.org" target="_blank" rel="noopener">Powered by Pyodide &#8599;</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Run it live</p>
+        <h1>PyPlayground</h1>
+        <p class="lead">Real Python, running entirely in your browser. Edit the code, hit Run, and watch it go. No install, no setup, no sign-up.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <div class="sandbox-shell">
+        <div class="sandbox-editor">
+          <div class="sandbox-bar">
+            <span class="sandbox-title">main.py</span>
+            <div class="sandbox-bar-actions">
+              <button type="button" class="btn btn-ghost sandbox-reset" title="Reset to the example">Reset</button>
+              <button type="button" class="btn btn-primary sandbox-run" id="sandbox-run">
+                <span class="sandbox-run-label">Run</span>
+              </button>
+            </div>
+          </div>
+          <div class="sandbox-code language-python" id="sandbox-code" spellcheck="false"></div>
+        </div>
+        <div class="sandbox-output">
+          <div class="sandbox-bar">
+            <span class="sandbox-title">Output</span>
+            <button type="button" class="btn btn-ghost sandbox-clear" title="Clear the output">Clear</button>
+          </div>
+          <pre class="sandbox-out-body" id="sandbox-output"></pre>
+        </div>
+      </div>
+
+      <p class="sandbox-hint">
+        <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run &middot;
+        <kbd>Tab</kbd> inserts 4 spaces &middot;
+        Python loads the first time you press Run (5-10 seconds), then it's instant.
+      </p>
+
+      <section class="sandbox-examples">
+        <h2 class="sandbox-examples-heading">Try a snippet</h2>
+        <p class="sandbox-examples-sub">Click any of these to load it into the editor. Then hit <strong>Run</strong>.</p>
+        <div class="sandbox-examples-grid" id="sandbox-examples"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyPlayground: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>,
+        <a href="https://medv.io/codejar/" target="_blank" rel="noopener">CodeJar</a> &amp;
+        <a href="https://prismjs.com" target="_blank" rel="noopener">Prism</a>. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="sandbox.js"></script>
+</body>
+</html>

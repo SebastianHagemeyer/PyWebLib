@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="PyPlayground">
+  <title>PyPlayground</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1b2046"/>
+      <stop offset="100%" stop-color="#0f1226"/>
+    </linearGradient>
+  </defs>
+  <!-- Dark editor tile -->
+  <rect width="256" height="256" rx="56" fill="url(#tile)"/>
+  <!-- A terminal prompt: blue chevron + a yellow caret block, echoing the
+       blinking cursor in the live editor. -->
+  <path d="M74 84 L122 128 L74 172" fill="none" stroke="#7aa2ff"
+        stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="138" y="150" width="60" height="22" rx="7" fill="#ffd43b"/>
+</svg>
