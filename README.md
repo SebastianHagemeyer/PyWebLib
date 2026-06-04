@@ -1,5 +1,7 @@
 # PyPlayground
 
+Try it here: [PyPlayground](https://sebastianhagemeyer.github.io/pyplayground/)
+
 Run real Python in your browser. No install, no setup, no backend. PyPlayground is a single static page that runs CPython compiled to WebAssembly with [Pyodide](https://pyodide.org), so every line of code executes client-side. It ships with a click-to-load snippet gallery, an editor with syntax highlighting, and a few extras layered on top of stock Python.
 
 > Python Playground online with coloured prints, import time working in sync, and input() working inline.
