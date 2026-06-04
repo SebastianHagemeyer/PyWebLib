@@ -14,7 +14,7 @@
     'for i in range(5):\n' +
     '    print("Number:", i, "squared is", i ** 2)\n\n' +
     '# A list\n' +
-    'names = ["Ava", "Saxon", "Kamran"]\n' +
+    'names = ["Alice", "Bob", "Charlie"]\n' +
     'for name in names:\n' +
     '    print("Hey,", name + "!")\n\n' +
     '# Maths\n' +
