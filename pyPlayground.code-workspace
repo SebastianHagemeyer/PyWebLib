@@ -1,0 +1,46 @@
+{
+  "folders": [
+    {
+      "name": "PyPlayground",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "liveServer.settings.port": 8000,
+    "liveServer.settings.root": "/"
+  },
+  "extensions": {
+    "recommendations": [
+      "ritwickdey.LiveServer"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Serve PyPlayground",
+        "detail": "python -m http.server 8000  (then open http://localhost:8000)",
+        "type": "shell",
+        "command": "python -m http.server 8000",
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        },
+        "problemMatcher": [],
+        "runOptions": {
+          "instanceLimit": 1
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        }
+      }
+    ]
+  }
+}

@@ -429,3 +429,187 @@ img { max-width: 100%; display: block; }
 }
 .site-footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
 .site-footer a:hover { text-decoration: underline; }
+
+/* Header nav */
+.site-nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.header-link.active { color: var(--text); background: var(--bg); }
+
+/* Inline code in prose (hints, hero). */
+.sandbox-hint code,
+.lead code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 5px;
+}
+
+/* ===== Right column: turtle + game windows stacked beside the output ===== */
+.sandbox-right {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+/* The turtle / game panels reuse .sandbox-output's dark box, but must not
+   inherit its tall min-height, and stay hidden until the code imports them. */
+.turtle-panel,
+.game-panel { min-height: 0; }
+.turtle-panel[hidden],
+.game-panel[hidden] { display: none; }
+
+/* Turtle stage: a faint grid, the drawing canvas, and a sprite overlay. */
+.turtle-stage {
+  position: relative;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: center;
+}
+.turtle-stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.turtle-stage canvas + canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Game window (import game). */
+.game-hint {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.game-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+}
+.game-stage canvas {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #0b1020;
+  outline: none;
+  cursor: pointer;
+}
+.game-stage canvas:focus-visible {
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.55);
+}
+
+/* ===== Snippet categories: collapsible groups so the list is not crowded ===== */
+.sandbox-example-groups { display: flex; flex-direction: column; gap: 10px; }
+.sandbox-example-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.sandbox-example-group > summary {
+  cursor: pointer;
+  padding: 11px 14px;
+  font-weight: 700;
+  color: var(--primary);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.sandbox-example-group > summary::-webkit-details-marker { display: none; }
+.sandbox-example-group > summary::before {
+  content: "";
+  width: 0; height: 0;
+  border-left: 6px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform 0.15s ease;
+  flex: none;
+}
+.sandbox-example-group[open] > summary::before { transform: rotate(90deg); }
+.sandbox-example-group > summary:hover { color: var(--primary-dark); }
+.sandbox-example-count {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+.sandbox-example-group .sandbox-examples-grid { padding: 0 14px 14px; }
+
+/* ===== Documentation page (docs/) ===== */
+.docs-searchbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.docs-search-input {
+  flex: 1;
+  padding: 12px 18px;
+  font: inherit;
+  font-size: 1rem;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+}
+.docs-search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12); }
+.docs-count { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.docs-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.docs-chip {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  text-decoration: none;
+}
+.docs-chip:hover { border-color: var(--primary); background: var(--bg); }
+.docs-section { margin: 0 0 30px; scroll-margin-top: 84px; }
+.docs-section[hidden] { display: none; }
+.docs-section-title { margin: 0 0 4px; color: var(--primary-dark); }
+.docs-section-blurb { margin: 0 0 14px; color: var(--muted); }
+.docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.docs-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.docs-item[hidden] { display: none; }
+.docs-sig {
+  align-self: flex-start;
+  max-width: 100%;
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.docs-desc { margin: 0; font-size: 0.92rem; line-height: 1.45; }
+.docs-ex {
+  margin: 0;
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+.docs-empty { color: var(--muted); font-style: italic; }

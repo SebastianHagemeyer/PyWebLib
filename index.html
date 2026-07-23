@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PyPlayground: Run Python in your browser</title>
-  <meta name="description" content="A free, open-source playground for running real Python in your browser. No install, no setup. Powered by Pyodide." />
+  <meta name="description" content="A free, open-source playground for running real Python in your browser: coloured output, inline input(), a turtle drawing window and a game library. No install, no setup. Powered by Pyodide." />
   <meta name="color-scheme" content="light" />
   <meta name="theme-color" content="#4f46e5" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -18,7 +18,11 @@
         <img class="logo-mark" src="favicon.svg" alt="" width="32" height="32" />
         <span>PyPlayground</span>
       </a>
-      <a class="header-link" href="https://pyodide.org" target="_blank" rel="noopener">Powered by Pyodide &#8599;</a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link active" href="./">Playground</a>
+        <a class="header-link" href="docs/">Docs</a>
+        <a class="header-link" href="https://pyodide.org" target="_blank" rel="noopener">Pyodide &#8599;</a>
+      </nav>
     </div>
   </header>
 
@@ -27,7 +31,7 @@
       <div class="container">
         <p class="eyebrow">Run it live</p>
         <h1>PyPlayground</h1>
-        <p class="lead">Real Python, running entirely in your browser. Edit the code, hit Run, and watch it go. No install, no setup, no sign-up.</p>
+        <p class="lead">Real Python, running entirely in your browser. Edit the code, hit Run, and watch it go. Draw with <code>import turtle</code>, build a game with <code>import game</code>. No install, no setup, no sign-up.</p>
       </div>
     </section>
 
@@ -45,25 +49,47 @@
           </div>
           <div class="sandbox-code language-python" id="sandbox-code" spellcheck="false"></div>
         </div>
-        <div class="sandbox-output">
-          <div class="sandbox-bar">
-            <span class="sandbox-title">Output</span>
-            <button type="button" class="btn btn-ghost sandbox-clear" title="Clear the output">Clear</button>
+        <div class="sandbox-right">
+          <div class="sandbox-output turtle-panel" id="turtle-panel" hidden>
+            <div class="sandbox-bar">
+              <span class="sandbox-title">Turtle window</span>
+            </div>
+            <div class="turtle-stage">
+              <canvas id="turtle-canvas" width="560" height="380"></canvas>
+              <canvas id="turtle-sprite" width="560" height="380"></canvas>
+            </div>
           </div>
-          <pre class="sandbox-out-body" id="sandbox-output"></pre>
+          <div class="sandbox-output game-panel" id="game-panel" hidden>
+            <div class="sandbox-bar">
+              <span class="sandbox-title">Game window</span>
+              <span class="game-hint">click here, then use the arrow keys</span>
+            </div>
+            <div class="game-stage">
+              <canvas id="game-canvas" width="480" height="360" tabindex="0"></canvas>
+            </div>
+          </div>
+          <div class="sandbox-output">
+            <div class="sandbox-bar">
+              <span class="sandbox-title">Output</span>
+              <button type="button" class="btn btn-ghost sandbox-clear" title="Clear the output">Clear</button>
+            </div>
+            <pre class="sandbox-out-body" id="sandbox-output"></pre>
+          </div>
         </div>
       </div>
 
       <p class="sandbox-hint">
         <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run &middot;
         <kbd>Tab</kbd> inserts 4 spaces &middot;
-        Python loads the first time you press Run (5-10 seconds), then it's instant.
+        Python loads the first time you press Run (5-10 seconds), then it's instant &middot;
+        type <code>import turtle</code> to draw, or <code>import game</code> to make a game &middot;
+        the full reference is in the <a href="docs/">Docs</a>.
       </p>
 
       <section class="sandbox-examples">
         <h2 class="sandbox-examples-heading">Try a snippet</h2>
-        <p class="sandbox-examples-sub">Click any of these to load it into the editor. Then hit <strong>Run</strong>.</p>
-        <div class="sandbox-examples-grid" id="sandbox-examples"></div>
+        <p class="sandbox-examples-sub">Pick a category, then click any snippet to load it into the editor and hit <strong>Run</strong>.</p>
+        <div class="sandbox-example-groups" id="sandbox-examples"></div>
       </section>
     </div>
   </main>
@@ -79,6 +105,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="pyrun.js"></script>
   <script src="sandbox.js"></script>
 </body>
 </html>
