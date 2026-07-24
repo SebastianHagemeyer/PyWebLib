@@ -445,47 +445,84 @@
     },
     {
       title: "Game: grow a garden",
-      desc: "Click the sprouts to grow them into flowers. The mouse functions in action.",
+      desc: "Drag a seed onto the soil, water it with clicks, then harvest the sunflowers. Your score is how much you have grown.",
       code:
-        "import game\n" +
-        "\n" +
-        'game.window(480, 360, background="#8fce6e")   # a sunny lawn\n' +
-        'sign = game.label("Click the sprouts to grow them!", 240, 26,\n' +
-        '                  size=20, color="#ffffff", background="#2f6b2f")\n' +
-        "\n" +
-        "# Four little sprouts in a row, kept in a list.\n" +
-        "plants = []\n" +
-        "for i in range(4):\n" +
-        '    plants.append(game.sprite("🌱", 90 + i * 100, 250, size=28))\n' +
-        "\n" +
-        "# The watering can follows your mouse. Hide the real pointer so the\n" +
-        "# can IS the pointer.\n" +
-        'can = game.sprite("🚿", 240, 180, size=36)\n' +
-        "game.hide_cursor()\n" +
-        "\n" +
-        "while game.playing():\n" +
-        "    can.x = game.mouse_x()\n" +
-        "    can.y = game.mouse_y()\n" +
-        "\n" +
-        "    if game.clicked():                # one tap = one action\n" +
-        "        for p in plants:\n" +
-        "            # Did we click ON this plant? Full-size plants stop growing.\n" +
-        "            if p.at_mouse() and p.size < 110:\n" +
-        "                p.size = p.size + 14\n" +
-        "                if p.size >= 70:\n" +
-        '                    p.content = "🌻"  # fully grown!\n' +
-        "                elif p.size >= 42:\n" +
-        '                    p.content = "🌿"\n' +
-        "\n" +
-        "    # Count the flowers. All four bloomed? You win.\n" +
-        "    bloomed = 0\n" +
-        "    for p in plants:\n" +
-        '        if p.content == "🌻":\n' +
-        "            bloomed = bloomed + 1\n" +
-        "    if bloomed == len(plants):\n" +
-        '        game.game_over("Your garden is in full bloom!")\n' +
-        "\n" +
-        "    game.frame()\n"
+`import game
+
+W, H = 540, 400
+game.window(W, H, background="#8fce6e")   # a sunny lawn
+
+title = game.label("Grow a Garden", 95, 24, size=24, color="#ffffff", background="#2f6b2f")
+board = game.label("Harvested: 0", 445, 24, size=20, color="#ffffff", background="#2f6b2f")
+hint = game.label("Drag a seed onto soil. Click to water. Click a sunflower to harvest.",
+                  270, H - 16, size=14, color="#ffffff", background="#2f6b2f")
+
+# Five plots of soil in a row. Each one remembers its own plant.
+plots = []
+for i in range(5):
+    px = 95 + i * 90
+    soil = game.box(px, 250, 66, 30, "#7a4a24")
+    plant = game.sprite("", px, 242, size=30)   # empty until something is planted
+    plots.append({"soil": soil, "plant": plant, "planted": False, "growth": 0})
+
+# A seed you drag from the tray, and a watering can that rides the mouse.
+tray_x, tray_y = 42, 70
+seed = game.sprite("🌱", tray_x, tray_y, size=32)
+can = game.sprite("🚿", 490, 130, size=40)
+game.hide_cursor()
+
+holding = False
+
+def grow_look(plot):
+    # The more you water, the bigger it gets, and the picture changes.
+    g = plot["growth"]
+    plot["plant"].size = min(26 + g * 6, 52)
+    if g >= 4:
+        plot["plant"].content = "🌻"   # a sunflower: ready to harvest
+    elif g >= 2:
+        plot["plant"].content = "🌿"   # leafy
+    else:
+        plot["plant"].content = "🌱"   # a sprout
+
+while game.playing():
+    # The watering can follows the mouse.
+    can.x = game.mouse_x()
+    can.y = game.mouse_y() - 12
+
+    # Hold and drag the seed to plant it in a plot.
+    if game.mouse_down():
+        if not holding and seed.at_mouse():
+            holding = True
+        if holding:
+            seed.x = game.mouse_x()
+            seed.y = game.mouse_y()
+    elif holding:
+        # Let go: plant it on the empty plot it is over, then send the seed back.
+        for plot in plots:
+            if not plot["planted"] and seed.touches(plot["soil"]):
+                plot["planted"] = True
+                plot["growth"] = 1
+                grow_look(plot)
+                break
+        seed.x, seed.y = tray_x, tray_y
+        holding = False
+
+    # Click a plot: one click waters it a step; click a full sunflower to harvest.
+    if game.clicked():
+        for plot in plots:
+            if plot["planted"] and plot["plant"].at_mouse():
+                if plot["growth"] >= 4:
+                    game.score(1)                       # harvest!
+                    board.content = "Harvested: " + str(game.score())
+                    plot["planted"] = False             # the plot is empty again
+                    plot["growth"] = 0
+                    plot["plant"].content = ""
+                else:
+                    plot["growth"] = plot["growth"] + 1   # a splash of water
+                    grow_look(plot)
+                break
+
+    game.frame()`
     },
     {
       title: "Game: whack a mouse",
