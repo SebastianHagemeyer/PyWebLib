@@ -499,7 +499,7 @@ def _pyrun_install_game():
     # Built-in drawn skins. You can pass the number, the name ("chicken"), or
     # any emoji of your own.
     _ART_NAMES = ["chicken", "dog", "bird", "egg", "coin", "basket",
-                  "shocked", "calm", "turtle", "car"]
+                  "shocked", "calm", "turtle", "car", "mouse"]
 
     # Default collision-box shape per art (width, height as a fraction of size),
     # so a wide car gets a wide box and a tall egg a tall one. Anything not
@@ -846,6 +846,19 @@ del _pyrun_install_game
       '<rect x="18" y="26" width="13" height="12" rx="3" fill="#c33a30"/>' +
       '<circle cx="52" cy="27" r="1.9" fill="#fff0a6"/>' +
       '<circle cx="52" cy="37" r="1.9" fill="#fff0a6"/>' +
+    '</svg>',
+    // 10: mouse (front-facing, big round ears)
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
+      '<circle cx="20" cy="20" r="11" fill="#9aa3ad"/>' +
+      '<circle cx="20" cy="20" r="6" fill="#e6a9bd"/>' +
+      '<circle cx="44" cy="20" r="11" fill="#9aa3ad"/>' +
+      '<circle cx="44" cy="20" r="6" fill="#e6a9bd"/>' +
+      '<ellipse cx="32" cy="38" rx="18" ry="17" fill="#9aa3ad"/>' +
+      '<ellipse cx="32" cy="44" rx="9" ry="7" fill="#c3ccd4"/>' +
+      '<circle cx="25" cy="34" r="2.6" fill="#20242e"/>' +
+      '<circle cx="39" cy="34" r="2.6" fill="#20242e"/>' +
+      '<circle cx="32" cy="42" r="2.6" fill="#e5709a"/>' +
+      '<path d="M23 45 l-9 -2 M23 47 l-9 2 M41 45 l9 -2 M41 47 l9 2" stroke="#8d97a2" stroke-width="1.2" fill="none" stroke-linecap="round"/>' +
     '</svg>'
   ];
   const SPRITE_ART = SPRITE_SVGS.map(function (svg) {

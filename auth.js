@@ -71,6 +71,7 @@
              '</button>' +
              '<div class="pwl-acct-menu" role="menu">' +
                '<a class="pwl-acct-item" href="/community/?mine=1" role="menuitem">My programs</a>' +
+               '<button type="button" class="pwl-acct-item" data-pwl="editname" role="menuitem">Edit name</button>' +
                '<button type="button" class="pwl-acct-item" data-pwl="signout" role="menuitem">Sign out</button>' +
              '</div>' +
            '</div>';
@@ -89,6 +90,7 @@
       const what = trigger.getAttribute("data-pwl");
       if (what === "signin") { e.preventDefault(); signInWithGoogle(); return; }
       if (what === "signout") { e.preventDefault(); signOut(); return; }
+      if (what === "editname") { e.preventDefault(); openNameEditor(); return; }
       if (what === "acct-toggle") {
         const box = trigger.closest(".pwl-acct");
         box.dataset.open = box.dataset.open === "true" ? "false" : "true";
@@ -142,6 +144,51 @@
     await sb.auth.signOut();
     // onAuthStateChange handles the UI; this is just a safety net.
     currentUser = null; currentProfile = null; render(); emit();
+  }
+
+  async function updateName(name) {
+    if (!sb || !currentUser) return { error: { message: "not signed in" } };
+    const res = await sb.from("profiles").update({ display_name: name }).eq("id", currentUser.id);
+    if (!res.error) { await loadProfile(); render(); emit(); }
+    return res;
+  }
+
+  function openNameEditor() {
+    if (!currentUser) { signInWithGoogle(); return; }
+    const back = document.createElement("div");
+    back.className = "pwl-modal-back";
+    back.innerHTML =
+      '<div class="pwl-modal" role="dialog" aria-modal="true">' +
+        '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
+        '<h2 class="pwl-modal-title">Edit your name</h2>' +
+        '<form id="pwl-name-form" class="pwl-share-form">' +
+          '<label>Display name<input name="name" type="text" maxlength="40" required autocomplete="off" /></label>' +
+          '<p class="pwl-comment-signin" id="pwl-name-err" hidden></p>' +
+          '<div class="pwl-modal-actions"><button type="submit" class="btn btn-primary">Save</button></div>' +
+        "</form>" +
+      "</div>";
+    const input = back.querySelector('input[name="name"]');
+    input.value = displayName();
+    const err = back.querySelector("#pwl-name-err");
+    function close() { back.remove(); document.removeEventListener("keydown", onKey); }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    back.addEventListener("click", function (e) { if (e.target === back) close(); });
+    back.querySelector(".pwl-modal-x").addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(back);
+    input.focus(); input.select();
+    back.querySelector("#pwl-name-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const name = input.value.trim();
+      if (!name) return;
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = "Saving…"; err.hidden = true;
+      const res = await updateName(name);
+      if (res.error) {
+        btn.disabled = false; btn.textContent = "Save";
+        err.textContent = "Couldn't save: " + res.error.message; err.hidden = false;
+      } else { close(); }
+    });
   }
 
   async function init() {

@@ -818,3 +818,12 @@ img { max-width: 100%; display: block; }
 .sprite-table th { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--bg); }
 .sprite-pic { width: 56px; }
 .sprite-pic svg { width: 40px; height: 40px; display: block; }
+
+/* Code textarea in the edit-post dialog (dark + monospace). */
+.pwl-share-form textarea.pwl-code-edit {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem; line-height: 1.5;
+  background: var(--code-bg); color: var(--code-text);
+  border-color: #2a2f57; min-height: 220px; white-space: pre; tab-size: 4; -moz-tab-size: 4;
+}
+.cc-edit { margin-left: auto; }

@@ -488,7 +488,7 @@
         "    game.frame()\n"
     },
     {
-      title: "Game: whack-a-mole",
+      title: "Game: whack a mouse",
       desc: "Click the mouse with your mouse before it scurries to the next hole. It gets faster!",
       code:
         "import game\n" +
@@ -505,7 +505,7 @@
         '        holes.append(game.box(120 + col * 120, 130 + row * 95, 70, 22,\n' +
         '                              color="#3d2a1a"))\n' +
         "\n" +
-        'mole = game.sprite("🐭", 120, 116, size=44)\n' +
+        'mole = game.sprite("mouse", 120, 116, size=48)\n' +
         "score = 0\n" +
         "timer = 0\n" +
         "\n" +

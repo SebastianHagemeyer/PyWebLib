@@ -25,6 +25,7 @@
   let sort = "top";
   let projects = [];
   let votedSet = new Set();
+  let currentUserId = null;
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -61,6 +62,7 @@
     grid.hidden = false;
     grid.innerHTML = '<p class="community-empty">Loading…</p>';
     const user = PWL.auth && PWL.auth.user();
+    currentUserId = user ? user.id : null;
 
     let q = sb.from("projects").select(
       "id,title,description,code,kind,vote_count,created_at,author_id," +
@@ -99,6 +101,7 @@
     projects.forEach(function (p) {
       const commentCount = (p.comments && p.comments[0] && p.comments[0].count) || 0;
       const voted = votedSet.has(p.id);
+      const mine = currentUserId && p.author_id === currentUserId;
       const card = document.createElement("article");
       card.className = "community-card";
       card._p = p;
@@ -115,6 +118,7 @@
             '<span class="cc-arrow">&#9650;</span> <span class="cc-votes">' + p.vote_count + "</span></button>" +
           '<button type="button" class="cc-btn" data-act="open">Open in Playground</button>' +
           '<button type="button" class="cc-btn" data-act="detail">&#128172; ' + commentCount + "</button>" +
+          (mine ? '<button type="button" class="cc-btn cc-edit" data-act="edit">Edit</button>' : "") +
         "</div>";
       card.querySelector(".cc-title").textContent = p.title;
       const desc = card.querySelector(".cc-desc");
@@ -122,6 +126,7 @@
       card.querySelector('[data-act="vote"]').addEventListener("click", function () { toggleVote(p, card); });
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
+      if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });
       grid.appendChild(card);
     });
   }
@@ -252,6 +257,75 @@
         render(comments);
       });
     }
+  }
+
+  function detectKind(code) {
+    if (/(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code)) return "game";
+    if (/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return "turtle";
+    return "python";
+  }
+
+  // ---- Edit or delete your own program ----
+  function openEditor(p) {
+    const back = document.createElement("div");
+    back.className = "pwl-modal-back";
+    back.innerHTML =
+      '<div class="pwl-modal" role="dialog" aria-modal="true">' +
+        '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
+        '<h2 class="pwl-modal-title">Edit your program</h2>' +
+        '<form id="pwl-edit-form" class="pwl-share-form">' +
+          '<label>Title<input name="title" type="text" maxlength="80" required autocomplete="off" /></label>' +
+          '<label>Description (optional)<textarea name="description" maxlength="280" rows="2"></textarea></label>' +
+          '<label>Code<textarea name="code" class="pwl-code-edit" spellcheck="false" rows="12"></textarea></label>' +
+          '<div class="pwl-modal-actions">' +
+            '<button type="submit" class="btn btn-primary">Save changes</button>' +
+            '<button type="button" class="btn btn-danger" data-act="del">Delete</button>' +
+          "</div>" +
+        "</form>" +
+      "</div>";
+    const titleEl = back.querySelector('input[name="title"]');
+    const descEl = back.querySelector('textarea[name="description"]');
+    const codeEl = back.querySelector('textarea[name="code"]');
+    titleEl.value = p.title;
+    descEl.value = p.description || "";
+    codeEl.value = p.code;
+
+    function close() { back.remove(); document.removeEventListener("keydown", onKey); }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    back.addEventListener("click", function (e) { if (e.target === back) close(); });
+    back.querySelector(".pwl-modal-x").addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(back);
+    titleEl.focus();
+
+    // Two-click delete so it is not a one-tap mistake.
+    const delBtn = back.querySelector('[data-act="del"]');
+    let armed = false;
+    delBtn.addEventListener("click", async function () {
+      if (!armed) { armed = true; delBtn.textContent = "Click again to delete"; return; }
+      delBtn.disabled = true;
+      const res = await sb.from("projects").delete().eq("id", p.id);
+      if (res.error) { delBtn.disabled = false; toast("Couldn't delete: " + res.error.message); return; }
+      close(); toast("Deleted."); refresh();
+    });
+
+    back.querySelector("#pwl-edit-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const title = titleEl.value.trim();
+      const code = codeEl.value;
+      if (!title || !code.trim()) return;
+      const submit = back.querySelector('button[type="submit"]');
+      submit.disabled = true; submit.textContent = "Saving…";
+      const res = await sb.from("projects").update({
+        title: title,
+        description: descEl.value.trim() || null,
+        code: code,
+        kind: detectKind(code),
+        updated_at: new Date().toISOString()
+      }).eq("id", p.id);
+      if (res.error) { submit.disabled = false; submit.textContent = "Save changes"; toast("Couldn't save: " + res.error.message); return; }
+      close(); toast("Saved."); refresh();
+    });
   }
 
   // ---- Sort tabs ----
