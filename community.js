@@ -42,6 +42,14 @@
     const d = Math.floor(h / 24); if (d < 30) return d + "d ago";
     return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
   }
+  // Show "updated Xd ago" once a post has been edited (its updated_at pulls
+  // meaningfully ahead of created_at), otherwise just when it was shared.
+  function whenLabel(p) {
+    const made = new Date(p.created_at).getTime();
+    const edited = new Date(p.updated_at || p.created_at).getTime();
+    if (edited && made && edited - made > 60000) return "updated " + timeAgo(p.updated_at);
+    return timeAgo(p.created_at);
+  }
   function toast(msg) {
     let t = document.getElementById("pwl-toast");
     if (!t) { t = document.createElement("div"); t.id = "pwl-toast"; t.className = "toast"; document.body.appendChild(t); }
@@ -65,7 +73,7 @@
     currentUserId = user ? user.id : null;
 
     let q = sb.from("projects").select(
-      "id,title,description,code,kind,scene,vote_count,created_at,author_id," +
+      "id,title,description,code,kind,scene,vote_count,created_at,updated_at,author_id," +
       "profiles!author_id(display_name,avatar_url),comments(count)"
     );
     if (mineOnly && user) q = q.eq("author_id", user.id);
@@ -113,7 +121,7 @@
         "</div>" +
         '<p class="cc-desc"></p>' +
         '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
-          ' &middot; ' + esc(timeAgo(p.created_at)) + "</span></div>" +
+          ' &middot; ' + esc(whenLabel(p)) + "</span></div>" +
         '<div class="cc-actions">' +
           '<button type="button" class="cc-vote' + (voted ? " voted" : "") + '" data-act="vote" title="Upvote">' +
             '<span class="cc-arrow"><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M8 4l5 6.5H3z" fill="currentColor"/></svg></span> <span class="cc-votes">' + p.vote_count + "</span></button>" +
@@ -177,7 +185,8 @@
         '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
         '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
         '<h2 class="pwl-modal-title"></h2>' +
-        '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) + "</span></div>" +
+        '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
+          ' &middot; ' + esc(whenLabel(p)) + "</span></div>" +
         '<p class="pwl-modal-desc"></p>' +
         '<pre class="pwl-modal-code"></pre>' +
         '<div class="pwl-modal-actions">' +

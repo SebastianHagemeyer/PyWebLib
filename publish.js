@@ -66,13 +66,29 @@
     };
   }
 
-  function openShareModal() {
+  async function openShareModal() {
     const code = currentCode();
     if (!code.trim()) { toast("Write some code first, then share it."); return; }
     const kind = detectKind(code);
     const P = window.PWL || {};
     // Use the live scene only if it came from running THIS code.
     const scene = (P.lastGameScene && P.lastGameSceneCode === code) ? P.lastGameScene : null;
+    const user = PWL.auth && PWL.auth.user();
+
+    // The author's existing programs, so they can overwrite one instead of
+    // always publishing a fresh copy.
+    let mine = [];
+    if (user) {
+      const r = await sb.from("projects").select("id,title,description")
+        .eq("author_id", user.id).order("updated_at", { ascending: false });
+      if (!r.error && r.data) mine = r.data;
+    }
+    const targetField = mine.length
+      ? '<label>Publish to<select name="target">' +
+          '<option value="">A new program</option>' +
+          mine.map(function (m) { return '<option value="' + esc(m.id) + '">Update: ' + esc(m.title) + "</option>"; }).join("") +
+        "</select></label>"
+      : "";
 
     const back = document.createElement("div");
     back.className = "pwl-modal-back";
@@ -83,6 +99,7 @@
         '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
         (kind === "game" ? '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' : "") +
         '<form id="pwl-share-form" class="pwl-share-form">' +
+          targetField +
           '<label>Title<input name="title" type="text" maxlength="80" required autocomplete="off" placeholder="My cool ' + esc(kind) + " program\" /></label>" +
           '<label>Description (optional)<textarea name="description" maxlength="280" rows="2" placeholder="What does it do? Any keys to press?"></textarea></label>' +
           '<pre class="pwl-modal-code"></pre>' +
@@ -99,32 +116,68 @@
     document.body.appendChild(back);
     const pv = back.querySelector(".pwl-share-preview");
     if (pv && window.PWL.preview) { try { window.PWL.preview.renderInto(pv, code, scene); } catch (e) {} }
-    back.querySelector('input[name="title"]').focus();
 
-    back.querySelector("#pwl-share-form").addEventListener("submit", async function (e) {
+    const form = back.querySelector("#pwl-share-form");
+    const titleEl = form.querySelector('input[name="title"]');
+    const descEl = form.querySelector('textarea[name="description"]');
+    const targetEl = form.querySelector('select[name="target"]');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    // Choosing an existing program fills in its title and description and turns
+    // the button into an update; "A new program" resets to a fresh post.
+    if (targetEl) {
+      targetEl.addEventListener("change", function () {
+        const m = mine.filter(function (x) { return x.id === targetEl.value; })[0];
+        if (m) {
+          titleEl.value = m.title || "";
+          descEl.value = m.description || "";
+          submitBtn.textContent = "Update program";
+        } else {
+          submitBtn.textContent = "Publish";
+        }
+      });
+    }
+    titleEl.focus();
+
+    form.addEventListener("submit", async function (e) {
       e.preventDefault();
-      const user = PWL.auth && PWL.auth.user();
-      if (!user) { PWL.auth.signInWithGoogle(); return; }
-      const fd = new FormData(e.target);
-      const title = String(fd.get("title") || "").trim();
+      const u = PWL.auth && PWL.auth.user();
+      if (!u) { PWL.auth.signInWithGoogle(); return; }
+      const title = titleEl.value.trim();
       if (!title) return;
-      const submit = e.target.querySelector('button[type="submit"]');
-      submit.disabled = true; submit.textContent = "Publishing…";
-      const res = await sb.from("projects").insert({
-        author_id: user.id,
-        title: title,
-        description: String(fd.get("description") || "").trim() || null,
-        code: code,
-        kind: kind,
-        scene: scene ? JSON.stringify(trimScene(scene)) : null
-      }).select("id").single();
+      const targetId = targetEl ? targetEl.value : "";
+      const sceneJson = scene ? JSON.stringify(trimScene(scene)) : null;
+      submitBtn.disabled = true;
+      submitBtn.textContent = targetId ? "Updating…" : "Publishing…";
+      let res;
+      if (targetId) {
+        // Overwrite the chosen program with the current editor code. RLS only
+        // lets an author touch their own rows, and the list is theirs anyway.
+        res = await sb.from("projects").update({
+          title: title,
+          description: descEl.value.trim() || null,
+          code: code,
+          kind: kind,
+          scene: sceneJson,
+          updated_at: new Date().toISOString()
+        }).eq("id", targetId).select("id").single();
+      } else {
+        res = await sb.from("projects").insert({
+          author_id: u.id,
+          title: title,
+          description: descEl.value.trim() || null,
+          code: code,
+          kind: kind,
+          scene: sceneJson
+        }).select("id").single();
+      }
       if (res.error) {
-        submit.disabled = false; submit.textContent = "Publish";
-        toast("Couldn't publish: " + res.error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = targetId ? "Update program" : "Publish";
+        toast("Couldn't save: " + res.error.message);
         return;
       }
       close();
-      toast("Shared! Taking you to the community…");
+      toast(targetId ? "Updated! Taking you to the community…" : "Shared! Taking you to the community…");
       setTimeout(function () { window.location.href = "community/"; }, 700);
     });
   }
