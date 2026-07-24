@@ -827,3 +827,17 @@ img { max-width: 100%; display: block; }
   border-color: #2a2f57; min-height: 220px; white-space: pre; tab-size: 4; -moz-tab-size: 4;
 }
 .cc-edit { margin-left: auto; }
+
+/* Community card preview poster (preview.js) */
+.community-card { overflow: hidden; }
+.cc-thumb-wrap {
+  margin: -16px -18px 12px;
+  background: #0b1020;
+  border-bottom: 1px solid var(--border);
+  aspect-ratio: 320 / 180;
+  overflow: hidden;
+}
+.cc-thumb { display: block; width: 100%; height: 100%; }
+.cc-arrow { display: inline-flex; }
+.cc-arrow svg, .cc-comment-btn svg { display: block; }
+.cc-comment-btn { display: inline-flex; align-items: center; gap: 5px; }

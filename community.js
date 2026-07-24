@@ -106,6 +106,7 @@
       card.className = "community-card";
       card._p = p;
       card.innerHTML =
+        '<div class="cc-thumb-wrap"><canvas class="cc-thumb" width="320" height="180"></canvas></div>' +
         '<div class="cc-head">' +
           '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
           '<h3 class="cc-title"></h3>' +
@@ -115,9 +116,9 @@
           ' &middot; ' + esc(timeAgo(p.created_at)) + "</span></div>" +
         '<div class="cc-actions">' +
           '<button type="button" class="cc-vote' + (voted ? " voted" : "") + '" data-act="vote" title="Upvote">' +
-            '<span class="cc-arrow">&#9650;</span> <span class="cc-votes">' + p.vote_count + "</span></button>" +
+            '<span class="cc-arrow"><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M8 4l5 6.5H3z" fill="currentColor"/></svg></span> <span class="cc-votes">' + p.vote_count + "</span></button>" +
           '<button type="button" class="cc-btn" data-act="open">Open in Playground</button>' +
-          '<button type="button" class="cc-btn" data-act="detail">&#128172; ' + commentCount + "</button>" +
+          '<button type="button" class="cc-btn cc-comment-btn" data-act="detail"><svg class="cc-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3 2h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H7l-3 3v-3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="currentColor"/></svg> ' + commentCount + "</button>" +
           (mine ? '<button type="button" class="cc-btn cc-edit" data-act="edit">Edit</button>' : "") +
         "</div>";
       card.querySelector(".cc-title").textContent = p.title;
@@ -127,6 +128,7 @@
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
       if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });
+      if (window.PWL.preview) { try { window.PWL.preview.renderInto(card.querySelector(".cc-thumb"), p.code); } catch (e) {} }
       grid.appendChild(card);
     });
   }
