@@ -997,6 +997,12 @@ while game.playing():
   // Let the community pages read the current editor code (publish.js).
   window.PWL = window.PWL || {};
   window.PWL.getCode = getCode;
+  // Load a program's code into the editor without a reload, and bind the editor
+  // to it (so Share offers to update it). Used by the "My programs" picker.
+  window.PWL.loadProgram = function (code, bind) {
+    loadInto(code, "Loaded from your programs");
+    setEditing(bind || null);
+  };
 
   if (resetBtn) resetBtn.addEventListener("click", function () {
     loadInto(DEFAULT_CODE, "Reset to the example");

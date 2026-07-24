@@ -15,6 +15,12 @@
   const sb = PWL.supabase;
   const PROGRAM_CAP = 10;   // keep in step with enforce_project_limit() in supabase-schema.sql
 
+  // "My programs" quick-picker, inserted just under the share panel.
+  const myHost = document.createElement("div");
+  myHost.className = "pwl-myprograms";
+  if (host.parentNode) host.parentNode.insertBefore(myHost, host.nextSibling);
+  let myPrograms = [];
+
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -229,7 +235,36 @@
     });
   }
 
-  document.addEventListener("pwl:auth", render);
+  async function loadMine() {
+    const user = PWL.auth && PWL.auth.user();
+    if (!user) { myPrograms = []; renderMine(); return; }
+    const r = await sb.from("projects").select("id,title,code,author_id")
+      .eq("author_id", user.id).order("updated_at", { ascending: false });
+    myPrograms = (!r.error && r.data) ? r.data : [];
+    renderMine();
+  }
+  function renderMine() {
+    if (!myPrograms.length) { myHost.innerHTML = ""; return; }
+    myHost.innerHTML =
+      '<div class="pwl-mine">' +
+        '<span class="pwl-mine-title">Your programs</span>' +
+        '<select id="pwl-mine-select" aria-label="Open one of your programs">' +
+          '<option value="">Open one of your published programs…</option>' +
+          myPrograms.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.title) + "</option>"; }).join("") +
+        "</select>" +
+      "</div>";
+    const sel = document.getElementById("pwl-mine-select");
+    sel.addEventListener("change", function () {
+      const p = myPrograms.filter(function (x) { return x.id === sel.value; })[0];
+      sel.value = "";
+      if (p && window.PWL.loadProgram) {
+        window.PWL.loadProgram(p.code, { id: p.id, title: p.title, author_id: p.author_id });
+      }
+    });
+  }
+
+  document.addEventListener("pwl:auth", function () { render(); loadMine(); });
   document.addEventListener("pwl:editing", render);
   render();
+  loadMine();
 })();
