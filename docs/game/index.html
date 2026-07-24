@@ -70,7 +70,7 @@ while game.playing():
     if game.pressed("up"):    chicken.y = chicken.y - 6
     if game.pressed("down"):  chicken.y = chicken.y + 6
     game.frame()</pre>
-          <p><button type="button" class="btn btn-primary" data-load="ex-first">Try it in the Playground &rarr;</button></p>
+          <p><button type="button" class="btn btn-primary" data-load="ex-first">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
           <p class="callout"><strong>The golden rule of the loop:</strong> every game loop ends with <code>game.frame()</code>. Forget it and the loop spins invisibly forever without ever drawing. Press <strong>Stop</strong> (or <kbd>Ctrl</kbd>+<kbd>C</kbd> is not needed, just the Stop button) any time to end a game.</p>
           <p class="callout"><strong>Chrome or Edge.</strong> The trick that keeps the game moving without freezing the tab needs those browsers, the same as <code>input()</code> and <code>time.sleep()</code> here. In other browsers the window shows a friendly message instead.</p>
         </section>
@@ -139,7 +139,7 @@ while game.playing():
         egg.x = random.randint(30, 450)
         egg.y = 0
     game.frame()</pre>
-          <p><button type="button" class="btn btn-primary" data-load="ex-catch">Try it in the Playground &rarr;</button></p>
+          <p><button type="button" class="btn btn-primary" data-load="ex-catch">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
           <p>The collision box turns with the sprite's <code>.angle</code> and stretches with its scale. Set your own with <code>sprite.hitbox = (width, height)</code> for a tighter fit, or turn on <code>game.debug(True)</code> right after <code>game.window(...)</code> to see every box outlined in red.</p>
         </section>
 
@@ -166,7 +166,7 @@ coin = game.sprite("coin", 240, 180, size=80)
 while game.playing():
     coin.angle = coin.angle + 6   # turn 6 degrees every frame
     game.frame()</pre>
-          <p><button type="button" class="btn btn-primary" data-load="ex-spin">Try it in the Playground &rarr;</button></p>
+          <p><button type="button" class="btn btn-primary" data-load="ex-spin">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
         </section>
 
         <section id="box">
@@ -188,7 +188,7 @@ while game.playing():
         bumps = bumps + 1
         board.content = "Bumps: " + str(bumps)
     game.frame()</pre>
-          <p><button type="button" class="btn btn-primary" data-load="ex-box">Try it in the Playground &rarr;</button></p>
+          <p><button type="button" class="btn btn-primary" data-load="ex-box">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
         </section>
 
         <section id="over">
@@ -207,7 +207,7 @@ while game.playing():
           </ul>
           <p class="callout"><strong>Coordinates.</strong> The top-left corner is <code>(0, 0)</code>. <code>x</code> grows to the <em>right</em> and <code>y</code> grows <em>downward</em>, so a bigger <code>y</code> is further <em>down</em> the screen. That catches everyone out at first.</p>
           <p>Now open the <a href="../../">Playground</a>, type <code>import game</code>, and build something. Load the "Game" example cards, change a number, and see what happens.</p>
-          <p><a href="../../" class="btn btn-primary">Open the Playground &rarr;</a> <a href="../#sec-game" class="btn btn-ghost">Full call reference</a></p>
+          <p><a href="../../" class="btn btn-primary">Open the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a> <a href="../#sec-game" class="btn btn-ghost">Full call reference</a></p>
         </section>
 
       </article>
