@@ -1,0 +1,117 @@
+/*
+ * PWL inline player: run a shared program (game / turtle / python) right where
+ * you are, without opening the full Playground. It boots one Pyodide through
+ * PyRun, mounts a game/turtle canvas plus an output pane, loads the code into a
+ * hidden editor, and auto-runs so it "just plays".
+ *
+ * Used by the community cards (in a modal) and by the program page (inline).
+ * Needs pyrun.js and sprites.js on the page. Games need JSPI (Chrome/Edge 137+).
+ */
+(function () {
+  "use strict";
+  const PWL = (window.PWL = window.PWL || {});
+
+  function kindOf(code) {
+    if (/(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code || "")) return "game";
+    if (/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code || "")) return "turtle";
+    return "python";
+  }
+  function supported() { return !!window.PyRun; }
+  function jspiOk() { return !!(window.PyRun && window.PyRun.jspiSupported()); }
+
+  // Build the player DOM into `container` and start running
+  // program = { code, kind, title }. Returns { runner, destroy }.
+  function mount(container, program) {
+    const kind = program.kind || kindOf(program.code);
+    container.innerHTML =
+      '<div class="pwl-player pwl-player-is-' + kind + '">' +
+        '<div class="pwl-player-bar">' +
+          '<span class="pwl-player-hint">' + (kind === "game" ? "click the game, then use the arrow keys" : "") + "</span>" +
+          '<button type="button" class="btn btn-primary pwl-player-run"><span class="sandbox-run-label">Run</span></button>' +
+        "</div>" +
+        '<div class="pwl-player-stage">' +
+          '<div class="turtle-stage pwl-player-turtle-wrap"' + (kind === "turtle" ? "" : " hidden") + ">" +
+            '<canvas class="pwl-player-turtle" width="560" height="380"></canvas>' +
+            '<canvas class="pwl-player-sprite" width="560" height="380"></canvas>' +
+          "</div>" +
+          '<div class="game-stage pwl-player-game-wrap"' + (kind === "game" ? "" : " hidden") + ">" +
+            '<canvas class="pwl-player-game" width="480" height="360" tabindex="0"></canvas>' +
+          "</div>" +
+        "</div>" +
+        '<pre class="pwl-player-out sandbox-out-body"></pre>' +
+      "</div>";
+
+    const runBtn = container.querySelector(".pwl-player-run");
+    const outEl = container.querySelector(".pwl-player-out");
+    const gameCanvas = container.querySelector(".pwl-player-game");
+    const turtleCanvas = container.querySelector(".pwl-player-turtle");
+    const spriteCanvas = container.querySelector(".pwl-player-sprite");
+    const turtleWrap = container.querySelector(".pwl-player-turtle-wrap");
+    const gameWrap = container.querySelector(".pwl-player-game-wrap");
+
+    // A hidden editor holds the code; there is no visible editor in the player.
+    const editorEl = document.createElement("div");
+    editorEl.style.display = "none";
+    container.appendChild(editorEl);
+
+    const needsJspi = kind === "game" || kind === "turtle";
+    if (needsJspi && !jspiOk()) {
+      outEl.textContent =
+        "This browser can't run it here yet: games and turtle need Chrome or Edge 137+ " +
+        "(for WebAssembly stack switching). Try \"Open in the Playground\", or update your browser.";
+    }
+
+    const runner = window.PyRun.create({
+      editor: editorEl,
+      output: outEl,
+      runBtn: runBtn,
+      defaultCode: program.code,
+      storageKey: null,
+      turtle: { canvas: turtleCanvas, sprite: spriteCanvas },
+      game: { canvas: gameCanvas },
+      onChange: function (code) {
+        const k = kindOf(code);
+        turtleWrap.hidden = k !== "turtle";
+        gameWrap.hidden = k !== "game";
+      }
+    });
+    runner.setCode(program.code);
+    // Auto-run so a click on Play just plays. Skip auto-run only when a game or
+    // turtle can't run here (no JSPI); the Run button is still there to try.
+    if (!needsJspi || jspiOk()) runner.run();
+
+    return {
+      runner: runner,
+      destroy: function () { try { runner.stop(); } catch (e) {} container.innerHTML = ""; }
+    };
+  }
+
+  // Open the player in a modal (used by community cards).
+  function openModal(program) {
+    const back = document.createElement("div");
+    back.className = "pwl-modal-back";
+    back.innerHTML =
+      '<div class="pwl-modal pwl-player-modal" role="dialog" aria-modal="true">' +
+        '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
+        '<h2 class="pwl-modal-title"></h2>' +
+        '<div class="pwl-player-host"></div>' +
+      "</div>";
+    back.querySelector(".pwl-modal-title").textContent = program.title || "Play";
+    const host = back.querySelector(".pwl-player-host");
+    let session = null;
+    function close() {
+      if (session) session.destroy();
+      back.remove();
+      document.removeEventListener("keydown", onKey);
+    }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    back.addEventListener("click", function (e) { if (e.target === back) close(); });
+    back.querySelector(".pwl-modal-x").addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(back);
+    session = mount(host, program);
+    return { close: close };
+  }
+
+  PWL.player = { mount: mount, openModal: openModal, supported: supported, jspiOk: jspiOk, kindOf: kindOf };
+})();

@@ -114,10 +114,14 @@
       card.className = "community-card";
       card._p = p;
       card.innerHTML =
-        '<div class="cc-thumb-wrap"><canvas class="cc-thumb" width="320" height="180"></canvas></div>' +
+        '<a class="cc-thumb-wrap" href="../game/?id=' + encodeURIComponent(p.id) + '"><canvas class="cc-thumb" width="320" height="180"></canvas></a>' +
         '<div class="cc-head">' +
           '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
           '<h3 class="cc-title"></h3>' +
+          '<button type="button" class="cc-play" data-act="play" title="' + (p.kind === "game" ? "Play" : "Run") + '">' +
+            '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3l9 5-9 5z" fill="currentColor"/></svg> ' +
+            (p.kind === "game" ? "Play" : "Run") +
+          "</button>" +
         "</div>" +
         '<p class="cc-desc"></p>' +
         '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
@@ -133,6 +137,9 @@
       const desc = card.querySelector(".cc-desc");
       if (p.description) desc.textContent = p.description; else desc.remove();
       card.querySelector('[data-act="vote"]').addEventListener("click", function () { toggleVote(p, card); });
+      card.querySelector('[data-act="play"]').addEventListener("click", function () {
+        if (window.PWL.player) window.PWL.player.openModal({ code: p.code, kind: p.kind, title: p.title });
+      });
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
       if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });

@@ -1,0 +1,237 @@
+/*
+ * PyWebLib program page (/game/?id=<uuid>): a shareable page for a single
+ * shared program. Shows a preview you can Play inline (no Playground needed),
+ * the description and code, an upvote and comments, plus "Open in the
+ * Playground" (which binds the editor to this program) and "Copy link".
+ */
+(function () {
+  "use strict";
+
+  const PWL = window.PWL || {};
+  const sb = PWL.supabase;
+  const notice = document.getElementById("pg-notice");
+  const view = document.getElementById("pg-view");
+  if (!view) return;
+
+  const id = new URLSearchParams(location.search).get("id");
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function timeAgo(iso) {
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return "";
+    const s = Math.max(1, Math.floor((Date.now() - then) / 1000));
+    if (s < 60) return "just now";
+    const m = Math.floor(s / 60); if (m < 60) return m + "m ago";
+    const h = Math.floor(m / 60); if (h < 24) return h + "h ago";
+    const d = Math.floor(h / 24); if (d < 30) return d + "d ago";
+    return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  }
+  function whenLabel(p) {
+    const made = new Date(p.created_at).getTime();
+    const edited = new Date(p.updated_at || p.created_at).getTime();
+    if (edited && made && edited - made > 60000) return "updated " + timeAgo(p.updated_at);
+    return timeAgo(p.created_at);
+  }
+  function avatarOf(profile) {
+    const url = profile && profile.avatar_url;
+    const name = (profile && profile.display_name) || "Someone";
+    if (url) return '<img class="pwl-avatar sm" src="' + esc(url) + '" alt="" referrerpolicy="no-referrer" />';
+    return '<span class="pwl-avatar sm pwl-avatar-text">' + esc((name[0] || "?").toUpperCase()) + "</span>";
+  }
+  function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
+  function toast(msg) {
+    let t = document.getElementById("pwl-toast");
+    if (!t) { t = document.createElement("div"); t.id = "pwl-toast"; t.className = "toast"; document.body.appendChild(t); }
+    t.textContent = msg;
+    requestAnimationFrame(function () { t.classList.add("show"); });
+    clearTimeout(t._timer); t._timer = setTimeout(function () { t.classList.remove("show"); }, 3000);
+  }
+  function showNotice(msg) {
+    if (notice) { notice.textContent = msg; notice.hidden = false; }
+    view.hidden = true;
+  }
+
+  if (!PWL.configured || !sb) {
+    showNotice("The community isn't switched on yet. It needs a Supabase project with Google sign-in.");
+    return;
+  }
+  if (!id) {
+    showNotice("No program was named. Browse the community to find one.");
+    return;
+  }
+
+  async function load() {
+    const { data, error } = await sb.from("projects").select(
+      "id,title,description,code,kind,scene,vote_count,created_at,updated_at,author_id," +
+      "profiles!author_id(display_name,avatar_url),comments(count)"
+    ).eq("id", id).single();
+    if (error || !data) {
+      showNotice("That program couldn't be found. It may have been deleted.");
+      return;
+    }
+    render(data);
+  }
+
+  function render(p) {
+    document.title = (p.title || "Program") + " | PyWebLib";
+    const kind = p.kind || "python";
+    const playLabel = kind === "game" ? "Play" : "Run";
+    view.hidden = false;
+    view.innerHTML =
+      '<div class="cc-head">' +
+        '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
+        '<h1 class="pg-title"></h1>' +
+      "</div>" +
+      '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
+        " &middot; " + esc(whenLabel(p)) + "</span></div>" +
+      '<div class="pg-play" id="pg-play"></div>' +
+      '<p class="pg-desc"></p>' +
+      '<div class="pg-actions">' +
+        '<button type="button" class="btn btn-primary" id="pg-open">Open in the Playground</button>' +
+        '<button type="button" class="cc-vote" id="pg-vote" title="Upvote">' +
+          '<span class="cc-arrow"><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M8 4l5 6.5H3z" fill="currentColor"/></svg></span> ' +
+          '<span class="cc-votes">' + p.vote_count + "</span></button>" +
+        '<button type="button" class="btn btn-ghost" id="pg-copy">Copy link</button>' +
+      "</div>" +
+      '<h2 class="pg-h">Code</h2>' +
+      '<pre class="pwl-modal-code pg-code"></pre>' +
+      '<h2 class="pg-h">Comments</h2>' +
+      '<div class="pwl-comments" id="pg-comments">Loading…</div>' +
+      '<form class="pwl-comment-form" id="pg-comment-form" hidden>' +
+        '<input type="text" maxlength="1000" placeholder="Add a comment…" aria-label="Add a comment" />' +
+        '<button type="submit" class="btn btn-primary">Post</button>' +
+      "</form>" +
+      '<p class="pwl-comment-signin" id="pg-comment-signin" hidden>Sign in to join the conversation.</p>';
+
+    view.querySelector(".pg-title").textContent = p.title || "Untitled";
+    const desc = view.querySelector(".pg-desc");
+    if (p.description) desc.textContent = p.description; else desc.remove();
+    view.querySelector(".pg-code").textContent = p.code;
+
+    // Poster with a Play overlay: click it to run inline, no Playground needed.
+    const playHost = view.querySelector("#pg-play");
+    playHost.innerHTML =
+      '<div class="pg-poster">' +
+        '<canvas class="pg-poster-canvas" width="480" height="270"></canvas>' +
+        '<button type="button" class="pg-play-btn"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3l9 5-9 5z" fill="currentColor"/></svg> ' + playLabel + "</button>" +
+      "</div>";
+    const posterCanvas = playHost.querySelector(".pg-poster-canvas");
+    if (window.PWL.preview) { try { window.PWL.preview.renderInto(posterCanvas, p.code, p.scene); } catch (e) {} }
+    playHost.querySelector(".pg-play-btn").addEventListener("click", function () {
+      if (!window.PWL.player) { toast("The player isn't ready, try refreshing."); return; }
+      window.PWL.player.mount(playHost, { code: p.code, kind: kind, title: p.title });
+    });
+
+    // Open in the Playground, bound to this program so a re-share updates it.
+    view.querySelector("#pg-open").addEventListener("click", function () {
+      try {
+        localStorage.setItem("pyweblib-load", p.code);
+        localStorage.setItem("pyweblib-bind", JSON.stringify({ id: p.id, title: p.title, author_id: p.author_id }));
+      } catch (e) {}
+      window.location.href = "../";
+    });
+
+    view.querySelector("#pg-copy").addEventListener("click", function () {
+      const url = location.href;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { toast("Link copied!"); }, function () { toast(url); });
+      } else { toast(url); }
+    });
+
+    wireVote(p);
+    loadComments(p);
+  }
+
+  async function wireVote(p) {
+    const btn = document.getElementById("pg-vote");
+    let voted = false;
+    const user = PWL.auth && PWL.auth.user();
+    if (user) {
+      const r = await sb.from("votes").select("project_id").eq("user_id", user.id).eq("project_id", p.id);
+      voted = !!(r.data && r.data.length);
+      btn.classList.toggle("voted", voted);
+    }
+    btn.addEventListener("click", async function () {
+      if (!PWL.auth || !PWL.auth.requireSignIn()) return;
+      const uid = PWL.auth.user().id;
+      voted = !voted;
+      p.vote_count = Math.max(0, p.vote_count + (voted ? 1 : -1));
+      btn.classList.toggle("voted", voted);
+      btn.querySelector(".cc-votes").textContent = p.vote_count;
+      try {
+        if (voted) await sb.from("votes").insert({ project_id: p.id, user_id: uid });
+        else await sb.from("votes").delete().eq("project_id", p.id).eq("user_id", uid);
+      } catch (e) {
+        voted = !voted;
+        p.vote_count = Math.max(0, p.vote_count + (voted ? 1 : -1));
+        btn.classList.toggle("voted", voted);
+        btn.querySelector(".cc-votes").textContent = p.vote_count;
+        toast("Vote didn't save, try again.");
+      }
+    });
+  }
+
+  async function loadComments(p) {
+    const box = document.getElementById("pg-comments");
+    const form = document.getElementById("pg-comment-form");
+    const signin = document.getElementById("pg-comment-signin");
+    const user = PWL.auth && PWL.auth.user();
+    if (user) form.hidden = false; else signin.hidden = false;
+
+    const { data, error } = await sb.from("comments")
+      .select("id,body,created_at,user_id,profiles(display_name,avatar_url)")
+      .eq("project_id", p.id).order("created_at", { ascending: true });
+    if (error) { box.textContent = "Could not load comments."; return; }
+    let comments = data || [];
+
+    function render(list) {
+      if (!list.length) { box.innerHTML = '<p class="pwl-comments-empty">No comments yet. Say something nice!</p>'; return; }
+      box.innerHTML = "";
+      list.forEach(function (c) {
+        const row = document.createElement("div");
+        row.className = "pwl-comment";
+        row.innerHTML =
+          avatarOf(c.profiles) +
+          '<div class="pwl-comment-body"><span class="pwl-comment-name">' + nameOf(c.profiles) +
+          ' <span class="pwl-comment-when">' + esc(timeAgo(c.created_at)) + "</span></span>" +
+          '<span class="pwl-comment-text"></span></div>' +
+          (user && c.user_id === user.id ? '<button type="button" class="pwl-comment-del" title="Delete">&times;</button>' : "");
+        row.querySelector(".pwl-comment-text").textContent = c.body;
+        const del = row.querySelector(".pwl-comment-del");
+        if (del) del.addEventListener("click", async function () {
+          await sb.from("comments").delete().eq("id", c.id);
+          comments = comments.filter(function (x) { return x.id !== c.id; });
+          render(comments);
+        });
+        box.appendChild(row);
+      });
+    }
+    render(comments);
+
+    if (user) {
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const input = form.querySelector("input");
+        const body = (input.value || "").trim();
+        if (!body) return;
+        input.value = "";
+        const ins = await sb.from("comments")
+          .insert({ project_id: p.id, user_id: user.id, body: body })
+          .select("id,body,created_at,user_id,profiles(display_name,avatar_url)").single();
+        if (ins.error) { toast("Comment didn't post."); return; }
+        comments.push(ins.data);
+        render(comments);
+      });
+    }
+  }
+
+  // Re-run once auth resolves (so votes/comments reflect the signed-in user).
+  let loaded = false;
+  function start() { if (loaded) return; loaded = true; load(); }
+  document.addEventListener("pwl:auth", function () { /* auth affects vote/comment UI on next load */ });
+  start();
+})();

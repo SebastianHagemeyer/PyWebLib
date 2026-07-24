@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Community | PyWebLib</title>
-  <meta name="description" content="Browse Python programs shared by the PyWebLib community: turtle drawings, browser games and more. Upvote your favourites and open any one in the Playground." />
+  <title>Program | PyWebLib</title>
+  <meta name="description" content="Play a Python program shared on PyWebLib right in your browser: games and turtle drawings, no install. Open it in the Playground to tinker." />
   <meta name="color-scheme" content="light" />
   <meta name="theme-color" content="#4f46e5" />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=2" />
@@ -20,7 +20,7 @@
       </a>
       <nav class="site-nav" aria-label="Primary">
         <a class="header-link" href="../">Playground</a>
-        <a class="header-link active" href="./">Community</a>
+        <a class="header-link" href="../community/">Community</a>
         <a class="header-link" href="../leaderboard/">Leaderboard</a>
         <a class="header-link" href="../docs/">Docs</a>
         <span id="pwl-account" class="pwl-account" data-root="../"></span>
@@ -29,29 +29,9 @@
   </header>
 
   <main>
-    <section class="page-hero">
-      <div class="container">
-        <p class="eyebrow">Made by the community</p>
-        <h1>Community</h1>
-        <p class="lead">Programs people have shared: turtle art, browser games and more. Upvote the ones you like, open any in the <a href="../">Playground</a> to tinker, or share your own.</p>
-      </div>
-    </section>
-
     <div class="container section">
-      <div class="community-toolbar" id="community-toolbar">
-        <div class="community-tabs" role="tablist" aria-label="Sort programs">
-          <button class="community-tab active" data-sort="top" role="tab">Top</button>
-          <button class="community-tab" data-sort="new" role="tab">New</button>
-        </div>
-        <a class="btn btn-primary" href="../">Share your own &rarr;</a>
-      </div>
-
-      <p class="community-notice" id="community-notice" hidden>
-        The community isn't switched on yet. It needs a Supabase project with Google sign-in.
-        See <strong>Community setup</strong> in the project README.
-      </p>
-
-      <div class="community-grid" id="community-grid"></div>
+      <p class="community-notice" id="pg-notice" hidden></p>
+      <article class="pg-view" id="pg-view" hidden></article>
     </div>
   </main>
 
@@ -69,6 +49,6 @@
   <script src="../preview.js"></script>
   <script src="../pyrun.js"></script>
   <script src="../player.js"></script>
-  <script src="../community.js"></script>
+  <script src="../program.js"></script>
 </body>
 </html>
