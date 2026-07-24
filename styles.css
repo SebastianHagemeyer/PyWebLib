@@ -688,6 +688,10 @@ img { max-width: 100%; display: block; }
 }
 .share-cta h2 { margin: 0 0 2px; font-size: 1.1rem; }
 .share-cta p { margin: 0; color: var(--muted); font-size: 0.92rem; max-width: 46ch; }
+.share-cta-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* A thicker inline arrow for buttons, replacing the thin -> glyph. */
+.btn-arrow { width: 15px; height: 15px; margin-left: 6px; vertical-align: -2px; }
 
 /* Community gallery (community.js) */
 .community-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }

@@ -45,13 +45,39 @@
         "</div>";
       return; // data-pwl="signin" is handled by auth.js
     }
+    const editing = (window.PWL && window.PWL.editing) || null;
+    const owned = editing && editing.author_id === user.id;
+    if (editing && owned) {
+      host.innerHTML =
+        '<div class="share-cta">' +
+          "<div><h2>Editing: " + esc(editing.title) + "</h2>" +
+          "<p>What you publish will update this program. Or share it as a brand new one.</p></div>" +
+          '<div class="share-cta-btns">' +
+            '<button type="button" class="btn btn-primary" id="pwl-update-btn">Update this program</button>' +
+            '<button type="button" class="btn btn-ghost" id="pwl-new-btn">Share as new</button>' +
+          "</div>" +
+        "</div>";
+      document.getElementById("pwl-update-btn").addEventListener("click", function () { openShareModal(editing.id); });
+      document.getElementById("pwl-new-btn").addEventListener("click", function () { openShareModal(); });
+      return;
+    }
+    if (editing && !owned) {
+      host.innerHTML =
+        '<div class="share-cta">' +
+          "<div><h2>Remixing: " + esc(editing.title) + "</h2>" +
+          "<p>This one belongs to someone else, so publishing shares your own copy.</p></div>" +
+          '<button type="button" class="btn btn-primary" id="pwl-share-btn">Share as your own</button>' +
+        "</div>";
+      document.getElementById("pwl-share-btn").addEventListener("click", function () { openShareModal(); });
+      return;
+    }
     host.innerHTML =
       '<div class="share-cta">' +
         '<div><h2>Share your program</h2><p>Publish what is in the editor to the community gallery.</p></div>' +
         '<button type="button" class="btn btn-primary" id="pwl-share-btn">Share to community</button>' +
       "</div>";
     const btn = document.getElementById("pwl-share-btn");
-    if (btn) btn.addEventListener("click", openShareModal);
+    if (btn) btn.addEventListener("click", function () { openShareModal(); });
   }
 
   function trimScene(scene) {
@@ -66,7 +92,7 @@
     };
   }
 
-  async function openShareModal() {
+  async function openShareModal(preselectId) {
     const code = currentCode();
     if (!code.trim()) { toast("Write some code first, then share it."); return; }
     const kind = detectKind(code);
@@ -136,6 +162,11 @@
         }
       });
     }
+    // Pre-target a program (from "Update this program" on the Playground).
+    if (preselectId && targetEl) {
+      const has = Array.prototype.some.call(targetEl.options, function (o) { return o.value === preselectId; });
+      if (has) { targetEl.value = preselectId; targetEl.dispatchEvent(new Event("change")); }
+    }
     titleEl.focus();
 
     form.addEventListener("submit", async function (e) {
@@ -183,5 +214,6 @@
   }
 
   document.addEventListener("pwl:auth", render);
+  document.addEventListener("pwl:editing", render);
   render();
 })();

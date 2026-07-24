@@ -178,7 +178,11 @@
   }
 
   function openInPlayground(p) {
-    try { localStorage.setItem("pyweblib-load", p.code); } catch (e) {}
+    try {
+      localStorage.setItem("pyweblib-load", p.code);
+      // Bind the editor to this program so a re-share updates it (if it's yours).
+      localStorage.setItem("pyweblib-bind", JSON.stringify({ id: p.id, title: p.title, author_id: p.author_id }));
+    } catch (e) {}
     // Community lives at /community/, the Playground one level up.
     window.location.href = "../";
   }

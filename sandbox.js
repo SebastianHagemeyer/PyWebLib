@@ -1021,6 +1021,16 @@
   // helper. Used by Reset, the snippet cards and My code so the UX is the
   // same everywhere - no more blocking confirm() dialogs.
   let previousCode = null;
+  // Which published program (if any) the editor is bound to. Set when a program
+  // is opened from the community or its page; publish.js reads it to offer an
+  // update instead of a brand new post.
+  function setEditing(bind) {
+    try {
+      window.PWL = window.PWL || {};
+      window.PWL.editing = bind || null;
+      document.dispatchEvent(new CustomEvent("pwl:editing"));
+    } catch (e) {}
+  }
   function loadInto(code, message) {
     const cur = getCode();
     if (cur === code) {
@@ -1030,6 +1040,7 @@
     previousCode = cur;
     runner.setCode(code);
     editor.focus();
+    setEditing(null);   // a fresh load is a new program unless a bind follows
     showToast({
       message: message,
       actionLabel: "Undo",
@@ -1096,6 +1107,12 @@
     if (pending) {
       localStorage.removeItem("pyweblib-load");
       loadInto(pending, "Loaded from the community");
+    }
+    // An accompanying bind means "you are editing this published program".
+    const bind = localStorage.getItem("pyweblib-bind");
+    if (bind) {
+      localStorage.removeItem("pyweblib-bind");
+      try { setEditing(JSON.parse(bind)); } catch (e) {}
     }
   } catch (e) { /* private mode: nothing to load */ }
 })();
