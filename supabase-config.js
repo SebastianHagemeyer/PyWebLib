@@ -16,8 +16,8 @@
 (function () {
   "use strict";
 
-  const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
-  const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+  const SUPABASE_URL = "https://dwjwbqovfxsemlnzdcye.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_QrysqcQ6IBgvOlXgDo6kxw_h6AeJQYi";
 
   const PWL = (window.PWL = window.PWL || {});
   const looksReal =
