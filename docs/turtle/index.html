@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turtle library guide | PyWebLib</title>
+  <meta name="description" content="A hands-on guide to turtle drawing in PyWebLib: a pen that walks, turning, pen colours, loops that make patterns, filling shapes, going anywhere, and every example runnable in the Playground." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg?v=2" />
+  <link rel="apple-touch-icon" href="../../favicon.svg?v=2" />
+  <link rel="stylesheet" href="../../styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../../" class="logo">
+        <img class="logo-mark" src="../../favicon.svg?v=2" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="../../">Playground</a>
+        <a class="header-link" href="../../community/">Community</a>
+        <a class="header-link" href="../../leaderboard/">Leaderboard</a>
+        <a class="header-link active" href="../">Docs</a>
+        <span id="pwl-account" class="pwl-account" data-root="../../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Docs &middot; Guide</p>
+        <h1>The turtle library</h1>
+        <p class="lead">Type <code>import turtle</code> in the <a href="../../">Playground</a> and you get a little pen that walks around a window, drawing a line behind it. Tell it to go forward, turn, change colour, and lift the pen, and you can draw anything from a square to a rainbow spiral. This is the hands-on how-to; the one-line reference for every call is on the <a href="../#sec-turtle">Docs page</a>. Every example has a <strong>Try it</strong> button that drops it into the Playground.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <nav class="guide-jump" aria-label="On this page">
+          <a href="#idea">A pen that walks</a>
+          <a href="#colour">Pen &amp; colour</a>
+          <a href="#loops">Loops make patterns</a>
+          <a href="#fill">Filling shapes</a>
+          <a href="#anywhere">Go anywhere</a>
+          <a href="#finish">Finishing touches</a>
+        </nav>
+
+        <section id="idea">
+          <h2>A pen that walks</h2>
+          <p>The turtle starts in the middle of the window, facing right. Two ideas do most of the work: <code>turtle.forward(n)</code> walks <code>n</code> steps and draws a line, and <code>turtle.left(deg)</code> or <code>turtle.right(deg)</code> turns it on the spot by a number of degrees. A square is just "go forward, turn a quarter (90 degrees)", four times.</p>
+          <pre class="guide-code language-python" id="ex-square">import turtle
+
+turtle.pensize(3)
+turtle.pencolor("teal")
+
+# Forward, then a quarter turn, four times = a square
+for side in range(4):
+    turtle.forward(120)
+    turtle.left(90)</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-square">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout"><strong>The whole toolkit is just verbs.</strong> <code>forward</code>, <code>backward</code>, <code>left</code>, <code>right</code>: you are steering. Change the <code>120</code> or the <code>90</code> and watch the shape change. Turn by <code>120</code> three times and you get a triangle; by <code>60</code> six times, a hexagon.</p>
+        </section>
+
+        <section id="colour">
+          <h2>Pen and colour</h2>
+          <p>Change how the line looks with <code>turtle.pencolor(c)</code> and how thick it is with <code>turtle.pensize(n)</code>. Any colour name works (<code>"red"</code>, <code>"gold"</code>), or a hex code like <code>"#5db8ff"</code>. To move <em>without</em> drawing, lift the pen with <code>turtle.penup()</code>, move, then <code>turtle.pendown()</code> to draw again. Paint the whole background with <code>turtle.bgcolor(c)</code>.</p>
+          <pre class="guide-code language-python">turtle.pencolor("#5db8ff")   # sky blue line
+turtle.pensize(5)            # nice and thick
+turtle.penup()               # lift: move without a line
+turtle.forward(80)
+turtle.pendown()             # down again: back to drawing</pre>
+        </section>
+
+        <section id="loops">
+          <h2>Loops make patterns</h2>
+          <p>This is where turtle gets fun. A <code>for</code> loop repeats a move-and-turn, and a tiny turn each time sweeps the drawing around into a pattern. Change one number and the whole picture changes. Here the pen walks a little further and shifts its colour every step, spiralling into a rainbow.</p>
+          <pre class="guide-code language-python" id="ex-spiral">import turtle
+
+turtle.speed(0)              # 0 means "as fast as possible"
+turtle.bgcolor("#0b1020")
+turtle.pensize(2)
+
+colours = ["#ff5d5d", "#ffb35d", "#ffe95d", "#5dff9e", "#5db8ff", "#b98cff"]
+for i in range(120):
+    turtle.pencolor(colours[i % len(colours)])
+    turtle.forward(i * 2)    # a bit further every time
+    turtle.left(59)          # not quite 60, so it spirals</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-spiral">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p>Try <code>turtle.left(60)</code> instead of <code>59</code>: the ends meet and you get a neat hexagon rosette. The magic is in that one number.</p>
+        </section>
+
+        <section id="fill">
+          <h2>Filling shapes</h2>
+          <p>To colour a shape in, set the fill colour, say <code>begin_fill()</code>, draw the outline, then <code>end_fill()</code> pours the paint. Turning <code>right(144)</code> five times traces a five-pointed star.</p>
+          <pre class="guide-code language-python" id="ex-star">import turtle
+
+turtle.pensize(3)
+turtle.pencolor("#c0392b")
+turtle.fillcolor("gold")
+
+turtle.begin_fill()
+for point in range(5):
+    turtle.forward(170)
+    turtle.right(144)        # the star angle
+turtle.end_fill()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-star">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p><code>turtle.circle(r)</code> draws a circle of radius <code>r</code>. Overlap a ring of them and you get a flower:</p>
+          <pre class="guide-code language-python" id="ex-flower">import turtle
+
+turtle.speed(0)
+turtle.bgcolor("#101826")
+turtle.pencolor("#ff7ac6")
+turtle.pensize(2)
+
+for petal in range(18):
+    turtle.circle(90)        # one circle
+    turtle.left(20)          # turn a little, then another</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-flower">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+        </section>
+
+        <section id="anywhere">
+          <h2>Go anywhere</h2>
+          <p>The centre of the window is <code>(0, 0)</code>. Jump the turtle straight to a spot with <code>turtle.goto(x, y)</code> (lift the pen first if you do not want a line), point it in an exact direction with <code>turtle.setheading(deg)</code> (0 is right, 90 is up, 180 left, 270 down), and send it back to the middle with <code>turtle.home()</code>.</p>
+          <pre class="guide-code language-python">turtle.penup()
+turtle.goto(-100, 50)    # jump, no line
+turtle.pendown()
+turtle.setheading(90)    # now face straight up
+turtle.forward(120)</pre>
+          <p>You can also ask the turtle where it is: <code>turtle.xcor()</code>, <code>turtle.ycor()</code> and <code>turtle.heading()</code>. Handy for "keep going until you reach the edge" style drawings.</p>
+        </section>
+
+        <section id="finish">
+          <h2>Finishing touches</h2>
+          <ul class="key-points">
+            <li><code>turtle.dot(size, colour)</code>: stamp a filled dot where the turtle stands, no pen needed.</li>
+            <li><code>turtle.write("Hi!")</code>: write words at the turtle. Add <code>font=("Arial", 20, "normal")</code> to size them.</li>
+            <li><code>turtle.speed(n)</code>: 1 is slow, 10 is fast, 0 is instant. Great for big patterns.</li>
+            <li><code>turtle.hideturtle()</code>: hide the arrow for a clean finished picture (<code>showturtle()</code> brings it back).</li>
+            <li><code>turtle.clear()</code> wipes the drawing but leaves the turtle put; <code>turtle.reset()</code> wipes everything and sends it home.</li>
+          </ul>
+          <p class="callout"><strong>Tip:</strong> a big pattern draws fastest with <code>turtle.speed(0)</code> and <code>turtle.hideturtle()</code> at the top. Add them and the rainbow spiral snaps into place at once.</p>
+          <p>Now open the <a href="../../">Playground</a>, type <code>import turtle</code>, and draw something. Change a number in any example above and see what happens.</p>
+          <p><a href="../../" class="btn btn-primary">Open the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a> <a href="../#sec-turtle" class="btn btn-ghost">Full call reference</a></p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <!-- Carry a code example over to the Playground: stash it, then navigate. -->
+  <script>
+    (function () {
+      document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-load]");
+        if (!btn) return;
+        var pre = document.getElementById(btn.getAttribute("data-load"));
+        if (!pre) return;
+        try {
+          localStorage.setItem("pyweblib-load", pre.textContent.replace(/\s+$/, ""));
+        } catch (err) { /* private mode: just navigate */ }
+        location.href = "../../";
+      });
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="../../supabase-config.js"></script>
+  <script src="../../auth.js"></script>
+  <script>
+    if (window.Prism) {
+      document.querySelectorAll("pre.guide-code").forEach(function (el) {
+        try { window.Prism.highlightElement(el); } catch (e) {}
+      });
+    }
+  </script>
+</body>
+</html>

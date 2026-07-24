@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guides | PyWebLib</title>
+  <meta name="description" content="Hands-on guides to the two show-stopper PyWebLib libraries: turtle drawing and the browser game library. A quick overview of each, then an in-depth guide you can follow along with in the Playground." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg?v=2" />
+  <link rel="apple-touch-icon" href="../../favicon.svg?v=2" />
+  <link rel="stylesheet" href="../../styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../../" class="logo">
+        <img class="logo-mark" src="../../favicon.svg?v=2" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="../../">Playground</a>
+        <a class="header-link" href="../../community/">Community</a>
+        <a class="header-link" href="../../leaderboard/">Leaderboard</a>
+        <a class="header-link active" href="../">Docs</a>
+        <span id="pwl-account" class="pwl-account" data-root="../../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Docs &middot; Guide</p>
+        <h1>Guides</h1>
+        <p class="lead">PyWebLib has two show-stopper libraries that bring real desktop Python to the browser: <strong>turtle</strong> for drawing and <strong>game</strong> for making games. Here is a quick look at each, then a full hands-on guide you can follow in the <a href="../../">Playground</a>. For the one-line reference of every call, see the <a href="../">Docs</a>.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <div class="guide-cards">
+
+        <article class="guide-lib-card">
+          <a class="guide-lib-media" href="turtle/">
+            <img src="../../assets/turtle-spiral.gif" alt="A rainbow spiral drawn with turtle" width="480" height="300" loading="lazy" />
+          </a>
+          <div class="guide-lib-body">
+            <h2>Turtle drawing</h2>
+            <p>A little pen that walks around a window, drawing a line behind it. Tell it to go forward, turn, and change colour, and a few lines in a loop become squares, stars, flowers and rainbow spirals. The gentlest way into loops and coordinates.</p>
+            <p><code>import turtle</code> &middot; forward, left, pencolor, circle, begin_fill</p>
+            <div class="guide-lib-actions">
+              <a class="btn btn-primary" href="turtle/">Read the turtle guide <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+              <a class="btn btn-ghost" href="../#sec-turtle">Reference</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="guide-lib-card">
+          <a class="guide-lib-media" href="game/">
+            <img src="../../assets/game-chicken.gif" alt="A chicken sprite walked around a game window" width="480" height="300" loading="lazy" />
+          </a>
+          <div class="guide-lib-body">
+            <h2>Games</h2>
+            <p>Sprites, the keyboard, the mouse, collisions and a score, all running smoothly on a canvas with no install. Make a catch game, a dodge game, a maze or a top-down mover, none of the ~1 fps lag real pygame suffers in a browser.</p>
+            <p><code>import game</code> &middot; window, sprite, pressed, touches, frame</p>
+            <div class="guide-lib-actions">
+              <a class="btn btn-primary" href="game/">Read the game guide <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+              <a class="btn btn-ghost" href="../#sec-game">Reference</a>
+            </div>
+          </div>
+        </article>
+
+      </div>
+
+      <p class="lead" style="margin-top: 28px;">New to Python? The <a href="../">Docs</a> page is a searchable cheat sheet for the basics too: variables, strings, lists, loops and the <code>random</code> and <code>math</code> libraries, each with a tiny example.</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../../supabase-config.js"></script>
+  <script src="../../auth.js"></script>
+</body>
+</html>

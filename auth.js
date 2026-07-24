@@ -191,7 +191,42 @@
     });
   }
 
+  // Turn the "Docs" header link into a dropdown (Docs stays a link to the
+  // reference; the menu adds the guides). Shared across every page so the nav
+  // markup itself does not have to be duplicated. Paths come from the account
+  // element's data-root (its path back to the site root).
+  function enhanceNav() {
+    const nav = document.querySelector(".site-nav");
+    if (!nav || nav.querySelector(".nav-dd")) return;
+    const acct = document.querySelector("#pwl-account, .pwl-account");
+    const root = (acct && acct.getAttribute("data-root")) || "";
+    let docsLink = null;
+    nav.querySelectorAll("a.header-link").forEach(function (a) {
+      if (a.textContent.trim() === "Docs") docsLink = a;
+    });
+    if (!docsLink) return;
+    const wasActive = docsLink.classList.contains("active");
+    const dd = document.createElement("div");
+    dd.className = "nav-dd";
+    dd.innerHTML =
+      '<a class="header-link' + (wasActive ? " active" : "") + '" href="' + root + 'docs/">Docs' +
+        '<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      "</a>" +
+      '<div class="nav-dd-menu">' +
+        '<a href="' + root + 'docs/guide/">Guide</a>' +
+        '<a href="' + root + 'docs/turtle/">Turtle guide</a>' +
+        '<a href="' + root + 'docs/game/">Game guide</a>' +
+      "</div>";
+    docsLink.replaceWith(dd);
+    // Mark whichever guide page you are on.
+    const here = location.pathname.replace(/index\.html$/, "");
+    dd.querySelectorAll(".nav-dd-menu a").forEach(function (a) {
+      if (a.pathname.replace(/index\.html$/, "") === here) a.classList.add("active");
+    });
+  }
+
   async function init() {
+    enhanceNav();
     render();               // paints the "Sign in" button (or nothing) immediately
     if (!sb) return;
     try {

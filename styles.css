@@ -434,6 +434,34 @@ img { max-width: 100%; display: block; }
 .site-nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .header-link.active { color: var(--text); background: var(--bg); }
 
+/* Docs dropdown in the header nav */
+.nav-dd { position: relative; display: inline-flex; align-items: center; }
+.nav-dd > .header-link { display: inline-flex; align-items: center; }
+.nav-caret { width: 9px; height: 9px; margin-left: 5px; opacity: 0.7; }
+.nav-dd-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; min-width: 168px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 18, 38, 0.16); padding: 6px; display: none; z-index: 60;
+}
+.nav-dd:hover .nav-dd-menu, .nav-dd:focus-within .nav-dd-menu { display: block; }
+.nav-dd-menu a {
+  display: block; padding: 8px 10px; border-radius: 7px; color: var(--text);
+  text-decoration: none; font-weight: 600; font-size: 0.9rem; white-space: nowrap;
+}
+.nav-dd-menu a:hover { background: var(--bg); }
+.nav-dd-menu a.active { color: var(--primary); }
+
+/* Guide landing: one big card per library */
+.guide-cards { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 720px) { .guide-cards { grid-template-columns: 1fr 1fr; } }
+.guide-lib-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+.guide-lib-media { background: #0b1020; aspect-ratio: 16 / 10; overflow: hidden; }
+.guide-lib-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.guide-lib-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.guide-lib-body h2 { margin: 0; }
+.guide-lib-body p { margin: 0; color: var(--muted); }
+.guide-lib-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
 /* Inline code in prose (hints, hero). */
 .sandbox-hint code,
 .lead code {

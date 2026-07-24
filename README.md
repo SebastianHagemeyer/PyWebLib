@@ -25,6 +25,15 @@ it is squeezed into a browser. Full walkthrough and a sprite table are in the
   <img src="assets/game-ball.gif" width="250" alt="A bouncing ball, smooth (pygame in a browser crawls at about 1 fps)" />
 </p>
 
+## Turtle drawing (`import turtle`)
+
+The classic turtle pen, right in the browser. Forward, turn, change colour,
+lift the pen, and a few lines in a loop become squares, stars, flowers and
+rainbow spirals. It is the gentlest way into loops and coordinates. Full
+walkthrough in the [turtle guide](https://pyweb.qmarkapp.com/docs/turtle/).
+
+![Rainbow spiral drawn with turtle](assets/turtle-spiral.gif)
+
 ## Scope
 
 PyWebLib is deliberately small and self-contained:
