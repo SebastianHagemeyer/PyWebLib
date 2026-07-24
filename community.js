@@ -64,7 +64,7 @@
 
     let q = sb.from("projects").select(
       "id,title,description,code,kind,vote_count,created_at,author_id," +
-      "profiles(display_name,avatar_url),comments(count)"
+      "profiles!author_id(display_name,avatar_url),comments(count)"
     );
     if (mineOnly && user) q = q.eq("author_id", user.id);
     q = sort === "new"
