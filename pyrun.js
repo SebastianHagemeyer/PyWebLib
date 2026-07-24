@@ -804,11 +804,21 @@ del _pyrun_install_game
     mouseClicks: function () { return gameMouse.clicks; },
     nextFrame: function (seconds) { return interruptibleSleep(seconds); },
     draw: function (json) {
-      const c = gameCtx();
-      if (!c) return;
       let scene;
       try { scene = JSON.parse(json); } catch (e) { return; }
+      const c = gameCtx();
+      if (!c) return;
       const cv = c.canvas;
+      // Remember the last drawn frame so publish.js can save it as a preview
+      // "scene" (real sprite positions + the window size), tagged with the code
+      // that produced it. The size lets the previewer scale sprites correctly
+      // even when the game used a non-default window.
+      try {
+        window.PWL = window.PWL || {};
+        scene.w = cv.width; scene.h = cv.height;
+        window.PWL.lastGameScene = scene;
+        window.PWL.lastGameSceneCode = window.PWL.runningCode;
+      } catch (e) {}
       c.clearRect(0, 0, cv.width, cv.height);
       c.fillStyle = scene.bg || "#0b1020";
       c.fillRect(0, 0, cv.width, cv.height);
@@ -1307,6 +1317,7 @@ del _pyrun_install_game
     async function run() {
       if (running) { stop(); return; }
       running = true;
+      try { window.PWL = window.PWL || {}; window.PWL.runningCode = getCode(); } catch (e) {}
       active = runner;
       stopRequested = false;
       pendingReject = null;

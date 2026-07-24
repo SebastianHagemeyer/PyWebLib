@@ -91,6 +91,10 @@ drop policy if exists "authors delete own projects" on public.projects;
 create policy "authors delete own projects"
   on public.projects for delete using (auth.uid() = author_id);
 
+-- A tiny JSON snapshot of the opening scene (sprite kinds + positions), captured
+-- at publish time so the gallery shows a real preview without running Python.
+alter table public.projects add column if not exists scene text;
+
 -- ============================ votes ============================
 -- One upvote per user per project (the primary key enforces it).
 create table if not exists public.votes (

@@ -122,20 +122,85 @@
     ctx.fillText(kind === "turtle" ? "turtle drawing" : "Python program", CW / 2, CH / 2);
   }
 
-  function renderInto(canvas, code) {
+  // Paint a saved runtime scene (real sprite positions captured at publish time).
+  function renderScene(scene, canvas) {
+    const ctx = canvas.getContext("2d");
+    const CW = canvas.width, CH = canvas.height;
+    ctx.clearRect(0, 0, CW, CH);
+    const W = scene.w || 480, H = scene.h || 360;
+    ctx.fillStyle = scene.bg || "#0b1020";
+    ctx.fillRect(0, 0, CW, CH);
+    const scale = Math.min(CW / W, CH / H);
+    const ox = (CW - W * scale) / 2, oy = (CH - H * scale) / 2;
+    (scene.sprites || []).forEach(function (s) {
+      const ang = Number(s.angle) || 0;
+      const sx = (s.sx == null || !isFinite(+s.sx)) ? 1 : +s.sx;
+      const sy = (s.sy == null || !isFinite(+s.sy)) ? 1 : +s.sy;
+      ctx.save();
+      ctx.translate(ox + s.x * scale, oy + s.y * scale);
+      if (ang) ctx.rotate(ang * Math.PI / 180);
+      if (sx !== 1 || sy !== 1) ctx.scale(sx, sy);
+      if (s.kind === "box") {
+        ctx.fillStyle = s.color || "#fff";
+        ctx.fillRect(-s.w * scale / 2, -s.h * scale / 2, s.w * scale, s.h * scale);
+      } else if (s.kind === "art") {
+        const img = IMAGES[s.art];
+        const sz = (s.size || 40) * scale;
+        if (img && img.complete && img.naturalWidth) ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
+      } else if (s.kind === "text") {
+        ctx.font = "bold " + ((s.size || 20) * scale) + "px system-ui, sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        if (s.back) {
+          // A rounded pill behind the text, matching the game engine's draw so a
+          // score badge in the preview looks like the one in the running game.
+          const tw = ctx.measureText(String(s.text || "")).width;
+          const th = (s.size || 20) * scale;
+          const padX = 8 * scale, padY = 5 * scale, r = 6 * scale;
+          const bw = tw + padX * 2, bh = th + padY * 2, bx = -bw / 2, by = -bh / 2;
+          ctx.fillStyle = s.back;
+          ctx.beginPath();
+          ctx.moveTo(bx + r, by);
+          ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+          ctx.arcTo(bx + bw, by + bh, bx, by + bh, r);
+          ctx.arcTo(bx, by + bh, bx, by, r);
+          ctx.arcTo(bx, by, bx + bw, by, r);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.fillStyle = s.color || "#fff";
+        ctx.fillText(String(s.text || ""), 0, 0);
+      } else {
+        ctx.font = ((s.size || 40) * scale) + "px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(s.text || ""), 0, 0);
+      }
+      ctx.restore();
+    });
+  }
+
+  // A saved runtime scene wins (real sprite positions); otherwise parse the
+  // code's opening scene; otherwise a themed placeholder. sceneJson is optional.
+  function renderInto(canvas, code, sceneJson) {
+    if (sceneJson) {
+      try {
+        const scene = typeof sceneJson === "string" ? JSON.parse(sceneJson) : sceneJson;
+        if (scene && scene.sprites && scene.sprites.length) {
+          renderScene(scene, canvas);
+          setTimeout(function () { try { renderScene(scene, canvas); } catch (e) {} }, 150);
+          return "scene";
+        }
+      } catch (e) {}
+    }
     const kind = detectKind(code);
     if (kind === "game") {
       const drew = drawGame(code, canvas);
-      if (drew === 0) { drawPlaceholder("python", canvas); }
-      else {
-        // Sprite SVGs may still be decoding on the first paint: redraw once.
-        setTimeout(function () { try { drawGame(code, canvas); } catch (e) {} }, 150);
-      }
+      if (drew === 0) drawPlaceholder("python", canvas);
+      else setTimeout(function () { try { drawGame(code, canvas); } catch (e) {} }, 150);
     } else {
       drawPlaceholder(kind, canvas);
     }
     return kind;
   }
 
-  PWL.preview = { renderInto: renderInto, detectKind: detectKind };
+  PWL.preview = { renderInto: renderInto, renderScene: renderScene, detectKind: detectKind };
 })();

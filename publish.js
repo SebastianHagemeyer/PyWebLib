@@ -54,10 +54,25 @@
     if (btn) btn.addEventListener("click", openShareModal);
   }
 
+  function trimScene(scene) {
+    if (!scene || !scene.sprites) return null;
+    return {
+      w: scene.w, h: scene.h, bg: scene.bg,
+      sprites: scene.sprites.map(function (s) {
+        return { kind: s.kind, x: s.x, y: s.y, size: s.size, w: s.w, h: s.h,
+                 text: s.text, color: s.color, art: s.art, angle: s.angle,
+                 sx: s.sx, sy: s.sy, back: s.back };
+      })
+    };
+  }
+
   function openShareModal() {
     const code = currentCode();
     if (!code.trim()) { toast("Write some code first, then share it."); return; }
     const kind = detectKind(code);
+    const P = window.PWL || {};
+    // Use the live scene only if it came from running THIS code.
+    const scene = (P.lastGameScene && P.lastGameSceneCode === code) ? P.lastGameScene : null;
 
     const back = document.createElement("div");
     back.className = "pwl-modal-back";
@@ -66,6 +81,7 @@
         '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
         '<h2 class="pwl-modal-title">Share to community</h2>' +
         '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
+        (kind === "game" ? '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' : "") +
         '<form id="pwl-share-form" class="pwl-share-form">' +
           '<label>Title<input name="title" type="text" maxlength="80" required autocomplete="off" placeholder="My cool ' + esc(kind) + " program\" /></label>" +
           '<label>Description (optional)<textarea name="description" maxlength="280" rows="2" placeholder="What does it do? Any keys to press?"></textarea></label>' +
@@ -81,6 +97,8 @@
     back.querySelector(".pwl-modal-x").addEventListener("click", close);
     document.addEventListener("keydown", onKey);
     document.body.appendChild(back);
+    const pv = back.querySelector(".pwl-share-preview");
+    if (pv && window.PWL.preview) { try { window.PWL.preview.renderInto(pv, code, scene); } catch (e) {} }
     back.querySelector('input[name="title"]').focus();
 
     back.querySelector("#pwl-share-form").addEventListener("submit", async function (e) {
@@ -97,7 +115,8 @@
         title: title,
         description: String(fd.get("description") || "").trim() || null,
         code: code,
-        kind: kind
+        kind: kind,
+        scene: scene ? JSON.stringify(trimScene(scene)) : null
       }).select("id").single();
       if (res.error) {
         submit.disabled = false; submit.textContent = "Publish";

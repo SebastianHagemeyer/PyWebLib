@@ -65,7 +65,7 @@
     currentUserId = user ? user.id : null;
 
     let q = sb.from("projects").select(
-      "id,title,description,code,kind,vote_count,created_at,author_id," +
+      "id,title,description,code,kind,scene,vote_count,created_at,author_id," +
       "profiles!author_id(display_name,avatar_url),comments(count)"
     );
     if (mineOnly && user) q = q.eq("author_id", user.id);
@@ -128,7 +128,7 @@
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
       if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });
-      if (window.PWL.preview) { try { window.PWL.preview.renderInto(card.querySelector(".cc-thumb"), p.code); } catch (e) {} }
+      if (window.PWL.preview) { try { window.PWL.preview.renderInto(card.querySelector(".cc-thumb"), p.code, p.scene); } catch (e) {} }
       grid.appendChild(card);
     });
   }
@@ -318,13 +318,15 @@
       if (!title || !code.trim()) return;
       const submit = back.querySelector('button[type="submit"]');
       submit.disabled = true; submit.textContent = "Saving…";
-      const res = await sb.from("projects").update({
+      const payload = {
         title: title,
         description: descEl.value.trim() || null,
         code: code,
         kind: detectKind(code),
         updated_at: new Date().toISOString()
-      }).eq("id", p.id);
+      };
+      if (code !== p.code) payload.scene = null;   // code changed: drop the stale snapshot
+      const res = await sb.from("projects").update(payload).eq("id", p.id);
       if (res.error) { submit.disabled = false; submit.textContent = "Save changes"; toast("Couldn't save: " + res.error.message); return; }
       close(); toast("Saved."); refresh();
     });
