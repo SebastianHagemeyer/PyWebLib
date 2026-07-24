@@ -13,6 +13,7 @@
 
   if (!PWL.configured) { host.hidden = true; return; }
   const sb = PWL.supabase;
+  const PROGRAM_CAP = 10;   // keep in step with enforce_project_limit() in supabase-schema.sql
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -115,6 +116,7 @@
           mine.map(function (m) { return '<option value="' + esc(m.id) + '">Update: ' + esc(m.title) + "</option>"; }).join("") +
         "</select></label>"
       : "";
+    const atCap = mine.length >= PROGRAM_CAP;
 
     const back = document.createElement("div");
     back.className = "pwl-modal-back";
@@ -126,6 +128,7 @@
         (kind === "game" ? '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' : "") +
         '<form id="pwl-share-form" class="pwl-share-form">' +
           targetField +
+          '<p class="pwl-cap-note" hidden></p>' +
           '<label>Title<input name="title" type="text" maxlength="80" required autocomplete="off" placeholder="My cool ' + esc(kind) + " program\" /></label>" +
           '<label>Description (optional)<textarea name="description" maxlength="280" rows="2" placeholder="What does it do? Any keys to press?"></textarea></label>' +
           '<pre class="pwl-modal-code"></pre>' +
@@ -148,6 +151,16 @@
     const descEl = form.querySelector('textarea[name="description"]');
     const targetEl = form.querySelector('select[name="target"]');
     const submitBtn = form.querySelector('button[type="submit"]');
+    const capNote = form.querySelector(".pwl-cap-note");
+    if (capNote) capNote.textContent =
+      "You have " + mine.length + " programs, the most allowed. Pick one above to update, or delete one in the community first.";
+    // At the cap you can still update an existing program, just not add a new one.
+    function refreshCap() {
+      const isNew = !targetEl || !targetEl.value;
+      const blocked = atCap && isNew;
+      if (capNote) capNote.hidden = !blocked;
+      submitBtn.disabled = blocked;
+    }
     // Choosing an existing program fills in its title and description and turns
     // the button into an update; "A new program" resets to a fresh post.
     if (targetEl) {
@@ -160,6 +173,7 @@
         } else {
           submitBtn.textContent = "Publish";
         }
+        refreshCap();
       });
     }
     // Pre-target a program (from "Update this program" on the Playground).
@@ -167,6 +181,7 @@
       const has = Array.prototype.some.call(targetEl.options, function (o) { return o.value === preselectId; });
       if (has) { targetEl.value = preselectId; targetEl.dispatchEvent(new Event("change")); }
     }
+    refreshCap();
     titleEl.focus();
 
     form.addEventListener("submit", async function (e) {
@@ -176,6 +191,7 @@
       const title = titleEl.value.trim();
       if (!title) return;
       const targetId = targetEl ? targetEl.value : "";
+      if (atCap && !targetId) { toast("You're at the " + PROGRAM_CAP + " program limit. Update one, or delete one first."); return; }
       const sceneJson = scene ? JSON.stringify(trimScene(scene)) : null;
       submitBtn.disabled = true;
       submitBtn.textContent = targetId ? "Updating…" : "Publishing…";

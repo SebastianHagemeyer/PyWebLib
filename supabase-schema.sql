@@ -95,6 +95,26 @@ create policy "authors delete own projects"
 -- at publish time so the gallery shows a real preview without running Python.
 alter table public.projects add column if not exists scene text;
 
+-- Cap how many programs one person can publish. Enforced here because a
+-- client-side limit is trivially bypassed. To change the cap, edit the number
+-- and re-run this block (and keep PROGRAM_CAP in publish.js in step).
+create or replace function public.enforce_project_limit()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare n integer;
+begin
+  select count(*) into n from public.projects where author_id = new.author_id;
+  if n >= 10 then
+    raise exception 'You have reached the limit of 10 published programs. Update or delete one first.'
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists projects_limit on public.projects;
+create trigger projects_limit before insert on public.projects
+  for each row execute function public.enforce_project_limit();
+
 -- ============================ votes ============================
 -- One upvote per user per project (the primary key enforces it).
 create table if not exists public.votes (
