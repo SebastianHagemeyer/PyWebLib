@@ -233,11 +233,22 @@
       blurb: 'Start with "import turtle" to draw with a little pen. Runs in the Playground.',
       items: [
         { sig: 'turtle.forward(n)', desc: "Move forward n steps, drawing a line.", ex: 'import turtle\nturtle.forward(100)' },
+        { sig: 'turtle.backward(n)', desc: "Move backwards n steps, still drawing.", ex: 'turtle.backward(50)' },
         { sig: 'turtle.left(deg) / turtle.right(deg)', desc: "Turn on the spot by a number of degrees.", ex: 'turtle.left(90)   # quarter turn' },
+        { sig: 'turtle.goto(x, y)', desc: "Walk straight to a spot. (0, 0) is the centre of the window. turtle.setx and turtle.sety change just one of them.", ex: 'turtle.penup()\nturtle.goto(-100, 50)\nturtle.pendown()' },
+        { sig: 'turtle.setheading(deg)', desc: "Face an exact direction: 0 is right, 90 is up, 180 is left, 270 is down. turtle.home() walks back to the centre, facing right.", ex: 'turtle.setheading(90)   # face up' },
         { sig: 'turtle.pencolor(c)', desc: "Change the pen colour.", ex: 'turtle.pencolor("red")' },
+        { sig: 'turtle.pensize(n)', desc: "How thick the line is.", ex: 'turtle.pensize(5)' },
         { sig: 'turtle.penup() / turtle.pendown()', desc: "Lift the pen to move without drawing, then put it back down.", ex: 'turtle.penup()\nturtle.forward(50)\nturtle.pendown()' },
-        { sig: 'turtle.circle(r)', desc: "Draw a circle of radius r.", ex: 'turtle.circle(40)' },
+        { sig: 'turtle.circle(r)', desc: "Draw a circle of radius r. Add a second number for part of one: circle(40, 180) is a half circle.", ex: 'turtle.circle(40)' },
+        { sig: 'turtle.begin_fill() / turtle.end_fill()', desc: "Colour a shape in: set turtle.fillcolor, call begin_fill, draw the shape, then end_fill pours the paint.", ex: 'turtle.fillcolor("gold")\nturtle.begin_fill()\nturtle.circle(40)\nturtle.end_fill()' },
+        { sig: 'turtle.dot(size, color)', desc: "Stamp a filled dot where the turtle stands, no pen needed.", ex: 'turtle.dot(20, "purple")' },
+        { sig: 'turtle.write(text)', desc: "Write words where the turtle stands. An optional font sets the look: font=(\"Arial\", 20, \"normal\").", ex: 'turtle.write("Hi!", font=("Arial", 20, "normal"))' },
+        { sig: 'turtle.bgcolor(c)', desc: "Paint the whole window background.", ex: 'turtle.bgcolor("#0b1020")' },
         { sig: 'turtle.speed(n)', desc: "How fast it draws, from 1 (slow) to 10 (fast).", ex: 'turtle.speed(10)' },
+        { sig: 'turtle.hideturtle() / turtle.showturtle()', desc: "Hide the arrow (the drawing stays), or bring it back. Nice for a clean finished picture.", ex: 'turtle.hideturtle()' },
+        { sig: 'turtle.xcor() / turtle.ycor() / turtle.heading()', desc: "Where the turtle is and which way it is facing. turtle.position() gives (x, y) together.", ex: 'if turtle.ycor() > 150:\n    turtle.setheading(270)' },
+        { sig: 'turtle.clear() / turtle.reset()', desc: "clear() wipes the drawing but leaves the turtle where it is; reset() wipes everything and sends it home.", ex: 'turtle.clear()' },
       ]
     },
     {
