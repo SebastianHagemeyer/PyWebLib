@@ -1,5 +1,5 @@
 /*
- * PyPlayground page furniture. The Python engine (Pyodide with input(),
+ * PyWebLib page furniture. The Python engine (Pyodide with input(),
  * interruptible time.sleep, a Stop button, clear(), print(col=) and the
  * canvas turtle + game modules) lives in pyrun.js. This file owns the page:
  * starter code, the categorised example snippets and toasts. The turtle and
@@ -13,7 +13,7 @@
   const DEFAULT_CODE =
     '# Try editing and hit Run.\n' +
     '# Press Ctrl+Enter to run, Tab to indent.\n\n' +
-    'print("Hello, PyPlayground!")\n\n' +
+    'print("Hello, PyWebLib!")\n\n' +
     '# A loop\n' +
     'for i in range(5):\n' +
     '    print("Number:", i, "squared is", i ** 2)\n\n' +

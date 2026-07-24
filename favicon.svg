@@ -1,16 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="PyPlayground">
-  <title>PyPlayground</title>
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PyWebLib logo">
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1b2046"/>
-      <stop offset="100%" stop-color="#0f1226"/>
+    <linearGradient id="pwl-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5b53f0"/>
+      <stop offset="1" stop-color="#4137c9"/>
     </linearGradient>
   </defs>
-  <!-- Dark editor tile -->
-  <rect width="256" height="256" rx="56" fill="url(#tile)"/>
-  <!-- A terminal prompt: blue chevron + a yellow caret block, echoing the
-       blinking cursor in the live editor. -->
-  <path d="M74 84 L122 128 L74 172" fill="none" stroke="#7aa2ff"
-        stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="138" y="150" width="60" height="22" rx="7" fill="#ffd43b"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#pwl-tile)"/>
+  <!-- browser window -->
+  <rect x="11" y="14" width="42" height="36" rx="6" fill="#0f1226"/>
+  <!-- traffic-light dots (the green nods to the turtle) -->
+  <circle cx="18.5" cy="20.5" r="2" fill="#ff5f57"/>
+  <circle cx="25" cy="20.5" r="2" fill="#ffd43b"/>
+  <circle cx="31.5" cy="20.5" r="2" fill="#33d778"/>
+  <line x1="11" y1="26.5" x2="53" y2="26.5" stroke="#2a2f57" stroke-width="1.6"/>
+  <!-- play triangle: open it and press go -->
+  <path d="M27 31.5 L44 38.8 L27 46 Z" fill="#ffd43b" stroke="#ffd43b" stroke-width="3" stroke-linejoin="round"/>
 </svg>

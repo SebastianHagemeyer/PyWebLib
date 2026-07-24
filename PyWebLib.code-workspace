@@ -1,7 +1,7 @@
 {
   "folders": [
     {
-      "name": "PyPlayground",
+      "name": "PyWebLib",
       "path": "."
     }
   ],
@@ -23,7 +23,7 @@
     "version": "2.0.0",
     "tasks": [
       {
-        "label": "Serve PyPlayground",
+        "label": "Serve PyWebLib",
         "detail": "python -m http.server 8000  (then open http://localhost:8000)",
         "type": "shell",
         "command": "python -m http.server 8000",

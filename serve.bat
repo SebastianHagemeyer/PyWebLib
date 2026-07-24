@@ -20,7 +20,7 @@ if not defined PY (
 )
 
 echo.
-echo   PyPlayground
+echo   PyWebLib
 echo   Serving : %CD%
 echo   URL     : http://localhost:%PORT%
 echo   Stop    : press Ctrl+C, then close this window

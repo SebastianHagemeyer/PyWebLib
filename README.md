@@ -1,18 +1,20 @@
-# PyPlayground
+<img src="logo.svg" alt="PyWebLib logo" width="300" />
 
-Try it here: [PyPlayground](https://sebastianhagemeyer.github.io/pyplayground/)
+# PyWebLib
 
-[![GitHub stars](https://img.shields.io/github/stars/sebastianhagemeyer/pyplayground?style=flat&logo=github)](https://github.com/sebastianhagemeyer/pyplayground/stargazers)
+Try it here: [PyWebLib](https://sebastianhagemeyer.github.io/PyWebLib/)
 
-Run real Python in your browser. No install, no setup, no backend. PyPlayground is a single static page that runs CPython compiled to WebAssembly with [Pyodide](https://pyodide.org), so every line of code executes client-side. It ships with a click-to-load snippet gallery, an editor with syntax highlighting, and a few extras layered on top of stock Python.
+[![GitHub stars](https://img.shields.io/github/stars/sebastianhagemeyer/PyWebLib?style=flat&logo=github)](https://github.com/sebastianhagemeyer/PyWebLib/stargazers)
 
-> Python Playground online with coloured prints, import time working in sync, and input() working inline.
+Run real Python in your browser, with nothing to install. **PyWebLib** brings turtle drawing and a beginner game library to the web, for people who cannot be bothered to download Python and just want to play. It is a single static page that runs CPython compiled to WebAssembly with [Pyodide](https://pyodide.org), so every line runs client-side: coloured output, inline `input()`, a turtle window, games, and a click-to-load snippet gallery.
+
+> Bring turtle and Python games to the browser: coloured prints, animation, and inline input(), all client-side, with nothing to download.
 
 ![Colored spiral](assets/spiral.gif)
 
 ## Scope
 
-PyPlayground is deliberately small and self-contained:
+PyWebLib is deliberately small and self-contained:
 
 - **Static only.** A handful of text files (HTML, one JS file, CSS) plus a favicon. No build step, no server, no database, no accounts.
 - **Client-side Python.** Pyodide loads once from a CDN (about 10 MB, cached afterwards) and runs entirely in the browser tab.
@@ -78,4 +80,4 @@ Interactive `input()` needs WebAssembly JSPI (stack switching), available in Chr
 
 ## License
 
-Released under CC0 1.0 (public domain), see [LICENSE](LICENSE). Do whatever you like with it. PyPlayground loads Pyodide, CodeJar, and Prism from a CDN; each is under its own permissive license.
+Released under CC0 1.0 (public domain), see [LICENSE](LICENSE). Do whatever you like with it. PyWebLib loads Pyodide, CodeJar, and Prism from a CDN; each is under its own permissive license.

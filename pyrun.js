@@ -1,5 +1,5 @@
 /*
- * PyRun: a reusable in-browser Python runner for PyPlayground.
+ * PyRun: a reusable in-browser Python runner for PyWebLib.
  *
  * The engine (Pyodide + JSPI input()/sleep, a Stop button, clear() and
  * print(col=)) is wrapped in a factory so a page can embed an editor +
