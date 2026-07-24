@@ -20,8 +20,10 @@
       </a>
       <nav class="site-nav" aria-label="Primary">
         <a class="header-link active" href="./">Playground</a>
+        <a class="header-link" href="community/">Community</a>
+        <a class="header-link" href="leaderboard/">Leaderboard</a>
         <a class="header-link" href="docs/">Docs</a>
-        <a class="header-link" href="https://pyodide.org" target="_blank" rel="noopener">Pyodide &#8599;</a>
+        <span id="pwl-account" class="pwl-account" data-root=""></span>
       </nav>
     </div>
   </header>
@@ -87,6 +89,8 @@
         the full reference is in the <a href="docs/">Docs</a>.
       </p>
 
+      <div id="pwl-share" class="pwl-share" hidden></div>
+
       <section class="sandbox-examples">
         <h2 class="sandbox-examples-heading">Try a snippet</h2>
         <p class="sandbox-examples-sub">Pick a category, then click any snippet to load it into the editor and hit <strong>Run</strong>.</p>
@@ -104,10 +108,14 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="auth.js"></script>
   <script src="editor-tools.js"></script>
   <script src="pyrun.js"></script>
   <script src="sandbox.js"></script>
+  <script src="publish.js"></script>
 </body>
 </html>

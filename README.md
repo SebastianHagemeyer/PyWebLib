@@ -78,6 +78,36 @@ Interactive `input()` needs WebAssembly JSPI (stack switching), available in Chr
 - Snippets: add objects to the `EXAMPLES` array in `sandbox.js`.
 - Colours: tweak the CSS variables in `:root` at the top of `styles.css`.
 
+## Community (Google sign-in + sharing)
+
+PyWebLib can run a Scratch-style community: sign in with Google, publish your
+programs, upvote others, comment, and climb a leaderboard. It is powered by
+[Supabase](https://supabase.com) and is **off by default**, the rest of the site
+works fully without it. To switch it on:
+
+1. **Create a Supabase project** (the free tier is fine) at supabase.com.
+2. **Run the schema.** Supabase dashboard: SQL Editor -> New query -> paste all
+   of `supabase-schema.sql` -> Run. This creates the tables, the row-level
+   security policies and the leaderboard view.
+3. **Turn on Google sign-in.**
+   - In Google Cloud Console, create an OAuth 2.0 Client ID (type: Web
+     application) and add this authorised redirect URI:
+     `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback`
+   - In Supabase: Authentication -> Providers -> Google -> paste the Client ID
+     and Client Secret and enable it.
+   - In Supabase: Authentication -> URL Configuration -> add your site to
+     "Redirect URLs", e.g. `https://sebastianhagemeyer.github.io/PyWebLib/**`
+     and `http://localhost:8000/**` for local testing.
+4. **Add your keys.** In `supabase-config.js`, set `SUPABASE_URL` and
+   `SUPABASE_ANON_KEY` (Supabase dashboard -> Project Settings -> API). The anon
+   key is public by design; security comes from the RLS policies in the schema.
+5. Commit, push and hard-refresh. Sign in, Share, upvotes, comments and the
+   Community + Leaderboard pages light up automatically.
+
+Data model (`supabase-schema.sql`): `profiles` (auto-created on first sign-in),
+`projects` (a shared program), `votes` (one per user per project, kept counted
+by a trigger), `comments`, and a `top_creators` leaderboard view.
+
 ## License
 
 Released under CC0 1.0 (public domain), see [LICENSE](LICENSE). Do whatever you like with it. PyWebLib loads Pyodide, CodeJar, and Prism from a CDN; each is under its own permissive license.

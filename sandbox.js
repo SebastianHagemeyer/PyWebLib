@@ -914,6 +914,10 @@
 
   function getCode() { return runner.getCode(); }
 
+  // Let the community pages read the current editor code (publish.js).
+  window.PWL = window.PWL || {};
+  window.PWL.getCode = getCode;
+
   if (resetBtn) resetBtn.addEventListener("click", function () {
     loadInto(DEFAULT_CODE, "Reset to the example");
   });
@@ -1041,4 +1045,14 @@
 
   renderExamples();
   updatePanels();
+
+  // A community card can hand its code to the Playground: it stashes the code
+  // under this key and navigates here. Pick it up once, then clear it.
+  try {
+    const pending = localStorage.getItem("pyweblib-load");
+    if (pending) {
+      localStorage.removeItem("pyweblib-load");
+      loadInto(pending, "Loaded from the community");
+    }
+  } catch (e) { /* private mode: nothing to load */ }
 })();

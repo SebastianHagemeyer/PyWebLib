@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaderboard | PyWebLib</title>
+  <meta name="description" content="The PyWebLib leaderboard: top creators ranked by the upvotes on the Python programs they have shared with the community." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=2" />
+  <link rel="apple-touch-icon" href="../favicon.svg?v=2" />
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../" class="logo">
+        <img class="logo-mark" src="../favicon.svg?v=2" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="../">Playground</a>
+        <a class="header-link" href="../community/">Community</a>
+        <a class="header-link active" href="./">Leaderboard</a>
+        <a class="header-link" href="../docs/">Docs</a>
+        <span id="pwl-account" class="pwl-account" data-root="../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Top creators</p>
+        <h1>Leaderboard</h1>
+        <p class="lead">Ranked by total upvotes across everything they've shared. Publish a program from the <a href="../">Playground</a>, collect upvotes in the <a href="../community/">Community</a>, and climb.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <p class="community-notice" id="leaderboard-notice" hidden>
+        The leaderboard isn't switched on yet. It needs a Supabase project with Google sign-in.
+        See <strong>Community setup</strong> in the project README.
+      </p>
+
+      <div class="leaderboard" id="leaderboard-list"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script src="../auth.js"></script>
+  <script src="../leaderboard.js"></script>
+</body>
+</html>

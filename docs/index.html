@@ -20,8 +20,10 @@
       </a>
       <nav class="site-nav" aria-label="Primary">
         <a class="header-link" href="../">Playground</a>
+        <a class="header-link" href="../community/">Community</a>
+        <a class="header-link" href="../leaderboard/">Leaderboard</a>
         <a class="header-link active" href="./">Docs</a>
-        <a class="header-link" href="https://pyodide.org" target="_blank" rel="noopener">Pyodide &#8599;</a>
+        <span id="pwl-account" class="pwl-account" data-root="../"></span>
       </nav>
     </div>
   </header>
@@ -59,6 +61,9 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script src="../auth.js"></script>
   <script src="../docs.js"></script>
 </body>
 </html>
