@@ -46,6 +46,19 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Backfill profiles for anyone who signed in BEFORE this schema existed. The
+-- trigger above only fires for NEW sign-ins, so already-created accounts need
+-- this one-off pass, otherwise publishing fails (projects.author_id has no
+-- matching profile). Safe to re-run.
+insert into public.profiles (id, display_name, avatar_url)
+select u.id,
+       coalesce(u.raw_user_meta_data->>'full_name',
+                u.raw_user_meta_data->>'name',
+                split_part(coalesce(u.email, 'coder'), '@', 1)),
+       u.raw_user_meta_data->>'avatar_url'
+from auth.users u
+on conflict (id) do nothing;
+
 -- ============================ projects ============================
 -- A shared program.
 create table if not exists public.projects (
