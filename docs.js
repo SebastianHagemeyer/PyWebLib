@@ -242,7 +242,8 @@
     },
     {
       name: "game library", id: "game",
-      blurb: 'Start with "import game" to make games: sprites, keys, the mouse and collisions, all on a canvas.',
+      blurb: 'Start with "import game" to make games: sprites, keys, the mouse and collisions. Full walkthrough and sprite table in the ',
+      blurbLink: { href: "game/", text: "game guide" },
       items: [
         { sig: 'game.window(w, h)', desc: "Open the game window. Always first. Add background=\"#0b1020\" for a colour.", ex: 'import game\ngame.window(480, 360)' },
         { sig: 'game.sprite(skin, x, y, size=40)', desc: 'A sprite you can move around. skin can be a built-in number (0 chicken, 1 dog, 2 bird, 3 egg, 4 coin, 5 basket, 6 shocked, 7 calm, 8 turtle, 9 car), its name like "chicken", or any emoji.', ex: 'hero = game.sprite("chicken", 100, 200)\nfoe  = game.sprite("🦖", 300, 200)' },

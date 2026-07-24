@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game library guide | PyWebLib</title>
+  <meta name="description" content="A hands-on guide to the PyWebLib game library: the game loop, the built-in sprite table, moving, collisions, the mouse, spinning and mirroring, scores, and every example runnable in the Playground." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg?v=2" />
+  <link rel="apple-touch-icon" href="../../favicon.svg?v=2" />
+  <link rel="stylesheet" href="../../styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../../" class="logo">
+        <img class="logo-mark" src="../../favicon.svg?v=2" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="../../">Playground</a>
+        <a class="header-link" href="../../community/">Community</a>
+        <a class="header-link" href="../../leaderboard/">Leaderboard</a>
+        <a class="header-link active" href="../">Docs</a>
+        <span id="pwl-account" class="pwl-account" data-root="../../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Docs &middot; Guide</p>
+        <h1>The game library</h1>
+        <p class="lead">Type <code>import game</code> in the <a href="../../">Playground</a> and make a game right in the browser: sprites, the keyboard, the mouse, collisions and a score, no install. This is the hands-on how-to; the one-line reference for every call is on the <a href="../#sec-game">Docs page</a>. Every example here has a <strong>Try it</strong> button that drops it into the Playground.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <nav class="guide-jump" aria-label="On this page">
+          <a href="#shape">The shape of a game</a>
+          <a href="#sprites">Built-in sprites</a>
+          <a href="#move">Moving</a>
+          <a href="#collide">Collisions</a>
+          <a href="#mouse">The mouse</a>
+          <a href="#spin">Spin &amp; mirror</a>
+          <a href="#box">Boxes &amp; score</a>
+          <a href="#over">Ending a game</a>
+          <a href="#limits">What it can do</a>
+        </nav>
+
+        <section id="shape">
+          <h2>The shape of every game</h2>
+          <p>Every game is the same three steps: <strong>open a window</strong>, <strong>make your sprites</strong>, then <strong>loop</strong>. Inside the loop you read the keys, change where things are, and call <code>game.frame()</code> to draw one picture and pause a heartbeat. That is what makes it move.</p>
+          <pre class="guide-code language-python" id="ex-first">import game
+
+# 1. Open the game window (width, height)
+game.window(480, 360)
+
+# 2. Make a sprite: a built-in skin, or any emoji
+chicken = game.sprite("chicken", 240, 300, size=52)
+
+# 3. The game loop: read keys, move, draw one frame, repeat
+while game.playing():
+    if game.pressed("left"):  chicken.x = chicken.x - 6
+    if game.pressed("right"): chicken.x = chicken.x + 6
+    if game.pressed("up"):    chicken.y = chicken.y - 6
+    if game.pressed("down"):  chicken.y = chicken.y + 6
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-first">Try it in the Playground &rarr;</button></p>
+          <p class="callout"><strong>The golden rule of the loop:</strong> every game loop ends with <code>game.frame()</code>. Forget it and the loop spins invisibly forever without ever drawing. Press <strong>Stop</strong> (or <kbd>Ctrl</kbd>+<kbd>C</kbd> is not needed, just the Stop button) any time to end a game.</p>
+          <p class="callout"><strong>Chrome or Edge.</strong> The trick that keeps the game moving without freezing the tab needs those browsers, the same as <code>input()</code> and <code>time.sleep()</code> here. In other browsers the window shows a friendly message instead.</p>
+        </section>
+
+        <section id="sprites">
+          <h2>The built-in sprites</h2>
+          <p>The library ships with ten ready-made sprites in a matching style. Give <code>game.sprite</code> the <strong>number</strong> or the <strong>name</strong>, whichever you find easier, and any <strong>emoji</strong> works too.</p>
+          <div class="sprite-table-wrap">
+            <table class="sprite-table">
+              <tr><th>Picture</th><th>Number</th><th>Name</th></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="chicken"><path d="M20 41 q-10 0 -6 11 q7 -4 12 -5z" fill="#e6dcc2"/><ellipse cx="30" cy="42" rx="17" ry="15" fill="#f4efe0"/><circle cx="41" cy="26" r="11" fill="#fbf7ec"/><path d="M35 15 q2 -6 5 -1 q3 -6 6 0 q3 -5 4 3 q-9 3 -15 0z" fill="#e23b3b"/><path d="M51 25 l9 2 l-9 3z" fill="#f6a623"/><circle cx="44" cy="24" r="2.3" fill="#20242e"/><path d="M26 56 v6 M36 56 v6" stroke="#f6a623" stroke-width="3.4" stroke-linecap="round"/></svg></td><td><code>0</code></td><td><code>"chicken"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="dog"><path d="M12 44 q-6 2 -3 9" stroke="#c8894e" stroke-width="6" fill="none" stroke-linecap="round"/><ellipse cx="28" cy="46" rx="16" ry="12" fill="#c8894e"/><ellipse cx="34" cy="23" rx="5.5" ry="10" transform="rotate(24 34 23)" fill="#a56a34"/><ellipse cx="51" cy="23" rx="5.5" ry="10" transform="rotate(-24 51 23)" fill="#a56a34"/><circle cx="42" cy="32" r="13" fill="#d89a5b"/><ellipse cx="46" cy="38" rx="7.5" ry="6" fill="#f3ddc0"/><ellipse cx="50" cy="36" rx="2.6" ry="2.1" fill="#3b2a1d"/><circle cx="38" cy="30" r="2.3" fill="#20242e"/><circle cx="46" cy="30" r="2.3" fill="#20242e"/></svg></td><td><code>1</code></td><td><code>"dog"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="bird"><path d="M16 33 q-9 4 -3 13 q7 -5 11 -7z" fill="#e0a92e"/><ellipse cx="30" cy="34" rx="18" ry="15" fill="#f6c945"/><circle cx="42" cy="28" r="9" fill="#ffd75e"/><path d="M50 27 l9 1 l-9 3z" fill="#f2903a"/><circle cx="44" cy="26" r="2.1" fill="#20242e"/><path d="M30 48 v6 M37 48 v6" stroke="#f2903a" stroke-width="2.8" stroke-linecap="round"/></svg></td><td><code>2</code></td><td><code>"bird"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="egg"><path d="M32 7 C19 7 13 31 13 41 a19 20 0 0 0 38 0 C51 31 45 7 32 7 Z" fill="#f7f2e6"/><ellipse cx="25" cy="30" rx="5" ry="8" fill="#fffef8" opacity="0.7"/></svg></td><td><code>3</code></td><td><code>"egg"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="coin"><circle cx="32" cy="32" r="24" fill="#e0a92e"/><circle cx="32" cy="32" r="18" fill="#f6d066"/><path d="M32 18 l4.2 8.6 9.5 1.4 -6.9 6.7 1.6 9.4 -8.4 -4.4 -8.4 4.4 1.6 -9.4 -6.9 -6.7 9.5 -1.4z" fill="#e0a92e"/></svg></td><td><code>4</code></td><td><code>"coin"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="basket"><path d="M18 27 a14 10 0 0 1 28 0" stroke="#a56a34" stroke-width="3.5" fill="none"/><path d="M13 27 h38 l-4 27 a5 4 0 0 1 -5 4 H22 a5 4 0 0 1 -5 -4 Z" fill="#c8894e"/><path d="M19 36 h26 M20 44 h24 M21 52 h22" stroke="#9a6330" stroke-width="2" fill="none"/><path d="M27 30 v30 M37 30 v30" stroke="#9a6330" stroke-width="1.6" fill="none" opacity="0.5"/><rect x="10" y="24" width="44" height="8" rx="4" fill="#dca86a"/></svg></td><td><code>5</code></td><td><code>"basket"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="shocked"><circle cx="32" cy="32" r="24" fill="#ffd35e"/><circle cx="24" cy="27" r="3.2" fill="#20242e"/><circle cx="40" cy="27" r="3.2" fill="#20242e"/><ellipse cx="32" cy="42" rx="6" ry="7.5" fill="#20242e"/></svg></td><td><code>6</code></td><td><code>"shocked"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="calm"><circle cx="32" cy="32" r="24" fill="#ffd35e"/><circle cx="24" cy="28" r="3.2" fill="#20242e"/><circle cx="40" cy="28" r="3.2" fill="#20242e"/><path d="M23 42 h18" stroke="#20242e" stroke-width="3.2" stroke-linecap="round"/></svg></td><td><code>7</code></td><td><code>"calm"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="turtle"><path d="M14 32 L5 27.5 L7.5 32 L5 36.5 Z" fill="#2f855a"/><ellipse cx="23" cy="16.5" rx="7" ry="4.5" transform="rotate(-35 23 16.5)" fill="#38a169"/><ellipse cx="41" cy="16.5" rx="7" ry="4.5" transform="rotate(35 41 16.5)" fill="#38a169"/><ellipse cx="23" cy="47.5" rx="7" ry="4.5" transform="rotate(35 23 47.5)" fill="#38a169"/><ellipse cx="41" cy="47.5" rx="7" ry="4.5" transform="rotate(-35 41 47.5)" fill="#38a169"/><circle cx="52" cy="32" r="7.5" fill="#48bb78"/><circle cx="55" cy="29.3" r="1.4" fill="#1a202c"/><circle cx="55" cy="34.7" r="1.4" fill="#1a202c"/><ellipse cx="30" cy="32" rx="18" ry="15" fill="#2e9e63" stroke="#1f7a4a" stroke-width="2"/><polygon points="30,24 37,28 37,36 30,40 23,36 23,28" fill="#3db878" stroke="#1f7a4a" stroke-width="1.5"/><path d="M30 24 L30 18 M37 28 L43.5 24.5 M37 36 L43.5 39.5 M30 40 L30 46 M23 36 L16.5 39.5 M23 28 L16.5 24.5" stroke="#1f7a4a" stroke-width="1.5" fill="none"/></svg></td><td><code>8</code></td><td><code>"turtle"</code></td></tr>
+              <tr><td class="sprite-pic"><svg viewBox="0 0 64 64" role="img" aria-label="car"><rect x="17" y="16" width="9" height="6" rx="2" fill="#20242e"/><rect x="17" y="42" width="9" height="6" rx="2" fill="#20242e"/><rect x="38" y="16" width="9" height="6" rx="2" fill="#20242e"/><rect x="38" y="42" width="9" height="6" rx="2" fill="#20242e"/><rect x="11" y="21" width="43" height="22" rx="8" fill="#e2483d"/><path d="M33 24 h8 l6 8 -6 8 h-8 z" fill="#bfe0ff"/><rect x="18" y="26" width="13" height="12" rx="3" fill="#c33a30"/><circle cx="52" cy="27" r="1.9" fill="#fff0a6"/><circle cx="52" cy="37" r="1.9" fill="#fff0a6"/></svg></td><td><code>9</code></td><td><code>"car"</code></td></tr>
+            </table>
+          </div>
+          <pre class="guide-code language-python">hero = game.sprite("chicken", 100, 200)   # by name
+coin = game.sprite(4, 250, 100)           # or by number
+foe  = game.sprite("🦖", 300, 200)         # any emoji still works</pre>
+          <p>Swap what a sprite shows at any time with <code>.content</code>, a number, a name, or an emoji:</p>
+          <pre class="guide-code language-python">player = game.sprite("chicken", 240, 180)
+player.content = "coin"   # now a coin
+player.content = 6        # now a shocked face
+player.content = "🍗"     # now an emoji
+player.size = 80          # and bigger</pre>
+        </section>
+
+        <section id="move">
+          <h2>Moving things</h2>
+          <p>A sprite lives at <code>.x</code> and <code>.y</code>. Change those numbers and it moves. Read the keyboard with <code>game.pressed(key)</code>, which is <code>True</code> while a key is held: <code>"left"</code>, <code>"right"</code>, <code>"up"</code>, <code>"down"</code>, <code>"space"</code>, or any letter like <code>"a"</code>.</p>
+          <pre class="guide-code language-python">if game.pressed("left"):  player.x = player.x - 6
+if game.pressed("right"): player.x = player.x + 6</pre>
+        </section>
+
+        <section id="collide">
+          <h2>Collisions</h2>
+          <p><code>a.touches(b)</code> is <code>True</code> when two sprites overlap. That is how you catch, hit or dodge. Here is a catch game: steer the basket, catch the falling egg, count the score.</p>
+          <pre class="guide-code language-python" id="ex-catch">import game
+import random
+
+game.window(480, 360, background="#0b1020")
+basket = game.sprite("basket", 240, 330, size=52)
+egg = game.sprite("egg", random.randint(30, 450), 0, size=34)
+board = game.label("Score: 0", 60, 24, size=22)
+
+while game.playing():
+    if game.pressed("left"):  basket.x = basket.x - 8
+    if game.pressed("right"): basket.x = basket.x + 8
+    egg.y = egg.y + 5                      # the egg falls
+    if basket.touches(egg):                # caught it
+        game.score(1)
+        board.content = "Score: " + str(game.score())
+        egg.x = random.randint(30, 450)
+        egg.y = 0
+    elif egg.y > 360:                      # missed, drop a new one
+        egg.x = random.randint(30, 450)
+        egg.y = 0
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-catch">Try it in the Playground &rarr;</button></p>
+          <p>The collision box turns with the sprite's <code>.angle</code> and stretches with its scale. Set your own with <code>sprite.hitbox = (width, height)</code> for a tighter fit, or turn on <code>game.debug(True)</code> right after <code>game.window(...)</code> to see every box outlined in red.</p>
+        </section>
+
+        <section id="mouse">
+          <h2>The mouse</h2>
+          <ul class="key-points">
+            <li><code>game.mouse_x()</code> <code>game.mouse_y()</code>: where the pointer is, in your sprites' coordinates. Make something follow it: <code>can.x = game.mouse_x()</code>.</li>
+            <li><code>game.clicked()</code>: <code>True</code> once per fresh click, then <code>False</code> until the next. One tap, one action, great for buttons.</li>
+            <li><code>sprite.at_mouse()</code>: <code>True</code> while the pointer is over that sprite. Pair with <code>game.clicked()</code> to click on things.</li>
+            <li><code>game.hide_cursor()</code>: hide the real pointer so a sprite can be the pointer (a watering can, a crosshair). <code>game.show_cursor()</code> brings it back.</li>
+          </ul>
+          <pre class="guide-code language-python">if plant.at_mouse() and game.clicked():
+    plant.size = plant.size + 10</pre>
+        </section>
+
+        <section id="spin">
+          <h2>Spin &amp; mirror</h2>
+          <p>Set <code>.angle</code> (in degrees) to turn a sprite, and add a little every frame to make it spin. Set <code>.scale_x = -1</code> to mirror it left-to-right so it faces the way it walks, the trick every side-scroller uses.</p>
+          <pre class="guide-code language-python" id="ex-spin">import game
+game.window(480, 360)
+
+coin = game.sprite("coin", 240, 180, size=80)
+
+while game.playing():
+    coin.angle = coin.angle + 6   # turn 6 degrees every frame
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-spin">Try it in the Playground &rarr;</button></p>
+        </section>
+
+        <section id="box">
+          <h2>Boxes &amp; a scoreboard</h2>
+          <p>Prefer plain coloured shapes? <code>game.box(x, y, w, h, color)</code> is a rectangle with a real <code>.color</code> you can change, and it moves and collides just like a sprite. A scoreboard is just a <code>game.label</code> whose <code>.content</code> you update, so you decide where it sits and what it says.</p>
+          <pre class="guide-code language-python" id="ex-box">import game
+game.window(480, 360)
+
+player = game.box(240, 180, 40, 40, "#22cc88")
+wall   = game.box(380, 180, 20, 200, "#ff5577")
+board  = game.label("Bumps: 0", 70, 24, size=22)
+bumps  = 0
+
+while game.playing():
+    if game.pressed("right"): player.x = player.x + 5
+    if game.pressed("left"):  player.x = player.x - 5
+    if player.touches(wall):
+        player.color = "#ffdd00"          # flash on a bump
+        bumps = bumps + 1
+        board.content = "Bumps: " + str(bumps)
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-box">Try it in the Playground &rarr;</button></p>
+        </section>
+
+        <section id="over">
+          <h2>Ending a game</h2>
+          <p><code>game.game_over(message)</code> shows a big banner and stops the loop:</p>
+          <pre class="guide-code language-python">if misses >= 3:
+    game.game_over("Game over! Score: " + str(game.score()))</pre>
+          <p class="callout"><strong>Note on <code>game.submit_score(points)</code>:</strong> it is in the library so games do not crash, but it does <strong>nothing</strong> in PyWebLib yet, per-game high-score boards are not built. The <a href="../../leaderboard/">Leaderboard</a> ranks <em>creators</em> by the upvotes on the programs they share, not by in-game scores. Safe to leave in your code for later.</p>
+        </section>
+
+        <section id="limits">
+          <h2>What it can and can't do</h2>
+          <ul class="key-points">
+            <li><strong>Great for:</strong> catch and dodge games, mazes, top-down movers, two-player keyboard games, simple arcade fun.</li>
+            <li><strong>Not built for:</strong> gravity and physics engines, loading your own image files, or sound. Those are what a full engine like pygame adds.</li>
+          </ul>
+          <p class="callout"><strong>Coordinates.</strong> The top-left corner is <code>(0, 0)</code>. <code>x</code> grows to the <em>right</em> and <code>y</code> grows <em>downward</em>, so a bigger <code>y</code> is further <em>down</em> the screen. That catches everyone out at first.</p>
+          <p>Now open the <a href="../../">Playground</a>, type <code>import game</code>, and build something. Load the "Game" example cards, change a number, and see what happens.</p>
+          <p><a href="../../" class="btn btn-primary">Open the Playground &rarr;</a> <a href="../#sec-game" class="btn btn-ghost">Full call reference</a></p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <!-- Carry a code example over to the Playground: stash it, then navigate. -->
+  <script>
+    (function () {
+      document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-load]");
+        if (!btn) return;
+        var pre = document.getElementById(btn.getAttribute("data-load"));
+        if (!pre) return;
+        try {
+          localStorage.setItem("pyweblib-load", pre.textContent.replace(/\s+$/, ""));
+        } catch (err) { /* private mode: just navigate */ }
+        location.href = "../../";
+      });
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="../../supabase-config.js"></script>
+  <script src="../../auth.js"></script>
+  <script>
+    // Highlight the guide's code blocks (Prism auto-highlight only catches
+    // <code> elements; these are bare <pre class="language-python">).
+    if (window.Prism) {
+      document.querySelectorAll("pre.guide-code").forEach(function (el) {
+        try { window.Prism.highlightElement(el); } catch (e) {}
+      });
+    }
+  </script>
+</body>
+</html>
