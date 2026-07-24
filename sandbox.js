@@ -162,6 +162,49 @@
         "    game.frame()\n"
     },
     {
+      title: "Game: bouncing ball (vs pygame)",
+      desc: "The classic pygame bouncing ball, but web-native and smooth. The real pygame version is commented above: in a browser it crawls at about 1 frame a second.",
+      code:
+        "# --- The real pygame version (works, but about 1 fps in a browser). ---\n" +
+        "# import pygame\n" +
+        "#\n" +
+        "# pygame.init()\n" +
+        "# screen = pygame.display.set_mode((600, 400))\n" +
+        '# pygame.display.set_caption("Pygame Sample")\n' +
+        "# clock = pygame.time.Clock()\n" +
+        "#\n" +
+        "# x, y, dx, dy, r = 300, 200, 4, 3, 24\n" +
+        "# running = True\n" +
+        "# while running:\n" +
+        "#     for event in pygame.event.get():\n" +
+        "#         if event.type == pygame.QUIT:\n" +
+        "#             running = False\n" +
+        "#     x += dx\n" +
+        "#     y += dy\n" +
+        "#     if x - r < 0 or x + r > 600: dx = -dx\n" +
+        "#     if y - r < 0 or y + r > 400: dy = -dy\n" +
+        "#     screen.fill((20, 24, 40))\n" +
+        "#     pygame.draw.circle(screen, (233, 30, 99), (x, y), r)\n" +
+        "#     pygame.display.flip()\n" +
+        "#     clock.tick(60)\n" +
+        "#\n" +
+        "# pygame.quit()\n" +
+        "\n" +
+        "# --- The SAME demo with our web-native game library: smooth, no install. ---\n" +
+        "import game\n" +
+        "\n" +
+        'game.window(600, 400, background="#141828")\n' +
+        'ball = game.sprite("🔴", 300, 200, size=48)\n' +
+        "dx, dy = 4, 3\n" +
+        "\n" +
+        "while game.playing():\n" +
+        "    ball.x = ball.x + dx\n" +
+        "    ball.y = ball.y + dy\n" +
+        "    if ball.x < 24 or ball.x > 576: dx = -dx\n" +
+        "    if ball.y < 24 or ball.y > 376: dy = -dy\n" +
+        "    game.frame()\n"
+    },
+    {
       title: "Game: catch the eggs",
       desc: "Move the basket to catch falling eggs. Miss 3 and it's over.",
       code:

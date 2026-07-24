@@ -2,7 +2,7 @@
 
 # PyWebLib
 
-Try it here: [PyWebLib](https://sebastianhagemeyer.github.io/PyWebLib/)
+Try it here: [pyweb.qmarkapp.com](https://pyweb.qmarkapp.com/)
 
 [![GitHub stars](https://img.shields.io/github/stars/sebastianhagemeyer/PyWebLib?style=flat&logo=github)](https://github.com/sebastianhagemeyer/PyWebLib/stargazers)
 
@@ -11,6 +11,19 @@ Run real Python in your browser, with nothing to install. **PyWebLib** brings tu
 > Bring turtle and Python games to the browser: coloured prints, animation, and inline input(), all client-side, with nothing to download.
 
 ![Colored spiral](assets/spiral.gif)
+
+## Games in the browser (`import game`)
+
+Sprites, the keyboard, the mouse, collisions and a score, all running smoothly on
+a canvas. No install, and none of the ~1 fps lag that real pygame suffers when
+it is squeezed into a browser. Full walkthrough and a sprite table are in the
+[game guide](https://pyweb.qmarkapp.com/docs/game/).
+
+<p>
+  <img src="assets/game-chicken.gif" width="250" alt="Walk the chicken" />
+  <img src="assets/game-eggs.gif" width="250" alt="Catch the falling eggs" />
+  <img src="assets/game-ball.gif" width="250" alt="A bouncing ball, smooth (pygame in a browser crawls at about 1 fps)" />
+</p>
 
 ## Scope
 
@@ -96,7 +109,7 @@ works fully without it. To switch it on:
    - In Supabase: Authentication -> Providers -> Google -> paste the Client ID
      and Client Secret and enable it.
    - In Supabase: Authentication -> URL Configuration -> add your site to
-     "Redirect URLs", e.g. `https://sebastianhagemeyer.github.io/PyWebLib/**`
+     "Redirect URLs", e.g. `https://pyweb.qmarkapp.com/**`
      and `http://localhost:8000/**` for local testing.
 4. **Add your keys.** In `supabase-config.js`, set `SUPABASE_URL` and
    `SUPABASE_ANON_KEY` (Supabase dashboard -> Project Settings -> API). The anon
