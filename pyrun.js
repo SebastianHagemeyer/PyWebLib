@@ -499,7 +499,8 @@ def _pyrun_install_game():
     # Built-in drawn skins. You can pass the number, the name ("chicken"), or
     # any emoji of your own.
     _ART_NAMES = ["chicken", "dog", "bird", "egg", "coin", "basket",
-                  "shocked", "calm", "turtle", "car", "mouse"]
+                  "shocked", "calm", "turtle", "car", "mouse",
+                  "rocket", "asteroid", "laser"]
 
     # Default collision-box shape per art (width, height as a fraction of size),
     # so a wide car gets a wide box and a tall egg a tall one. Anything not

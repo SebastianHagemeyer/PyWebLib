@@ -257,7 +257,7 @@
       blurbLink: { href: "game/", text: "game guide" },
       items: [
         { sig: 'game.window(w, h)', desc: "Open the game window. Always first. Add background=\"#0b1020\" for a colour.", ex: 'import game\ngame.window(480, 360)' },
-        { sig: 'game.sprite(skin, x, y, size=40)', desc: 'A sprite you can move around. skin can be a built-in number (0 chicken, 1 dog, 2 bird, 3 egg, 4 coin, 5 basket, 6 shocked, 7 calm, 8 turtle, 9 car, 10 mouse), its name like "chicken", or any emoji.', ex: 'hero = game.sprite("chicken", 100, 200)\nfoe  = game.sprite("🦖", 300, 200)' },
+        { sig: 'game.sprite(skin, x, y, size=40)', desc: 'A sprite you can move around. skin can be a built-in number (0 chicken, 1 dog, 2 bird, 3 egg, 4 coin, 5 basket, 6 shocked, 7 calm, 8 turtle, 9 car, 10 mouse, 11 rocket, 12 asteroid, 13 laser), its name like "chicken", or any emoji.', ex: 'hero = game.sprite("chicken", 100, 200)\nfoe  = game.sprite("🦖", 300, 200)' },
         { sig: 'game.box(x, y, w, h, color)', desc: "A coloured rectangle, centred on (x, y).", ex: 'wall = game.box(240, 300, 60, 20, "#5fbf3a")' },
         { sig: 'game.label(text, x, y, size, color, background)', desc: "Draw words (a score or a message), centred on (x, y). color is the text colour; the optional background draws a filled box behind the words so they read on any scene. Labels sit on top of other sprites by default (their .layer starts at 1000).", ex: 'board = game.label("Score: 0", 80, 24, color="#ffffff", background="#000000")' },
         { sig: 'game.pressed(key)', desc: 'True while a key is held. "left", "right", "up", "down", "space", or a letter.', ex: 'if game.pressed("left"):\n    bird.x = bird.x - 5' },
