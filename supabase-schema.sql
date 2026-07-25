@@ -194,6 +194,31 @@ create or replace view public.top_creators with (security_invoker = on) as
   group by p.id, p.display_name, p.avatar_url
   order by total_votes desc, project_count desc;
 
+-- ==================== per-game leaderboards ====================
+-- Fed by game.submit_score(points) when someone plays a shared game on its
+-- page. One row per player per game, best score only, so the table stays tiny.
+-- Scores die with the program (cascade), so republishing starts a fresh board.
+create table if not exists public.game_scores (
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  score      integer not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (project_id, user_id)
+);
+create index if not exists game_scores_project_idx on public.game_scores (project_id, score desc);
+
+alter table public.game_scores enable row level security;
+
+drop policy if exists "game scores readable by everyone" on public.game_scores;
+create policy "game scores readable by everyone"
+  on public.game_scores for select using (true);
+drop policy if exists "players submit own game score" on public.game_scores;
+create policy "players submit own game score"
+  on public.game_scores for insert with check (auth.uid() = user_id);
+drop policy if exists "players update own game score" on public.game_scores;
+create policy "players update own game score"
+  on public.game_scores for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ============================ grants ============================
 -- RLS still governs which ROWS each role sees; these table grants are what
 -- PostgREST checks first. (Supabase usually adds these, included for safety.)
@@ -203,3 +228,5 @@ grant insert, update, delete on public.projects to authenticated;
 grant insert, delete on public.votes to authenticated;
 grant insert, delete on public.comments to authenticated;
 grant update on public.profiles to authenticated;
+grant select on public.game_scores to anon, authenticated;
+grant insert, update on public.game_scores to authenticated;

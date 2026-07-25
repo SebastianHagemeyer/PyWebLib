@@ -914,3 +914,14 @@ img { max-width: 100%; display: block; }
 .pg-play-btn svg { width: 24px; height: 24px; }
 .pg-play-btn:hover { background: rgba(79, 70, 229, 0.42); }
 .pg-code { max-height: 320px; }
+.pg-stage { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.pg-stage .pg-play { flex: 1 1 320px; min-width: 0; }
+.pg-leaderboard { flex: 0 0 210px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+.pg-lb-title { margin: 0 0 8px; font-size: 1rem; }
+.pg-lb-body { display: flex; flex-direction: column; gap: 3px; }
+.pg-lb-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 7px; font-size: 0.88rem; }
+.pg-lb-row.me { background: rgba(79, 70, 229, 0.1); font-weight: 700; }
+.pg-lb-rank { width: 18px; text-align: right; color: var(--muted); font-weight: 700; }
+.pg-lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-lb-score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pg-lb-empty, .pg-lb-signin { color: var(--muted); font-size: 0.82rem; margin: 6px 0 0; }

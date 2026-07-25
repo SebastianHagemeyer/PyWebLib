@@ -80,6 +80,55 @@
     document.title = (p.title || "Program") + " | PyWebLib";
     const kind = p.kind || "python";
     const playLabel = kind === "game" ? "Play" : "Run";
+    // A game that calls game.submit_score() gets a per-game leaderboard: one
+    // best score per signed-in player, submitted automatically as they play.
+    const hasLeaderboard = kind === "game" && /game\s*\.\s*submit_score/.test(p.code || "");
+    let runBest = null;
+
+    async function loadLeaderboard() {
+      const box = view.querySelector(".pg-lb-body");
+      if (!box) return;
+      const res = await sb.from("game_scores")
+        .select("score,user_id,profiles(display_name,avatar_url)")
+        .eq("project_id", p.id).order("score", { ascending: false }).limit(10);
+      if (res.error) { box.textContent = "Could not load scores."; return; }
+      renderLeaderboard(res.data || []);
+    }
+    function renderLeaderboard(rows) {
+      const box = view.querySelector(".pg-lb-body");
+      if (!box) return;
+      const user = PWL.auth && PWL.auth.user();
+      if (!rows.length) {
+        box.innerHTML = '<p class="pg-lb-empty">No scores yet. Play to be the first!</p>';
+      } else {
+        box.innerHTML = rows.map(function (r, i) {
+          const me = user && r.user_id === user.id ? " me" : "";
+          return '<div class="pg-lb-row' + me + '"><span class="pg-lb-rank">' + (i + 1) + "</span>" +
+            avatarOf(r.profiles) + '<span class="pg-lb-name">' + nameOf(r.profiles) +
+            '</span><span class="pg-lb-score">' + Number(r.score) + "</span></div>";
+        }).join("");
+      }
+      if (!user) box.innerHTML += '<p class="pg-lb-signin">Sign in and play to get on the board.</p>';
+    }
+    async function submitScore(points) {
+      points = Number(points);
+      const user = PWL.auth && PWL.auth.user();
+      if (!user || !isFinite(points)) return;
+      points = Math.floor(points);
+      if (runBest != null && points <= runBest) return;   // not better than this run
+      runBest = points;
+      try {
+        const cur = await sb.from("game_scores").select("score")
+          .eq("project_id", p.id).eq("user_id", user.id).maybeSingle();
+        if (!(cur.data && Number(cur.data.score) >= points)) {   // keep only your best
+          await sb.from("game_scores").upsert(
+            { project_id: p.id, user_id: user.id, score: points, updated_at: new Date().toISOString() },
+            { onConflict: "project_id,user_id" });
+        }
+      } catch (e) {}
+      loadLeaderboard();
+    }
+
     view.hidden = false;
     view.innerHTML =
       '<div class="cc-head">' +
@@ -88,7 +137,10 @@
       "</div>" +
       '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
         " &middot; " + esc(whenLabel(p)) + "</span></div>" +
-      '<div class="pg-play" id="pg-play"></div>' +
+      '<div class="pg-stage">' +
+        '<div class="pg-play" id="pg-play"></div>' +
+        (hasLeaderboard ? '<aside class="pg-leaderboard" id="pg-leaderboard"><h2 class="pg-lb-title">Leaderboard</h2><div class="pg-lb-body">Loading…</div></aside>' : "") +
+      "</div>" +
       '<p class="pg-desc"></p>' +
       '<div class="pg-actions">' +
         '<button type="button" class="btn btn-primary" id="pg-open">Open in the Playground</button>' +
@@ -123,8 +175,11 @@
     if (window.PWL.preview) { try { window.PWL.preview.renderInto(posterCanvas, p.code, p.scene); } catch (e) {} }
     playHost.querySelector(".pg-play-btn").addEventListener("click", function () {
       if (!window.PWL.player) { toast("The player isn't ready, try refreshing."); return; }
-      window.PWL.player.mount(playHost, { code: p.code, kind: kind, title: p.title });
+      runBest = null;   // a fresh play resets the best-of-this-run guard
+      window.PWL.player.mount(playHost, { code: p.code, kind: kind, title: p.title },
+        hasLeaderboard ? { onScore: submitScore } : null);
     });
+    if (hasLeaderboard) loadLeaderboard();
 
     // Open in the Playground, bound to this program so a re-share updates it.
     view.querySelector("#pg-open").addEventListener("click", function () {

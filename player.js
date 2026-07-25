@@ -20,8 +20,10 @@
   function jspiOk() { return !!(window.PyRun && window.PyRun.jspiSupported()); }
 
   // Build the player DOM into `container` and start running
-  // program = { code, kind, title }. Returns { runner, destroy }.
-  function mount(container, program) {
+  // program = { code, kind, title }. opts.onScore(points) receives scores from
+  // game.submit_score() (used by the program page's leaderboard). Returns
+  // { runner, destroy }.
+  function mount(container, program, opts) {
     const kind = program.kind || kindOf(program.code);
     container.innerHTML =
       '<div class="pwl-player pwl-player-is-' + kind + '">' +
@@ -68,7 +70,7 @@
       defaultCode: program.code,
       storageKey: null,
       turtle: { canvas: turtleCanvas, sprite: spriteCanvas },
-      game: { canvas: gameCanvas },
+      game: { canvas: gameCanvas, onScore: (opts && opts.onScore) || null },
       onChange: function (code) {
         const k = kindOf(code);
         turtleWrap.hidden = k !== "turtle";
