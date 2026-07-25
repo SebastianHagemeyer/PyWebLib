@@ -329,6 +329,7 @@
     },
     {
       title: "Game: flappy bird",
+      cat: "Advanced Games",
       desc: "Tap SPACE to flap. Gravity pulls you down, dodge the pipes, one point each.",
       code:
         "import game\n" +
@@ -445,6 +446,7 @@
     },
     {
       title: "Game: grow a garden",
+      cat: "Advanced Games",
       desc: "Start with 5 seeds: drag one to soil, keep the plot wet so it grows over time, then sell the sunflower for coins and buy more seeds from the shop.",
       code:
 `import game
@@ -463,22 +465,26 @@ coin_lbl = game.label("Coins: 0", 388, 22, size=18, color="#3a2e0a", background=
 shop = game.box(522, 22, 130, 30, "#6b4a1f")
 shop_lbl = game.label("Buy seed  2", 522, 22, size=16, color="#ffe9a8")
 
-# The seed you drag to plant, and a watering can that rides the mouse.
-tray_x, tray_y = 46, 100
-seed = game.sprite("🌱", tray_x, tray_y, size=34)
-can = game.sprite("🚿", 300, 180, size=40)
-game.hide_cursor()
-
-# Five plots. Each remembers its plant, how grown it is, and how wet it is.
+# Five plots. Make the soil FIRST, so the dirt draws under the plants and the
+# cursor (whatever you make first is drawn first, so it sits underneath).
 plots = []
 for i in range(5):
     px = 110 + i * 95
     soil = game.box(px, 270, 70, 32, "#9c6b3f")
-    plant = game.sprite("", px, 260, size=28)
-    plots.append({"soil": soil, "plant": plant, "planted": False, "growth": 0.0, "wet": 0.0})
+    plots.append({"soil": soil, "x": px, "plant": None, "planted": False, "growth": 0.0, "wet": 0.0})
+for plot in plots:                      # then the plants, on top of the soil
+    plot["plant"] = game.sprite("", plot["x"], 260, size=28)
 
-hint = game.label("Drag a seed to soil. Click to water. Click a sunflower to sell it. Buy seeds in the shop.",
+# The seed you drag to plant it.
+tray_x, tray_y = 46, 100
+seed = game.sprite("🌱", tray_x, tray_y, size=34)
+
+hint = game.label("Drag a seed to soil. Click to water. Snip a grown sunflower to sell it. Buy seeds in the shop.",
                   300, H - 14, size=13, color="#ffffff", background="#2f6b2f")
+
+# The tool that rides the mouse, made LAST so it always draws on top.
+can = game.sprite("🚿", 300, 180, size=40)
+game.hide_cursor()
 
 holding = False
 
@@ -556,10 +562,24 @@ while game.playing():
                     break
 
     seed.content = "🌱" if seeds > 0 else ""   # no seed to drag when you run out
+
+    # The cursor shows what you are doing: a hand while carrying a seed,
+    # scissors over a ripe sunflower, or the watering can the rest of the time.
+    if holding:
+        can.content = "✊"
+    else:
+        over_ripe = False
+        for plot in plots:
+            if plot["planted"] and plot["growth"] >= 100 and plot["plant"].at_mouse():
+                over_ripe = True
+                break
+        can.content = "✂️" if over_ripe else "🚿"
+
     game.frame()`
     },
     {
       title: "Game: asteroids",
+      cat: "Advanced Games",
       desc: "Turn and thrust with real momentum, so you drift, and blast the rocks with your laser. Big rocks split; clear a wave and a bigger one arrives. Shows off the rocket, asteroid and laser sprites.",
       code:
 `# ASTEROIDS
@@ -1207,14 +1227,14 @@ while game.playing():
   if (clearBtn) clearBtn.addEventListener("click", function () { runner.clearOutput(); });
 
   // The category order shown in the snippet dropdowns, and which one starts open.
-  const EXAMPLE_CATEGORIES = ["Basic", "Intermediate", "Coloured Text", "Turtle", "Game"];
+  const EXAMPLE_CATEGORIES = ["Basic", "Intermediate", "Coloured Text", "Turtle", "Basic Games", "Advanced Games"];
   const EXAMPLE_OPEN = "Basic";
 
   // Work out which category a snippet belongs in. An explicit ex.cat wins;
   // otherwise we sort by its title and whether it colours its output.
   function categoryOf(ex) {
     if (ex.cat) return ex.cat;
-    if (/^Game:/.test(ex.title)) return "Game";
+    if (/^Game:/.test(ex.title)) return "Basic Games";   // ex.cat can move one to "Advanced Games"
     if (/^Turtle:/.test(ex.title)) return "Turtle";
     if (/\bcol\s*=/.test(ex.code)) return "Coloured Text";
     return "Basic";
