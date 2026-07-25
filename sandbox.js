@@ -445,83 +445,117 @@
     },
     {
       title: "Game: grow a garden",
-      desc: "Drag a seed onto the soil, water it with clicks, then harvest the sunflowers. Your score is how much you have grown.",
+      desc: "Start with 5 seeds: drag one to soil, keep the plot wet so it grows over time, then sell the sunflower for coins and buy more seeds from the shop.",
       code:
 `import game
 
-W, H = 540, 400
+W, H = 600, 420
 game.window(W, H, background="#8fce6e")   # a sunny lawn
 
-title = game.label("Grow a Garden", 95, 24, size=24, color="#ffffff", background="#2f6b2f")
-board = game.label("Harvested: 0", 445, 24, size=20, color="#ffffff", background="#2f6b2f")
-hint = game.label("Drag a seed onto soil. Click to water. Click a sunflower to harvest.",
-                  270, H - 16, size=14, color="#ffffff", background="#2f6b2f")
+seeds = 5
+coins = 0
 
-# Five plots of soil in a row. Each one remembers its own plant.
+title = game.label("Grow a Garden", 100, 22, size=22, color="#ffffff", background="#2f6b2f")
+seed_lbl = game.label("Seeds: 5", 285, 22, size=18, color="#ffffff", background="#2f6b2f")
+coin_lbl = game.label("Coins: 0", 388, 22, size=18, color="#3a2e0a", background="#ffd75e")
+
+# A little shop: click it to spend 2 coins on one more seed.
+shop = game.box(522, 22, 130, 30, "#6b4a1f")
+shop_lbl = game.label("Buy seed  2", 522, 22, size=16, color="#ffe9a8")
+
+# The seed you drag to plant, and a watering can that rides the mouse.
+tray_x, tray_y = 46, 100
+seed = game.sprite("🌱", tray_x, tray_y, size=34)
+can = game.sprite("🚿", 300, 180, size=40)
+game.hide_cursor()
+
+# Five plots. Each remembers its plant, how grown it is, and how wet it is.
 plots = []
 for i in range(5):
-    px = 95 + i * 90
-    soil = game.box(px, 250, 66, 30, "#7a4a24")
-    plant = game.sprite("", px, 242, size=30)   # empty until something is planted
-    plots.append({"soil": soil, "plant": plant, "planted": False, "growth": 0})
+    px = 110 + i * 95
+    soil = game.box(px, 270, 70, 32, "#9c6b3f")
+    plant = game.sprite("", px, 260, size=28)
+    plots.append({"soil": soil, "plant": plant, "planted": False, "growth": 0.0, "wet": 0.0})
 
-# A seed you drag from the tray, and a watering can that rides the mouse.
-tray_x, tray_y = 42, 70
-seed = game.sprite("🌱", tray_x, tray_y, size=32)
-can = game.sprite("🚿", 490, 130, size=40)
-game.hide_cursor()
+hint = game.label("Drag a seed to soil. Click to water. Click a sunflower to sell it. Buy seeds in the shop.",
+                  300, H - 14, size=13, color="#ffffff", background="#2f6b2f")
 
 holding = False
 
-def grow_look(plot):
-    # The more you water, the bigger it gets, and the picture changes.
+def soil_color(w):
+    # Darker soil means wetter; it fades back to dry as the plot dries out.
+    t = max(0.0, min(1.0, w / 100.0))
+    r = int(0x9c + (0x5c - 0x9c) * t)
+    g = int(0x6b + (0x38 - 0x6b) * t)
+    b = int(0x3f + (0x1c - 0x3f) * t)
+    return "#%02x%02x%02x" % (r, g, b)
+
+def look(plot):
     g = plot["growth"]
-    plot["plant"].size = min(26 + g * 6, 52)
-    if g >= 4:
-        plot["plant"].content = "🌻"   # a sunflower: ready to harvest
-    elif g >= 2:
+    plot["plant"].size = 24 + g * 0.28
+    if g >= 100:
+        plot["plant"].content = "🌻"   # a sunflower: ready to sell
+    elif g >= 45:
         plot["plant"].content = "🌿"   # leafy
     else:
         plot["plant"].content = "🌱"   # a sprout
 
 while game.playing():
-    # The watering can follows the mouse.
     can.x = game.mouse_x()
     can.y = game.mouse_y() - 12
 
-    # Hold and drag the seed to plant it in a plot.
+    # Plots dry out slowly; a plant only grows while its plot is still wet.
+    for plot in plots:
+        if plot["wet"] > 0:
+            plot["wet"] = max(0.0, plot["wet"] - 0.5)
+        plot["soil"].color = soil_color(plot["wet"])
+        if plot["planted"] and plot["wet"] > 0 and plot["growth"] < 100:
+            plot["growth"] = min(100.0, plot["growth"] + 0.4)
+            look(plot)
+
+    # Drag a seed from the tray onto a plot (uses one seed).
     if game.mouse_down():
-        if not holding and seed.at_mouse():
+        if not holding and seeds > 0 and seed.at_mouse():
             holding = True
         if holding:
             seed.x = game.mouse_x()
             seed.y = game.mouse_y()
     elif holding:
-        # Let go: plant it on the empty plot it is over, then send the seed back.
         for plot in plots:
             if not plot["planted"] and seed.touches(plot["soil"]):
                 plot["planted"] = True
-                plot["growth"] = 1
-                grow_look(plot)
+                plot["growth"] = 1.0
+                plot["wet"] = 100.0             # planting waters it once
+                look(plot)
+                seeds = seeds - 1
+                seed_lbl.content = "Seeds: " + str(seeds)
                 break
         seed.x, seed.y = tray_x, tray_y
         holding = False
 
-    # Click a plot: one click waters it a step; click a full sunflower to harvest.
+    # A click: buy in the shop, water a plant, or sell a sunflower.
     if game.clicked():
-        for plot in plots:
-            if plot["planted"] and plot["plant"].at_mouse():
-                if plot["growth"] >= 4:
-                    game.score(1)                       # harvest!
-                    board.content = "Harvested: " + str(game.score())
-                    plot["planted"] = False             # the plot is empty again
-                    plot["growth"] = 0
-                    plot["plant"].content = ""
-                else:
-                    plot["growth"] = plot["growth"] + 1   # a splash of water
-                    grow_look(plot)
-                break
+        if shop.at_mouse():
+            if coins >= 2:
+                coins = coins - 2
+                seeds = seeds + 1
+                coin_lbl.content = "Coins: " + str(coins)
+                seed_lbl.content = "Seeds: " + str(seeds)
+        else:
+            for plot in plots:
+                if plot["planted"] and plot["plant"].at_mouse():
+                    if plot["growth"] >= 100:
+                        coins = coins + 3               # sell the sunflower
+                        coin_lbl.content = "Coins: " + str(coins)
+                        plot["planted"] = False
+                        plot["growth"] = 0.0
+                        plot["plant"].content = ""
+                    else:
+                        plot["wet"] = 100.0             # a splash of water
+                        plot["soil"].color = soil_color(100.0)
+                    break
 
+    seed.content = "🌱" if seeds > 0 else ""   # no seed to drag when you run out
     game.frame()`
     },
     {
