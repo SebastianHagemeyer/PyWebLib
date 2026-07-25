@@ -559,6 +559,169 @@ while game.playing():
     game.frame()`
     },
     {
+      title: "Game: asteroids",
+      desc: "Turn and thrust with real momentum, so you drift, and blast the rocks with your laser. Big rocks split; clear a wave and a bigger one arrives. Shows off the rocket, asteroid and laser sprites.",
+      code:
+`# ASTEROIDS
+#
+# Controls:  LEFT / RIGHT turn the rocket
+#            UP fires the engine (real momentum: you drift!)
+#            SPACE shoots
+#
+# Big rocks split into two small ones when shot. Clear the wave and a
+# bigger wave arrives. 3 lives; after a hit you blink and cannot be
+# hurt for a moment. Fly off one edge, appear on the other.
+
+import game
+import math
+import random
+
+W = 480
+H = 360
+game.window(W, H, background="#070b1a")
+
+# A sprinkle of stars (cheap little boxes, drawn under everything).
+for i in range(18):
+    game.box(random.randint(0, W), random.randint(0, H), 2, 2, color="#3c4a7a")
+
+ship = game.sprite("rocket", W // 2, H // 2, size=40)
+board = game.label("Score: 0   Lives: 3", 96, 22, size=18,
+                   color="#ffffff", background="#000000")
+
+heading = -90                   # which way the nose points (-90 = up)
+vx = 0.0                        # space physics: thrust adds speed,
+vy = 0.0                        # and almost nothing takes it away
+score = 0
+lives = 3
+safe = 0                        # invincible frames after a hit
+cooldown = 0                    # frames until the gun can fire again
+bullets = []
+rocks = []
+wave = 0
+
+def update_board():
+    board.content = "Score: " + str(score) + "   Lives: " + str(lives)
+
+def spawn_wave():
+    global wave
+    wave = wave + 1
+    for i in range(2 + wave):
+        # Spawn away from the ship, so a new wave is never instant death.
+        while True:
+            x = random.randint(20, W - 20)
+            y = random.randint(20, H - 20)
+            if math.dist((x, y), (ship.x, ship.y)) > 120:
+                break
+        r = game.sprite("asteroid", x, y, size=44)
+        r.vx = random.uniform(-1.6, 1.6)
+        r.vy = random.uniform(-1.6, 1.6)
+        r.big = True
+        rocks.append(r)
+
+def split(rock):
+    # A big rock breaks into two fast little ones.
+    for i in range(2):
+        s = game.sprite("asteroid", rock.x, rock.y, size=26)
+        s.vx = random.uniform(-2.4, 2.4)
+        s.vy = random.uniform(-2.4, 2.4)
+        s.big = False
+        rocks.append(s)
+
+spawn_wave()
+
+while game.playing():
+    # ---- steer and thrust ----
+    if game.pressed("left"):  heading = heading - 5
+    if game.pressed("right"): heading = heading + 5
+    a = heading * math.pi / 180
+    if game.pressed("up"):
+        vx = vx + math.cos(a) * 0.25
+        vy = vy + math.sin(a) * 0.25
+    vx = vx * 0.985             # a whisper of drag so it stays flyable
+    vy = vy * 0.985
+    ship.x = ship.x + vx
+    ship.y = ship.y + vy
+    # The rocket sprite points right at angle 0, so the heading IS the angle.
+    ship.angle = heading
+
+    # Fly off one edge, appear on the other.
+    if ship.x < 0: ship.x = W
+    if ship.x > W: ship.x = 0
+    if ship.y < 0: ship.y = H
+    if ship.y > H: ship.y = 0
+
+    # ---- shoot a laser bolt ----
+    if cooldown > 0:
+        cooldown = cooldown - 1
+    if game.pressed("space") and cooldown == 0:
+        b = game.sprite("laser", ship.x + math.cos(a) * 22,
+                        ship.y + math.sin(a) * 22, size=22)
+        b.angle = heading          # the bolt points the way it flies
+        b.vx = math.cos(a) * 9 + vx
+        b.vy = math.sin(a) * 9 + vy
+        bullets.append(b)
+        cooldown = 7
+
+    for b in bullets[:]:
+        b.x = b.x + b.vx
+        b.y = b.y + b.vy
+        if b.x < -10 or b.x > W + 10 or b.y < -10 or b.y > H + 10:
+            b.remove()
+            bullets.remove(b)
+
+    # ---- rocks drift and wrap ----
+    for r in rocks:
+        r.x = r.x + r.vx
+        r.y = r.y + r.vy
+        if r.x < 0: r.x = W
+        if r.x > W: r.x = 0
+        if r.y < 0: r.y = H
+        if r.y > H: r.y = 0
+
+    # ---- bullets hit rocks ----
+    for b in bullets[:]:
+        for r in rocks[:]:
+            if b.touches(r):
+                if r.big:
+                    split(r)
+                    score = score + 10
+                else:
+                    score = score + 25
+                r.remove()
+                rocks.remove(r)
+                b.remove()
+                bullets.remove(b)
+                update_board()
+                break
+
+    # ---- rocks hit the ship ----
+    if safe > 0:
+        safe = safe - 1
+        ship.visible = (safe % 10) < 6   # blink while invincible
+        if safe == 0:
+            ship.visible = True
+    else:
+        for r in rocks:
+            if ship.touches(r):
+                lives = lives - 1
+                update_board()
+                if lives == 0:
+                    game.submit_score(score)   # leaderboard, if you publish it!
+                    game.game_over("Game over! Score: " + str(score))
+                ship.x = W // 2
+                ship.y = H // 2
+                vx = 0.0
+                vy = 0.0
+                safe = 90
+                break
+
+    # ---- wave cleared? a bigger one arrives ----
+    if len(rocks) == 0:
+        spawn_wave()
+
+    game.frame()`
+    },
+    {
       title: "Game: whack a mouse",
       desc: "Click the mouse with your mouse before it scurries to the next hole. It gets faster!",
       code:
