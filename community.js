@@ -161,6 +161,9 @@
       if (p.description) desc.textContent = p.description; else desc.remove();
       card.querySelector('[data-act="vote"]').addEventListener("click", function () { toggleVote(p, card); });
       card.querySelector('[data-act="play"]').addEventListener("click", function () {
+        // Games deserve the full page: leaderboard, comments, big stage. Turtle
+        // and plain-Python programs run inline in a quick popup.
+        if (p.kind === "game") { window.location.href = "../game/?id=" + encodeURIComponent(p.id); return; }
         countView(p, card);
         if (window.PWL.player) window.PWL.player.openModal({ code: p.code, kind: p.kind, title: p.title });
       });

@@ -170,8 +170,10 @@
           '<span class="cc-votes">' + p.vote_count + "</span></button>" +
         '<button type="button" class="btn btn-ghost" id="pg-copy">Copy link</button>' +
       "</div>" +
-      '<h2 class="pg-h">Code</h2>' +
-      '<pre class="pwl-modal-code pg-code"></pre>' +
+      '<details class="pg-code-wrap"' + (kind === "game" ? "" : " open") + '>' +
+        '<summary class="pg-code-summary">Code</summary>' +
+        '<pre class="pwl-modal-code pg-code"></pre>' +
+      "</details>" +
       '<h2 class="pg-h">Comments</h2>' +
       '<div class="pwl-comments" id="pg-comments">Loading…</div>' +
       '<form class="pwl-comment-form" id="pg-comment-form" hidden>' +

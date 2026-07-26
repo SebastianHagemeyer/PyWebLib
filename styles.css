@@ -947,6 +947,14 @@ img { max-width: 100%; display: block; }
 .pg-play-btn svg { width: 24px; height: 24px; }
 .pg-play-btn:hover { background: rgba(79, 70, 229, 0.42); }
 .pg-code { max-height: 320px; }
+/* Collapsible "Code" panel: keeps the game, leaderboard and comments the focus,
+   collapsed by default for games (see program.js). */
+.pg-code-wrap { margin: 2px 0; }
+.pg-code-summary { cursor: pointer; font-size: 1.05rem; font-weight: 700; margin: 6px 0; list-style: none; display: inline-flex; align-items: center; gap: 8px; user-select: none; }
+.pg-code-summary::-webkit-details-marker { display: none; }
+.pg-code-summary::before { content: "\25B6"; font-size: 0.62rem; color: var(--muted); transition: transform 0.15s ease; }
+.pg-code-wrap[open] .pg-code-summary::before { transform: rotate(90deg); }
+.pg-code-wrap .pg-code { margin-top: 8px; }
 .pg-stage { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .pg-stage .pg-play { flex: 1 1 320px; min-width: 0; }
 .pg-leaderboard { flex: 0 0 210px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
