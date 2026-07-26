@@ -143,9 +143,10 @@
         ((kind === "turtle" || kind === "game") && !scene
           ? '<div class="pwl-share-runfirst"><span>' +
               (kind === "game"
-                ? "Run your game to capture a live thumbnail of it."
-                : "Run your program to save its drawing as the thumbnail.") +
-            '</span><button type="button" class="btn btn-ghost pwl-runfirst-btn">Run it now</button></div>'
+                ? "Run your game first to capture a live thumbnail of it."
+                : "Run your program first to save its drawing as the thumbnail.") +
+            '</span><button type="button" class="btn btn-ghost pwl-runfirst-btn">Run it now</button></div>' +
+            '<button type="button" class="pwl-publish-anyway">Publish without a thumbnail</button>'
           : "") +
         '<form id="pwl-share-form" class="pwl-share-form">' +
           targetField +
@@ -187,12 +188,29 @@
     const capNote = form.querySelector(".pwl-cap-note");
     if (capNote) capNote.textContent =
       "You have " + mine.length + " programs, the most allowed. Pick one above to update, or delete one in the community first.";
+
+    // Hard gate: a turtle/game with no live thumbnail (never run for this code)
+    // can't be published until it's been run, so cards aren't just code. The
+    // "Publish without a thumbnail" link is the escape hatch.
+    const needsThumb = (kind === "turtle" || kind === "game") && !scene;
+    let allowNoScene = false;
+    const anywayBtn = back.querySelector(".pwl-publish-anyway");
+    if (anywayBtn) anywayBtn.addEventListener("click", function () {
+      allowNoScene = true;
+      anywayBtn.remove();
+      const rf = back.querySelector(".pwl-share-runfirst");
+      if (rf) rf.classList.add("bypassed");
+      refreshSubmit();
+      titleEl.focus();
+    });
+
     // At the cap you can still update an existing program, just not add a new one.
-    function refreshCap() {
+    function refreshSubmit() {
       const isNew = !targetEl || !targetEl.value;
-      const blocked = atCap && isNew;
-      if (capNote) capNote.hidden = !blocked;
-      submitBtn.disabled = blocked;
+      const capBlocked = atCap && isNew;
+      const thumbBlocked = needsThumb && !allowNoScene;
+      if (capNote) capNote.hidden = !capBlocked;
+      submitBtn.disabled = capBlocked || thumbBlocked;
     }
     // Choosing an existing program fills in its title and description and turns
     // the button into an update; "A new program" resets to a fresh post.
@@ -206,7 +224,7 @@
         } else {
           submitBtn.textContent = "Publish";
         }
-        refreshCap();
+        refreshSubmit();
       });
     }
     // Pre-target a program (from "Update this program" on the Playground).
@@ -214,7 +232,7 @@
       const has = Array.prototype.some.call(targetEl.options, function (o) { return o.value === preselectId; });
       if (has) { targetEl.value = preselectId; targetEl.dispatchEvent(new Event("change")); }
     }
-    refreshCap();
+    refreshSubmit();
     titleEl.focus();
 
     form.addEventListener("submit", async function (e) {
@@ -223,6 +241,7 @@
       if (!u) { PWL.auth.signInWithGoogle(); return; }
       const title = titleEl.value.trim();
       if (!title) return;
+      if (needsThumb && !allowNoScene) { toast("Run your program first to capture a thumbnail, or choose \"Publish without a thumbnail\"."); return; }
       const targetId = targetEl ? targetEl.value : "";
       if (atCap && !targetId) { toast("You're at the " + PROGRAM_CAP + " program limit. Update one, or delete one first."); return; }
       const sceneJson = scene

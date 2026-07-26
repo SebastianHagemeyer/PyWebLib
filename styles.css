@@ -894,6 +894,16 @@ img { max-width: 100%; display: block; }
 }
 .pwl-share-runfirst span { color: var(--text); font-size: 0.82rem; }
 .pwl-share-runfirst .pwl-runfirst-btn { flex: none; white-space: nowrap; padding: 5px 12px; font-size: 0.82rem; }
+.pwl-share-runfirst.bypassed { opacity: 0.5; }
+/* Escape hatch under the run-first callout: a quiet text link. */
+.pwl-publish-anyway {
+  display: block; margin: 2px 0 4px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 0.78rem; text-decoration: underline;
+}
+.pwl-publish-anyway:hover { color: var(--text); }
+/* A disabled Publish (gated on a thumbnail or the program cap) reads as inactive. */
+.pwl-modal-actions .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Play button on a community card's title line */
 .cc-title { flex: 1; }
