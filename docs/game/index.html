@@ -196,7 +196,9 @@ while game.playing():
           <p><code>game.game_over(message)</code> shows a big banner and stops the loop:</p>
           <pre class="guide-code language-python">if misses >= 3:
     game.game_over("Game over! Score: " + str(game.score()))</pre>
-          <p class="callout"><strong>Note on <code>game.submit_score(points)</code>:</strong> it is in the library so games do not crash, but it does <strong>nothing</strong> in PyWebLib yet, per-game high-score boards are not built. The <a href="../../leaderboard/">Leaderboard</a> ranks <em>creators</em> by the upvotes on the programs they share, not by in-game scores. Safe to leave in your code for later.</p>
+          <p class="callout"><strong>Leaderboards with <code>game.submit_score(points)</code>:</strong> call it whenever the score changes (or at game over) and, once you publish the game, its shared page gets a <strong>per-game leaderboard</strong>, the best score for each signed-in player who plays it there. In the Playground it quietly does nothing, so it is safe to leave in. This is separate from the site <a href="../../leaderboard/">Leaderboard</a>, which ranks <em>creators</em> by the upvotes on the programs they share.</p>
+          <pre class="guide-code language-python">game.submit_score(score)
+game.game_over("Score: " + str(score))</pre>
         </section>
 
         <section id="limits">

@@ -64,6 +64,22 @@
     if (url) return '<img class="pwl-avatar sm" src="' + esc(url) + '" alt="" referrerpolicy="no-referrer" />';
     return '<span class="pwl-avatar sm pwl-avatar-text">' + esc((name[0] || "?").toUpperCase()) + '</span>';
   }
+
+  const EYE_SVG = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 3.5C4.6 3.5 1.8 5.6 1 8c.8 2.4 3.6 4.5 7 4.5s6.2-2.1 7-4.5c-.8-2.4-3.6-4.5-7-4.5zm0 7.5A3 3 0 1 1 8 5a3 3 0 0 1 0 6z" fill="currentColor"/></svg>';
+  function viewsHtml(n) { return '<span class="cc-views" title="Views">' + EYE_SVG + " " + (Number(n) || 0) + "</span>"; }
+  // Count a view once per program per browser session (so refreshes and repeat
+  // clicks don't inflate it), and optimistically bump the card's counter.
+  function countView(p, card) {
+    try {
+      const k = "pwl-viewed:" + p.id;
+      if (sessionStorage.getItem(k)) return;
+      sessionStorage.setItem(k, "1");
+    } catch (e) {}
+    p.view_count = (Number(p.view_count) || 0) + 1;
+    const el = card && card.querySelector(".cc-views");
+    if (el) el.innerHTML = EYE_SVG + " " + p.view_count;
+    try { sb.rpc("increment_view", { pid: p.id }); } catch (e) {}
+  }
   function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
 
   async function refresh() {
@@ -72,16 +88,23 @@
     const user = PWL.auth && PWL.auth.user();
     currentUserId = user ? user.id : null;
 
-    let q = sb.from("projects").select(
-      "id,title,description,code,kind,scene,vote_count,created_at,updated_at,author_id," +
-      "profiles!author_id(display_name,avatar_url),comments(count)"
-    );
-    if (mineOnly && user) q = q.eq("author_id", user.id);
-    q = sort === "new"
-      ? q.order("created_at", { ascending: false })
-      : q.order("vote_count", { ascending: false }).order("created_at", { ascending: false });
-
-    const { data, error } = await q.limit(100);
+    function cols(withViews) {
+      return "id,title,description,code,kind,scene,vote_count," + (withViews ? "view_count," : "") +
+        "created_at,updated_at,author_id,profiles!author_id(display_name,avatar_url),comments(count)";
+    }
+    function build(withViews) {
+      let q = sb.from("projects").select(cols(withViews));
+      if (mineOnly && user) q = q.eq("author_id", user.id);
+      q = sort === "new"
+        ? q.order("created_at", { ascending: false })
+        : q.order("vote_count", { ascending: false }).order("created_at", { ascending: false });
+      return q.limit(100);
+    }
+    // Ask for view_count, but tolerate a database that hasn't added it yet
+    // (schema not re-run): fall back so the gallery still loads, views show 0.
+    let res = await build(true);
+    if (res.error && /view_count/i.test(res.error.message || "")) res = await build(false);
+    const { data, error } = res;
     if (error) {
       grid.innerHTML = '<p class="community-empty">Could not load programs: ' + esc(error.message) + "</p>";
       return;
@@ -125,7 +148,7 @@
         "</div>" +
         '<p class="cc-desc"></p>' +
         '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
-          ' &middot; ' + esc(whenLabel(p)) + "</span></div>" +
+          ' &middot; ' + esc(whenLabel(p)) + "</span>" + viewsHtml(p.view_count) + "</div>" +
         '<div class="cc-actions">' +
           '<button type="button" class="cc-vote' + (voted ? " voted" : "") + '" data-act="vote" title="Upvote">' +
             '<span class="cc-arrow"><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M8 4l5 6.5H3z" fill="currentColor"/></svg></span> <span class="cc-votes">' + p.vote_count + "</span></button>" +
@@ -138,6 +161,7 @@
       if (p.description) desc.textContent = p.description; else desc.remove();
       card.querySelector('[data-act="vote"]').addEventListener("click", function () { toggleVote(p, card); });
       card.querySelector('[data-act="play"]').addEventListener("click", function () {
+        countView(p, card);
         if (window.PWL.player) window.PWL.player.openModal({ code: p.code, kind: p.kind, title: p.title });
       });
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });

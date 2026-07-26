@@ -269,7 +269,7 @@
         { sig: 'game.playing()', desc: "The loop condition: true while the game runs.", ex: 'while game.playing():\n    game.frame()' },
         { sig: 'game.frame(fps=30)', desc: "Draw one frame and wait. Put it at the end of the loop.", ex: 'game.frame()' },
         { sig: 'game.game_over(message)', desc: "Show a banner and stop the game.", ex: 'game.game_over("You win!")' },
-        { sig: 'game.submit_score(points)', desc: "Records a score for a leaderboard when the game is hosted with one. In the Playground it quietly does nothing, so it is safe to leave in.", ex: 'game.submit_score(score)\ngame.game_over("Score: " + str(score))' },
+        { sig: 'game.submit_score(points)', desc: "Records the player's score on the game's per-game leaderboard once you publish it, shown on the game's shared page (best score per player). In the Playground it quietly does nothing, so it is safe to leave in.", ex: 'game.submit_score(score)\ngame.game_over("Score: " + str(score))' },
         { sig: 'game.debug(True)', desc: "Draw a red outline around every sprite's hit box: the area touches() checks for collisions. Put it after game.window(). The box is axis-aligned (it does not spin or scale), so a rotated sprite keeps a straight box.", ex: 'game.window(480, 360)\ngame.debug(True)' },
         { sig: 'sprite.x / sprite.y', desc: "Where a sprite is. Change these to move it.", ex: 'bird.y = bird.y + 5' },
         { sig: 'sprite.content', desc: "What a sprite shows. Set it to a new skin number, a name, or an emoji to change the picture. A label uses it for its text.", ex: 'player.content = "coin"\nboard.content = "Score: " + str(n)' },

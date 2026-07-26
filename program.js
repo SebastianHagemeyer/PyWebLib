@@ -43,6 +43,21 @@
     return '<span class="pwl-avatar sm pwl-avatar-text">' + esc((name[0] || "?").toUpperCase()) + "</span>";
   }
   function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
+  const EYE_SVG = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 3.5C4.6 3.5 1.8 5.6 1 8c.8 2.4 3.6 4.5 7 4.5s6.2-2.1 7-4.5c-.8-2.4-3.6-4.5-7-4.5zm0 7.5A3 3 0 1 1 8 5a3 3 0 0 1 0 6z" fill="currentColor"/></svg>';
+  function viewsHtml(n) { return '<span class="pg-views" title="Views">' + EYE_SVG + " " + (Number(n) || 0) + "</span>"; }
+  // Opening the program page is a view: count it once per browser session (so a
+  // refresh doesn't inflate it) and optimistically bump the number on the page.
+  function countView(p) {
+    try {
+      const k = "pwl-viewed:" + p.id;
+      if (sessionStorage.getItem(k)) return;
+      sessionStorage.setItem(k, "1");
+    } catch (e) {}
+    p.view_count = (Number(p.view_count) || 0) + 1;
+    const el = view.querySelector(".pg-views");
+    if (el) el.innerHTML = EYE_SVG + " " + p.view_count;
+    try { sb.rpc("increment_view", { pid: p.id }); } catch (e) {}
+  }
   function toast(msg) {
     let t = document.getElementById("pwl-toast");
     if (!t) { t = document.createElement("div"); t.id = "pwl-toast"; t.className = "toast"; document.body.appendChild(t); }
@@ -65,10 +80,16 @@
   }
 
   async function load() {
-    const { data, error } = await sb.from("projects").select(
-      "id,title,description,code,kind,scene,vote_count,created_at,updated_at,author_id," +
-      "profiles!author_id(display_name,avatar_url),comments(count)"
-    ).eq("id", id).single();
+    function cols(withViews) {
+      return "id,title,description,code,kind,scene,vote_count," + (withViews ? "view_count," : "") +
+        "created_at,updated_at,author_id,profiles!author_id(display_name,avatar_url),comments(count)";
+    }
+    // Ask for view_count, but tolerate a database that hasn't added it yet.
+    let res = await sb.from("projects").select(cols(true)).eq("id", id).single();
+    if (res.error && /view_count/i.test(res.error.message || "")) {
+      res = await sb.from("projects").select(cols(false)).eq("id", id).single();
+    }
+    const { data, error } = res;
     if (error || !data) {
       showNotice("That program couldn't be found. It may have been deleted.");
       return;
@@ -136,7 +157,7 @@
         '<h1 class="pg-title"></h1>' +
       "</div>" +
       '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
-        " &middot; " + esc(whenLabel(p)) + "</span></div>" +
+        " &middot; " + esc(whenLabel(p)) + "</span>" + viewsHtml(p.view_count) + "</div>" +
       '<div class="pg-stage">' +
         '<div class="pg-play" id="pg-play"></div>' +
         (hasLeaderboard ? '<aside class="pg-leaderboard" id="pg-leaderboard"><h2 class="pg-lb-title">Leaderboard</h2><div class="pg-lb-body">Loading…</div></aside>' : "") +
@@ -199,6 +220,7 @@
 
     wireVote(p);
     loadComments(p);
+    countView(p);
   }
 
   async function wireVote(p) {

@@ -734,6 +734,9 @@ img { max-width: 100%; display: block; }
 .cc-title { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
 .cc-desc { margin: 0; color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
 .cc-author { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 0.82rem; }
+/* Views counter, pushed to the end of the author line. */
+.cc-views, .pg-views { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--muted); font-size: 0.8rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cc-views svg, .pg-views svg { display: block; opacity: 0.85; }
 .cc-kind { flex: none; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; color: #fff; background: var(--muted); }
 .cc-kind-python { background: #3b82f6; }
 .cc-kind-turtle { background: #22b45e; }

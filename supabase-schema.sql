@@ -95,6 +95,18 @@ create policy "authors delete own projects"
 -- at publish time so the gallery shows a real preview without running Python.
 alter table public.projects add column if not exists scene text;
 
+-- A public view counter, bumped when someone plays or opens a program. Anyone
+-- (even signed out) can add to it through increment_view() below, which is
+-- security definer so it side-steps the author-only update policy, yet can ONLY
+-- add one to the counter, nothing else.
+alter table public.projects add column if not exists view_count integer not null default 0;
+
+create or replace function public.increment_view(pid uuid)
+returns void language sql security definer set search_path = public as $$
+  update public.projects set view_count = view_count + 1 where id = pid;
+$$;
+grant execute on function public.increment_view(uuid) to anon, authenticated;
+
 -- Cap how many programs one person can publish. Enforced here because a
 -- client-side limit is trivially bypassed. To change the cap, edit the number
 -- and re-run this block (and keep PROGRAM_CAP in publish.js in step).
