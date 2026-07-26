@@ -78,7 +78,8 @@
     p.view_count = (Number(p.view_count) || 0) + 1;
     const el = card && card.querySelector(".cc-views");
     if (el) el.innerHTML = EYE_SVG + " " + p.view_count;
-    try { sb.rpc("increment_view", { pid: p.id }); } catch (e) {}
+    // supabase-js queries are lazy: they only send once awaited or .then()'d.
+    try { sb.rpc("increment_view", { pid: p.id }).then(null, function () {}); } catch (e) {}
   }
   function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
 
