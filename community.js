@@ -65,7 +65,7 @@
     return '<span class="pwl-avatar sm pwl-avatar-text">' + esc((name[0] || "?").toUpperCase()) + '</span>';
   }
 
-  const EYE_SVG = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 3.5C4.6 3.5 1.8 5.6 1 8c.8 2.4 3.6 4.5 7 4.5s6.2-2.1 7-4.5c-.8-2.4-3.6-4.5-7-4.5zm0 7.5A3 3 0 1 1 8 5a3 3 0 0 1 0 6z" fill="currentColor"/></svg>';
+  const EYE_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
   function viewsHtml(n) { return '<span class="cc-views" title="Views">' + EYE_SVG + " " + (Number(n) || 0) + "</span>"; }
   // Count a view once per program per browser session (so refreshes and repeat
   // clicks don't inflate it), and optimistically bump the card's counter.
