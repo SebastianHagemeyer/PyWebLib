@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cross-browser spike (no JSPI)</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; max-width: 720px; background: #f7f8fb; color: #0f172a; }
+  h1 { font-size: 1.3rem; }
+  #stage { background: #0b1020; border-radius: 10px; display: inline-block; }
+  canvas { display: block; border-radius: 10px; }
+  .status { font-family: ui-monospace, Consolas, monospace; font-size: 0.82rem; background: #0f1226; color: #e6e7ef; padding: 12px 14px; border-radius: 8px; white-space: pre-wrap; margin-top: 14px; }
+  .ok { color: #7ee787; } .bad { color: #ff8a8a; } .warn { color: #ffd43b; }
+</style>
+<script>
+  // ---- coi-serviceworker registration: reload once so the injected COOP/COEP
+  //      headers take effect and crossOriginIsolated flips true. ----
+  (function () {
+    if (window.crossOriginIsolated) return;              // already isolated
+    if (!window.isSecureContext || !navigator.serviceWorker) return;
+    navigator.serviceWorker.register("coi-serviceworker.js", { scope: "./" }).then(function (reg) {
+      if (!navigator.serviceWorker.controller && reg.active) window.location.reload();
+    }).catch(function () {});
+    navigator.serviceWorker.addEventListener("controllerchange", function () { window.location.reload(); });
+  })();
+</script>
+</head>
+<body>
+  <h1>Spike: turtle via Worker + SharedArrayBuffer (no JSPI)</h1>
+  <p>Proves the mechanism Safari would use: Pyodide in a worker, the sleep blocking on <code>Atomics.wait</code>, isolation supplied by <code>coi-serviceworker</code> (no server headers).</p>
+  <div id="stage"><canvas id="cv" width="420" height="420"></canvas></div>
+  <div class="status" id="status">booting…</div>
+
+  <script>
+  (function () {
+    const statusEl = document.getElementById("status");
+    const log = function (html) { statusEl.innerHTML += "\n" + html; };
+    const ctx = document.getElementById("cv").getContext("2d");
+    const W = 420, H = 420;
+    ctx.fillStyle = "#0b1020"; ctx.fillRect(0, 0, W, H);
+    const X = function (x) { return W / 2 + x; }, Y = function (y) { return H / 2 - y; };
+
+    statusEl.textContent =
+      "crossOriginIsolated = " + window.crossOriginIsolated +
+      "\nSharedArrayBuffer  = " + (typeof SharedArrayBuffer !== "undefined") +
+      "\nJSPI on main       = " + (typeof WebAssembly !== "undefined" && typeof WebAssembly.Suspending === "function") +
+      "\nUA                 = " + navigator.userAgent.slice(0, 70);
+
+    if (!window.crossOriginIsolated) { log('<span class="warn">not isolated yet - service worker should reload the page…</span>'); return; }
+    if (typeof SharedArrayBuffer === "undefined") { log('<span class="bad">SharedArrayBuffer unavailable - cannot proceed.</span>'); window.__spike = { fail: "no SAB" }; return; }
+
+    // ---- probe the COEP collateral: does a cross-origin Google avatar load? ----
+    (function testAvatar() {
+      const url = "https://lh3.googleusercontent.com/a/default-user=s64";
+      const img = new Image();
+      img.onload = function () { log('<span class="ok">avatar (no crossorigin): LOADED under isolation</span>'); window.__avatarPlain = true; };
+      img.onerror = function () { log('<span class="bad">avatar (no crossorigin): BLOCKED by COEP</span>'); window.__avatarPlain = false; };
+      img.src = url;
+      const img2 = new Image();
+      img2.crossOrigin = "anonymous";
+      img2.onload = function () { log('<span class="ok">avatar (crossorigin=anon): LOADED</span>'); window.__avatarCors = true; };
+      img2.onerror = function () { log('<span class="warn">avatar (crossorigin=anon): blocked (Google may not send CORS)</span>'); window.__avatarCors = false; };
+      img2.src = url;
+    })();
+
+    // ---- run the turtle in the worker ----
+    const sab = new SharedArrayBuffer(4);
+    const worker = new Worker("py-worker.js");
+    let segs = 0;
+    worker.onmessage = function (e) {
+      const m = e.data;
+      if (m.type === "seg") {
+        ctx.strokeStyle = m.c; ctx.lineWidth = 2; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(X(m.a[0]), Y(m.a[1])); ctx.lineTo(X(m.a[2]), Y(m.a[3])); ctx.stroke();
+        segs++;
+      } else if (m.type === "ready") {
+        log('<span class="ok">Pyodide loaded IN WORKER (CDN survived COEP)</span> - jspiInWorker=' + m.jspiInWorker + ", sabOk=" + m.sabOk);
+        worker.postMessage({ type: "run", sab: sab });
+      } else if (m.type === "done") {
+        log('<span class="ok">DONE - turtle animated via Atomics.wait, ' + segs + ' segments, no JSPI used</span>');
+        window.__spike = { isolated: true, segs: segs, ok: true };
+      } else if (m.type === "error") {
+        log('<span class="bad">worker error @' + m.where + ": " + m.msg + "</span>");
+        window.__spike = { fail: m.where + ": " + m.msg };
+      }
+    };
+    worker.postMessage({ type: "init", sab: sab });
+  })();
+  </script>
+</body>
+</html>
