@@ -225,13 +225,42 @@
     ctx.clearRect(0, 0, CW, CH);
     ctx.fillStyle = scene.bg || "#0f1226";
     ctx.fillRect(0, 0, CW, CH);
-    const W = scene.w || 560, H = scene.h || 380;
-    const scale = Math.min(CW / W, CH / H);
-    const ox = (CW - W * scale) / 2, oy = (CH - H * scale) / 2;
-    const cx = W / 2, cy = H / 2;
-    function PX(x) { return ox + (cx + x) * scale; }
-    function PY(y) { return oy + (cy - y) * scale; }
     const ops = scene.ops || [];
+
+    // Fit the actual drawing (the bounding box of every op) into the thumbnail,
+    // so a small sketch fills the space and a big one is scaled down to fit
+    // instead of being clipped, rather than always mapping the fixed turtle area.
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    function ext(x, y) {
+      if (!isFinite(x) || !isFinite(y)) return;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    for (let i = 0; i < ops.length; i++) {
+      const o = ops[i], a = o.a || [];
+      if (o.k === "s") { ext(a[0], a[1]); ext(a[2], a[3]); }
+      else if (o.k === "p") { for (let j = 0; j < a.length; j += 2) ext(a[j], a[j + 1]); }
+      else if (o.k === "d") { const r = (o.z || 6) / 2; ext(o.x - r, o.y - r); ext(o.x + r, o.y + r); }
+      else if (o.k === "t") { ext(o.x, o.y); }
+    }
+
+    const pad = Math.round(Math.min(CW, CH) * 0.08);
+    const bw = maxX - minX, bh = maxY - minY;
+    let scale, tx, ty;
+    if (!ops.length || !isFinite(bw) || !isFinite(bh) || (bw < 1 && bh < 1)) {
+      // Nothing to fit (or a single point): fall back to the logical turtle area.
+      const W = scene.w || 560, H = scene.h || 380;
+      scale = Math.min((CW - pad * 2) / W, (CH - pad * 2) / H);
+      tx = CW / 2; ty = CH / 2;
+    } else {
+      scale = Math.min((CW - pad * 2) / Math.max(bw, 1), (CH - pad * 2) / Math.max(bh, 1));
+      const bcx = (minX + maxX) / 2, bcy = (minY + maxY) / 2;
+      tx = CW / 2 - bcx * scale;   // map the drawing's centre to the canvas centre
+      ty = CH / 2 + bcy * scale;   // (+bcy: screen y is flipped from turtle y)
+    }
+    // Turtle coords (origin centre, y up) -> preview pixels.
+    function PX(x) { return tx + x * scale; }
+    function PY(y) { return ty - y * scale; }
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     for (let i = 0; i < ops.length; i++) {

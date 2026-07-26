@@ -102,6 +102,11 @@
   async function openShareModal(preselectId) {
     const code = currentCode();
     if (!code.trim()) { toast("Write some code first, then share it."); return; }
+    // Force-stop a still-running program the moment we start the upload flow.
+    // This ends the run so a turtle's drawing is captured and a game freezes on
+    // its last frame (both become the thumbnail), and it releases the game's
+    // keyboard capture so the Share form below is typeable (space included).
+    if (window.PWL && window.PWL.stopRun) { try { await window.PWL.stopRun(); } catch (e) {} }
     const kind = detectKind(code);
     const P = window.PWL || {};
     // Use a captured scene only if it came from running THIS code: a game's

@@ -1456,7 +1456,22 @@ del _pyrun_install_game
       setCode: setCode,
       reloadSaved: function () { setCode(loadSaved()); },
       clearOutput: clearOut,
-      isRunning: function () { return running && active === runner; }
+      isRunning: function () { return running && active === runner; },
+      // Stop the program and resolve once its run has fully unwound, i.e. the
+      // finally block has run (turtle drawing captured, game frozen on its last
+      // frame, keyboard capture released). Resolves immediately if idle. Used by
+      // the Share flow so a snapshot is taken from a stopped, stable program.
+      stopAndWait: function () {
+        return new Promise(function (resolve) {
+          if (!(running && active === runner)) { resolve(); return; }
+          stop();
+          let n = 0;
+          (function poll() {
+            if (!(running && active === runner) || n++ > 150) resolve();
+            else setTimeout(poll, 8);
+          })();
+        });
+      }
     };
   }
 

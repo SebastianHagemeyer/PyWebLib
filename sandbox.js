@@ -1214,6 +1214,10 @@ while game.playing():
   // Let the community pages read the current editor code (publish.js).
   window.PWL = window.PWL || {};
   window.PWL.getCode = getCode;
+  // Let the Share flow force-stop a running program before it snapshots it, so a
+  // turtle's drawing is captured, a game freezes on its last frame, and the game
+  // stops eating the keyboard (otherwise the Share form can't type a space).
+  window.PWL.stopRun = function () { return runner.stopAndWait(); };
   // Load a program's code into the editor without a reload, and bind the editor
   // to it (so Share offers to update it). Used by the "My programs" picker.
   window.PWL.loadProgram = function (code, bind) {
