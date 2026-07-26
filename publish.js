@@ -140,7 +140,13 @@
         '<h2 class="pwl-modal-title">Share to community</h2>' +
         '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
         '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' +
-        (kind === "turtle" && !scene ? '<p class="pwl-share-preview-note">Run your program first to save its drawing as the thumbnail.</p>' : "") +
+        ((kind === "turtle" || kind === "game") && !scene
+          ? '<div class="pwl-share-runfirst"><span>' +
+              (kind === "game"
+                ? "Run your game to capture a live thumbnail of it."
+                : "Run your program to save its drawing as the thumbnail.") +
+            '</span><button type="button" class="btn btn-ghost pwl-runfirst-btn">Run it now</button></div>'
+          : "") +
         '<form id="pwl-share-form" class="pwl-share-form">' +
           targetField +
           '<p class="pwl-cap-note" hidden></p>' +
@@ -160,6 +166,18 @@
     document.body.appendChild(back);
     const pv = back.querySelector(".pwl-share-preview");
     if (pv && window.PWL.preview) { try { window.PWL.preview.renderInto(pv, code, scene); } catch (e) {} }
+
+    // "Run it now": close the dialog and run the program in the Playground, so
+    // the user (who may need to answer prompts or play a game) can drive it, then
+    // Share again to capture a real thumbnail.
+    const runFirstBtn = back.querySelector(".pwl-runfirst-btn");
+    if (runFirstBtn) runFirstBtn.addEventListener("click", function () {
+      close();
+      if (window.PWL && window.PWL.startRun) window.PWL.startRun();
+      toast(kind === "game"
+        ? "Playing your game. Hit Share again when it looks right."
+        : "Running your program. Hit Share again when it looks right.");
+    });
 
     const form = back.querySelector("#pwl-share-form");
     const titleEl = form.querySelector('input[name="title"]');

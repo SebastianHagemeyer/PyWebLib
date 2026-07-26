@@ -884,7 +884,16 @@ img { max-width: 100%; display: block; }
 .cc-comment-btn { display: inline-flex; align-items: center; gap: 5px; }
 .pwl-share-preview-wrap { margin: 8px 0 2px; border-radius: var(--radius-sm); overflow: hidden; background: #0b1020; border: 1px solid var(--border); aspect-ratio: 320 / 180; max-width: 360px; }
 .pwl-share-preview { display: block; width: 100%; height: 100%; }
-.pwl-share-preview-note { margin: 0 0 6px; color: var(--muted); font-size: 0.8rem; }
+/* "No thumbnail yet, run it first" callout in the Share dialog. */
+.pwl-share-runfirst {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  margin: 8px 0 4px; padding: 8px 10px;
+  background: rgba(255, 212, 59, 0.14);
+  border: 1px solid rgba(255, 212, 59, 0.45);
+  border-radius: var(--radius-sm);
+}
+.pwl-share-runfirst span { color: var(--text); font-size: 0.82rem; }
+.pwl-share-runfirst .pwl-runfirst-btn { flex: none; white-space: nowrap; padding: 5px 12px; font-size: 0.82rem; }
 
 /* Play button on a community card's title line */
 .cc-title { flex: 1; }

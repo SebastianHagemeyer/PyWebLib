@@ -1218,6 +1218,14 @@ while game.playing():
   // turtle's drawing is captured, a game freezes on its last frame, and the game
   // stops eating the keyboard (otherwise the Share form can't type a space).
   window.PWL.stopRun = function () { return runner.stopAndWait(); };
+  // Let the Share flow bounce a user into running their program first (so it can
+  // capture a real thumbnail): scroll its stage into view and start it.
+  window.PWL.startRun = function () {
+    const code = getCode();
+    const panel = document.getElementById(usesGame(code) ? "game-panel" : usesTurtle(code) ? "turtle-panel" : "");
+    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!runner.isRunning()) runner.run();
+  };
   // Load a program's code into the editor without a reload, and bind the editor
   // to it (so Share offers to update it). Used by the "My programs" picker.
   window.PWL.loadProgram = function (code, bind) {
