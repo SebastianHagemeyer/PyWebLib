@@ -612,6 +612,14 @@ def _pyrun_install_game():
         except (TypeError, ValueError):
             pass
 
+    def sound(name=0):
+        # Play a short built-in arcade sound. Pick one by number:
+        #   0 beep   1 buzz   2 coin   3 powerup   4 jump
+        #   5 laser  6 hit    7 explosion   8 win   9 lose
+        # The names work too, e.g. game.sound("coin"). Like the keys, the
+        # browser only allows audio after a click on the game.
+        _io.sound(name)
+
     def hide_cursor(hidden=True):
         # Hide the real mouse pointer while it is over the game window, so a
         # sprite can play the pointer instead (a watering can, a crosshair).
@@ -684,6 +692,7 @@ def _pyrun_install_game():
     mod.frame = frame
     mod.game_over = game_over
     mod.submit_score = submit_score
+    mod.sound = sound
     mod.debug = debug
     mod.Sprite = Sprite
     mod._reset_all = _reset_all
@@ -761,8 +770,72 @@ del _pyrun_install_game
     return img;
   });
 
+  // ---- Arcade sound: a tiny Web Audio synth, no audio files. game.sound(0..9)
+  // (or by name) plays a short built-in effect. Browsers only allow audio after
+  // a user gesture, but games are clicked to play, so it unlocks by then.
+  let audioCtx = null;
+  function gameAudio() {
+    if (audioCtx) return audioCtx;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = AC ? new AC() : null;
+    } catch (e) { audioCtx = null; }
+    return audioCtx;
+  }
+  function sTone(c, at, f0, f1, dur, type, vol) {
+    const osc = c.createOscillator(), g = c.createGain();
+    osc.type = type || "square";
+    osc.frequency.setValueAtTime(f0, at);
+    if (f1 != null && f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), at + dur);
+    const v = vol == null ? 0.18 : vol;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(v, at + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(at); osc.stop(at + dur + 0.02);
+  }
+  function sNoise(c, at, dur, vol, cutoff) {
+    const n = Math.max(1, Math.floor(c.sampleRate * dur));
+    const buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);   // decaying hiss
+    const src = c.createBufferSource(); src.buffer = buf;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = cutoff || 1400;
+    const g = c.createGain(); g.gain.value = vol == null ? 0.18 : vol;
+    src.connect(lp); lp.connect(g); g.connect(c.destination);
+    src.start(at); src.stop(at + dur);
+  }
+  // Numbered so game.sound(0), game.sound(1)... work, like the sprite skins.
+  const SOUND_ORDER = ["beep", "buzz", "coin", "powerup", "jump", "laser", "hit", "explosion", "win", "lose"];
+  const SOUND_ALIAS = { blip: "beep", wrong: "buzz", error: "buzz", point: "coin", score: "coin", shoot: "laser", zap: "laser", hurt: "hit", boom: "explosion", gameover: "lose", won: "win" };
+  const SOUNDS = {
+    beep: function (c, t) { sTone(c, t, 880, null, 0.08, "square", 0.18); },
+    buzz: function (c, t) { sTone(c, t, 130, 90, 0.18, "sawtooth", 0.16); },
+    coin: function (c, t) { sTone(c, t, 988, null, 0.06, "square", 0.16); sTone(c, t + 0.06, 1319, null, 0.13, "square", 0.16); },
+    powerup: function (c, t) { [523, 659, 784, 1047].forEach(function (f, i) { sTone(c, t + i * 0.05, f, null, 0.08, "square", 0.15); }); },
+    jump: function (c, t) { sTone(c, t, 300, 660, 0.14, "square", 0.17); },
+    laser: function (c, t) { sTone(c, t, 900, 180, 0.16, "sawtooth", 0.15); },
+    hit: function (c, t) { sTone(c, t, 200, 60, 0.15, "square", 0.2); sNoise(c, t, 0.11, 0.12, 1200); },
+    explosion: function (c, t) { sNoise(c, t, 0.4, 0.25, 900); sTone(c, t, 120, 40, 0.4, "sawtooth", 0.12); },
+    win: function (c, t) { [523, 659, 784, 1047].forEach(function (f, i) { sTone(c, t + i * 0.11, f, null, 0.15, "triangle", 0.18); }); },
+    lose: function (c, t) { [420, 330, 262, 196].forEach(function (f, i) { sTone(c, t + i * 0.13, f, null, 0.17, "sawtooth", 0.16); }); }
+  };
+  function playGameSound(which) {
+    const c = gameAudio();
+    if (!c) return;
+    if (c.state === "suspended") { try { c.resume(); } catch (e) {} }
+    let name;
+    if (typeof which === "number") name = SOUND_ORDER[which] || "beep";
+    else {
+      const s = String(which == null ? "beep" : which).toLowerCase().trim();
+      name = /^\d+$/.test(s) ? (SOUND_ORDER[+s] || "beep") : (SOUND_ALIAS[s] || s);
+    }
+    const fn = SOUNDS[name] || SOUNDS.beep;
+    try { fn(c, c.currentTime + 0.01); } catch (e) {}
+  }
+
   const GAME_IO = {
     jspiOk: function () { return jspiSupported(); },
+    sound: function (which) { playGameSound(which); },
     playing: function () { return gamePlaying; },
     stop: function () { gamePlaying = false; },
     reset: function () {

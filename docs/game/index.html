@@ -49,6 +49,7 @@
           <a href="#spin">Spin &amp; mirror</a>
           <a href="#box">Boxes &amp; score</a>
           <a href="#over">Ending a game</a>
+          <a href="#sound">Sound</a>
           <a href="#limits">What it can do</a>
         </nav>
 
@@ -201,11 +202,28 @@ while game.playing():
 game.game_over("Score: " + str(score))</pre>
         </section>
 
+        <section id="sound">
+          <h2>Sound</h2>
+          <p><code>game.sound(n)</code> plays a short built-in arcade sound, no files needed. Pick one by number:</p>
+          <ul class="key-points">
+            <li><strong>0</strong> beep &nbsp;&middot;&nbsp; <strong>1</strong> buzz &nbsp;&middot;&nbsp; <strong>2</strong> coin &nbsp;&middot;&nbsp; <strong>3</strong> powerup &nbsp;&middot;&nbsp; <strong>4</strong> jump</li>
+            <li><strong>5</strong> laser &nbsp;&middot;&nbsp; <strong>6</strong> hit &nbsp;&middot;&nbsp; <strong>7</strong> explosion &nbsp;&middot;&nbsp; <strong>8</strong> win &nbsp;&middot;&nbsp; <strong>9</strong> lose</li>
+          </ul>
+          <pre class="guide-code language-python">if basket.touches(egg):
+    game.score(1)
+    game.sound(2)      # coin
+
+if basket.touches(bomb):
+    game.sound(1)      # buzz
+    game.game_over("Boom!")</pre>
+          <p>The names work too, e.g. <code>game.sound("coin")</code>. Browsers only allow audio after a click, and a game is clicked to play, so it just works.</p>
+        </section>
+
         <section id="limits">
           <h2>What it can and can't do</h2>
           <ul class="key-points">
             <li><strong>Great for:</strong> catch and dodge games, mazes, top-down movers, two-player keyboard games, simple arcade fun.</li>
-            <li><strong>Not built for:</strong> gravity and physics engines, loading your own image files, or sound. Those are what a full engine like pygame adds.</li>
+            <li><strong>Not built for:</strong> gravity and physics engines, loading your own image or sound files (the built-in <code>game.sound()</code> beeps aside). Those are what a full engine like pygame adds.</li>
           </ul>
           <p class="callout"><strong>Coordinates.</strong> The top-left corner is <code>(0, 0)</code>. <code>x</code> grows to the <em>right</em> and <code>y</code> grows <em>downward</em>, so a bigger <code>y</code> is further <em>down</em> the screen. That catches everyone out at first.</p>
           <p>Now open the <a href="../../">Playground</a>, type <code>import game</code>, and build something. Load the "Game" example cards, change a number, and see what happens.</p>

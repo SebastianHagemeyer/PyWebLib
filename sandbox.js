@@ -227,11 +227,13 @@
         "\n" +
         "    if basket.touches(egg):    # caught it!\n" +
         "        game.score(1)\n" +
+        "        game.sound(2)          # coin\n" +
         '        board.content = "Score: " + str(game.score())\n' +
         "        egg.x = random.randint(30, 450)\n" +
         "        egg.y = 0\n" +
         "    elif egg.y > 360:          # it hit the floor\n" +
         "        misses = misses + 1\n" +
+        "        game.sound(1)          # buzz\n" +
         "        egg.x = random.randint(30, 450)\n" +
         "        egg.y = 0\n" +
         "        if misses >= 3:\n" +
