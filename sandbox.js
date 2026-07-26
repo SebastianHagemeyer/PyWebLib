@@ -508,6 +508,21 @@ def look(plot):
     else:
         plot["plant"].content = "🌱"   # a sprout
 
+def sell_pop(plant):
+    # A quick bounce right before a sold sunflower vanishes: a big hop then a
+    # little one, growing a touch at the top of each hop.
+    base_y = plant.y
+    base_size = plant.size
+    for hop, frames in [(34, 6), (13, 4)]:
+        for step in range(frames):
+            t = step / float(frames - 1) if frames > 1 else 0.0
+            arc = 4 * t * (1 - t)             # 0 -> 1 -> 0, a smooth arc
+            plant.y = base_y - arc * hop
+            plant.size = base_size + arc * hop * 0.4
+            game.frame()
+    plant.y = base_y
+    plant.size = base_size
+
 while game.playing():
     can.x = game.mouse_x()
     can.y = game.mouse_y() - 12
@@ -535,6 +550,7 @@ while game.playing():
                 plot["growth"] = 1.0
                 plot["wet"] = 100.0             # planting waters it once
                 look(plot)
+                game.sound(4)                  # a little "plip" as it goes in
                 seeds = seeds - 1
                 seed_lbl.content = "Seeds: " + str(seeds)
                 break
@@ -549,10 +565,15 @@ while game.playing():
                 seeds = seeds + 1
                 coin_lbl.content = "Coins: " + str(coins)
                 seed_lbl.content = "Seeds: " + str(seeds)
+                game.sound(3)                  # powerup: bought a seed
+            else:
+                game.sound(1)                  # buzz: not enough coins
         else:
             for plot in plots:
                 if plot["planted"] and plot["plant"].at_mouse():
                     if plot["growth"] >= 100:
+                        game.sound(2)                   # coin: cha-ching!
+                        sell_pop(plot["plant"])         # a little bounce first
                         coins = coins + 3               # sell the sunflower
                         coin_lbl.content = "Coins: " + str(coins)
                         plot["planted"] = False
@@ -561,6 +582,7 @@ while game.playing():
                     else:
                         plot["wet"] = 100.0             # a splash of water
                         plot["soil"].color = soil_color(100.0)
+                        game.sound(0)                   # a soft blip
                     break
 
     seed.content = "🌱" if seeds > 0 else ""   # no seed to drag when you run out
@@ -576,6 +598,8 @@ while game.playing():
                 over_ripe = True
                 break
         can.content = "✂️" if over_ripe else "🚿"
+        if seed.at_mouse(): can.content = "🖐️"
+        if shop.at_mouse(): can.content = "👉"
 
     game.frame()`
     },
