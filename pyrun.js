@@ -977,6 +977,18 @@ del _pyrun_install_game
   const turtleSpriteImg = new Image();
   turtleSpriteImg.src = "data:image/svg+xml;utf8," + encodeURIComponent(TURTLE_SPRITE_SVG);
 
+  // Record each turtle draw call (in turtle coords: origin centre, y up) so the
+  // finished drawing can be saved as a small JSON op-list and replayed as a
+  // community thumbnail, the way games store their scene. Capped so a runaway
+  // drawing can't bloat the row; coords are rounded to keep the JSON tiny.
+  const TURTLE_OP_CAP = 4000;
+  function rec(op) {
+    const r = active && active.turtleRec;
+    if (!r || r.ops.length >= TURTLE_OP_CAP) return;
+    r.ops.push(op);
+  }
+  function rnd(v) { return Math.round(Number(v)) || 0; }
+
   const TURTLE_IO = {
     animateOk: function () { return jspiSupported(); },
     sleepMs: function (seconds) { return interruptibleSleep(seconds); },
@@ -990,6 +1002,7 @@ del _pyrun_install_game
       c.moveTo(tx(c, x1), ty(c, y1));
       c.lineTo(tx(c, x2), ty(c, y2));
       c.stroke();
+      rec({ k: "s", a: [rnd(x1), rnd(y1), rnd(x2), rnd(y2)], c: String(color), w: Number(width) || 2 });
     },
     fillPoly: function (flatPoints, color) {
       const c = turtleCtx();
@@ -1004,6 +1017,7 @@ del _pyrun_install_game
       }
       c.closePath();
       c.fill();
+      rec({ k: "p", a: pts.map(rnd), c: String(color) });
     },
     dot: function (x, y, size, color) {
       const c = turtleCtx();
@@ -1012,6 +1026,7 @@ del _pyrun_install_game
       c.beginPath();
       c.arc(tx(c, x), ty(c, y), Math.max(1, size / 2), 0, Math.PI * 2);
       c.fill();
+      rec({ k: "d", x: rnd(x), y: rnd(y), z: Number(size) || 6, c: String(color) });
     },
     text: function (x, y, text, color, size, align, fontName) {
       const c = turtleCtx();
@@ -1021,15 +1036,18 @@ del _pyrun_install_game
       c.textAlign = align === "center" ? "center" : align === "right" ? "right" : "left";
       c.textBaseline = "bottom";
       c.fillText(String(text), tx(c, x), ty(c, y));
+      rec({ k: "t", x: rnd(x), y: rnd(y), s: String(text), c: String(color), z: Number(size) || 12, al: String(align || "left") });
     },
     bg: function (color) {
       if (!active || !active.opts.turtle) return;
       active.opts.turtle.canvas.style.background = String(color || "");
+      if (active.turtleRec) active.turtleRec.bg = String(color || "");
     },
     wipe: function () {
       const c = turtleCtx();
       if (!c) return;
       c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      if (active && active.turtleRec) active.turtleRec.ops = [];   // clear() wipes the recording too
     },
     sprite: function (x, y, heading, visible) {
       const c = spriteCtx();
@@ -1055,6 +1073,27 @@ del _pyrun_install_game
       c.restore();
     }
   };
+
+  // Save the finished turtle drawing as a compact JSON op-list (recorded above),
+  // so the community gallery can replay it as a thumbnail the way games replay
+  // their scene. Stored on window.PWL, tagged with the code that made it, for
+  // publish.js to read; only for turtle programs that actually drew something.
+  function captureTurtleScene(runner) {
+    if (!runner || !runner.turtleCtx || !runner.opts.turtle) return;
+    const code = (window.PWL && window.PWL.runningCode) || "";
+    if (!/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return;
+    const drawing = runner.turtleRec;
+    if (!drawing || !drawing.ops.length) return;   // nothing was drawn: no thumbnail
+    const cv = runner.turtleCtx.canvas;
+    // The turtle's background (from bgcolor()) or the default dark stage, so a
+    // light-penned drawing still reads against it.
+    const bg = (drawing.bg || runner.opts.turtle.canvas.style.background || "").trim() || "#0f1226";
+    window.PWL = window.PWL || {};
+    window.PWL.lastTurtleScene = {
+      kind: "turtle", w: cv.width, h: cv.height, bg: bg, ops: drawing.ops.slice()
+    };
+    window.PWL.lastTurtleSceneCode = code;
+  }
 
   // ---- Shared IO (input/clear/colour print), dispatched to `active` --------
 
@@ -1229,6 +1268,7 @@ del _pyrun_install_game
       turtleCtx: null,
       spriteCtx: null,
       gameCtx: null,
+      turtleRec: null,   // { ops:[], bg:"" } recorded during a turtle run for the thumbnail
       appendOut: function (text, kind) {
         const span = document.createElement("span");
         if (kind) span.className = "out-" + kind;
@@ -1306,6 +1346,7 @@ del _pyrun_install_game
     function clearOut() { output.innerHTML = ""; }
 
     function resetTurtle() {
+      runner.turtleRec = { ops: [], bg: "" };   // fresh op recording for the thumbnail
       if (!runner.turtleCtx) return;
       const c = runner.turtleCtx;
       c.clearRect(0, 0, c.canvas.width, c.canvas.height);
@@ -1360,6 +1401,8 @@ del _pyrun_install_game
         running = false;
         stopRequested = false;
         pendingReject = null;
+        // Snapshot the finished turtle drawing for a community thumbnail.
+        try { captureTurtleScene(runner); } catch (e) {}
         setRunMode("idle");
         if (opts.onRunEnd) opts.onRunEnd();
       }

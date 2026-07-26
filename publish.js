@@ -104,8 +104,11 @@
     if (!code.trim()) { toast("Write some code first, then share it."); return; }
     const kind = detectKind(code);
     const P = window.PWL || {};
-    // Use the live scene only if it came from running THIS code.
-    const scene = (P.lastGameScene && P.lastGameSceneCode === code) ? P.lastGameScene : null;
+    // Use a captured scene only if it came from running THIS code: a game's
+    // last frame, or a turtle program's finished-drawing poster.
+    let scene = null;
+    if (P.lastGameScene && P.lastGameSceneCode === code) scene = P.lastGameScene;
+    else if (P.lastTurtleScene && P.lastTurtleSceneCode === code) scene = P.lastTurtleScene;
     const user = PWL.auth && PWL.auth.user();
 
     // The author's existing programs, so they can overwrite one instead of
@@ -131,7 +134,8 @@
         '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
         '<h2 class="pwl-modal-title">Share to community</h2>' +
         '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
-        (kind === "game" ? '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' : "") +
+        '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' +
+        (kind === "turtle" && !scene ? '<p class="pwl-share-preview-note">Run your program first to save its drawing as the thumbnail.</p>' : "") +
         '<form id="pwl-share-form" class="pwl-share-form">' +
           targetField +
           '<p class="pwl-cap-note" hidden></p>' +
@@ -198,7 +202,11 @@
       if (!title) return;
       const targetId = targetEl ? targetEl.value : "";
       if (atCap && !targetId) { toast("You're at the " + PROGRAM_CAP + " program limit. Update one, or delete one first."); return; }
-      const sceneJson = scene ? JSON.stringify(trimScene(scene)) : null;
+      const sceneJson = scene
+        ? JSON.stringify(scene.kind === "turtle"
+            ? { kind: "turtle", w: scene.w, h: scene.h, bg: scene.bg, ops: scene.ops }
+            : trimScene(scene))
+        : null;
       submitBtn.disabled = true;
       submitBtn.textContent = targetId ? "Updating…" : "Publishing…";
       let res;

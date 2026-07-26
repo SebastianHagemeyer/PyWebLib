@@ -122,6 +122,152 @@
     ctx.fillText(kind === "turtle" ? "turtle drawing" : "Python program", CW / 2, CH / 2);
   }
 
+  // ---- Code thumbnail: the first lines of a program, syntax-highlighted onto
+  // the canvas, so a program with no visual output shows real code instead of a
+  // blank placeholder. A tiny self-contained Python tokenizer keeps this
+  // dependency-free (no Prism needed on the gallery pages). Colours mirror the
+  // editor theme in styles.css.
+  const CODE_BG = "#0f1226";
+  const CODE_COL = {
+    kw: "#c792ea", str: "#c3e88d", num: "#f78c6c", com: "#8b92b0",
+    op: "#89ddff", fn: "#82aaff", dec: "#ffcb6b", txt: "#e6e7ef", gutter: "#4a5378"
+  };
+  const PY_KW = {};
+  ("def class return if elif else for while break continue pass import from as in is not and " +
+   "or None True False try except finally raise with lambda yield global nonlocal del assert " +
+   "async await match case").split(" ").forEach(function (w) { PY_KW[w] = 1; });
+  const PY_BI = {};
+  ("print range len int str float bool list dict set tuple input abs min max sum sorted " +
+   "enumerate zip map filter open type round reversed repr format isinstance super any all").split(" ")
+    .forEach(function (w) { PY_BI[w] = 1; });
+
+  function tokenizeLine(line) {
+    const toks = [];
+    const n = line.length;
+    let i = 0, prevWord = null, sawCode = false;
+    while (i < n) {
+      const c = line[i];
+      if (c === " " || c === "\t") { let j = i; while (j < n && (line[j] === " " || line[j] === "\t")) j++; toks.push({ t: line.slice(i, j), c: null }); i = j; continue; }
+      if (c === "#") { toks.push({ t: line.slice(i), c: CODE_COL.com }); break; }
+      if (c === '"' || c === "'") {
+        let j = i + 1;
+        while (j < n && line[j] !== c) { if (line[j] === "\\") j++; j++; }
+        j = Math.min(n, j + 1);
+        toks.push({ t: line.slice(i, j), c: CODE_COL.str }); i = j; sawCode = true; continue;
+      }
+      if (c >= "0" && c <= "9") { let j = i; while (j < n && /[0-9._xXa-fA-F]/.test(line[j])) j++; toks.push({ t: line.slice(i, j), c: CODE_COL.num }); i = j; sawCode = true; continue; }
+      if (c === "@" && !sawCode) { let j = i + 1; while (j < n && /[A-Za-z0-9_.]/.test(line[j])) j++; toks.push({ t: line.slice(i, j), c: CODE_COL.dec }); i = j; sawCode = true; continue; }
+      if (/[A-Za-z_]/.test(c)) {
+        let j = i; while (j < n && /[A-Za-z0-9_]/.test(line[j])) j++;
+        const w = line.slice(i, j);
+        let col = CODE_COL.txt;
+        if (PY_KW[w]) col = CODE_COL.kw;
+        else if (prevWord === "def" || prevWord === "class") col = CODE_COL.fn;
+        else if (PY_BI[w]) col = CODE_COL.fn;
+        else { let k = j; while (k < n && line[k] === " ") k++; if (line[k] === "(") col = CODE_COL.fn; }
+        toks.push({ t: w, c: col }); prevWord = w; i = j; sawCode = true; continue;
+      }
+      toks.push({ t: c, c: CODE_COL.op }); i++; sawCode = true;
+    }
+    return toks;
+  }
+
+  function drawCode(code, canvas) {
+    const ctx = canvas.getContext("2d");
+    const CW = canvas.width, CH = canvas.height;
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.fillStyle = CODE_BG; ctx.fillRect(0, 0, CW, CH);
+    const lines = String(code || "").replace(/\t/g, "    ").split("\n");
+    while (lines.length && !lines[0].trim()) lines.shift();   // drop leading blank lines
+    if (!lines.length || !lines.join("").trim()) { drawPlaceholder("python", canvas); return; }
+
+    const maxLines = 10;
+    const padY = Math.round(CH * 0.07);
+    const avail = CH - padY * 2;
+    let fontSize = Math.max(8, Math.min(14, Math.floor(avail / (maxLines * 1.5))));
+    const lineH = Math.round(fontSize * 1.5);
+    const shown = Math.min(maxLines, Math.max(1, Math.floor(avail / lineH)), lines.length);
+
+    ctx.font = fontSize + "px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.textBaseline = "top";
+    const chW = ctx.measureText("M").width || fontSize * 0.6;
+    const gutterW = Math.round(chW * 2.4);
+    const padX = Math.round(chW * 0.8);
+    const x0 = padX + gutterW;
+
+    for (let li = 0; li < shown; li++) {
+      const y = padY + li * lineH;
+      ctx.fillStyle = CODE_COL.gutter;
+      ctx.textAlign = "right";
+      ctx.fillText(String(li + 1), padX + gutterW - Math.round(chW * 0.7), y);
+      ctx.textAlign = "left";
+      let x = x0;
+      const toks = tokenizeLine(lines[li]);
+      for (let ti = 0; ti < toks.length && x < CW; ti++) {
+        const tk = toks[ti];
+        if (tk.c) { ctx.fillStyle = tk.c; ctx.fillText(tk.t, x, y); }
+        x += ctx.measureText(tk.t).width;
+      }
+    }
+    if (lines.length > shown) {   // hint that the program continues
+      ctx.fillStyle = CODE_COL.gutter;
+      ctx.textAlign = "left";
+      ctx.fillText("…", x0, padY + shown * lineH);
+    }
+  }
+
+  // Replay a saved turtle drawing: a JSON op-list (line segments, fills, dots,
+  // text) recorded in turtle coords (origin centre, y up), letterboxed onto the
+  // preview canvas over its own background. The vector twin of renderScene.
+  function renderTurtle(scene, canvas) {
+    const ctx = canvas.getContext("2d");
+    const CW = canvas.width, CH = canvas.height;
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.fillStyle = scene.bg || "#0f1226";
+    ctx.fillRect(0, 0, CW, CH);
+    const W = scene.w || 560, H = scene.h || 380;
+    const scale = Math.min(CW / W, CH / H);
+    const ox = (CW - W * scale) / 2, oy = (CH - H * scale) / 2;
+    const cx = W / 2, cy = H / 2;
+    function PX(x) { return ox + (cx + x) * scale; }
+    function PY(y) { return oy + (cy - y) * scale; }
+    const ops = scene.ops || [];
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (let i = 0; i < ops.length; i++) {
+      const o = ops[i];
+      if (o.k === "s") {                         // line segment
+        const a = o.a || [];
+        ctx.strokeStyle = o.c || "#22d3a5";
+        ctx.lineWidth = Math.max(0.6, (o.w || 2) * scale);
+        ctx.beginPath();
+        ctx.moveTo(PX(a[0]), PY(a[1]));
+        ctx.lineTo(PX(a[2]), PY(a[3]));
+        ctx.stroke();
+      } else if (o.k === "p") {                  // filled polygon
+        const a = o.a || [];
+        if (a.length < 6) continue;
+        ctx.fillStyle = o.c || "#22d3a5";
+        ctx.beginPath();
+        ctx.moveTo(PX(a[0]), PY(a[1]));
+        for (let j = 2; j < a.length; j += 2) ctx.lineTo(PX(a[j]), PY(a[j + 1]));
+        ctx.closePath();
+        ctx.fill();
+      } else if (o.k === "d") {                  // dot
+        ctx.fillStyle = o.c || "#22d3a5";
+        ctx.beginPath();
+        ctx.arc(PX(o.x), PY(o.y), Math.max(0.8, (o.z || 6) / 2 * scale), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (o.k === "t") {                  // written text
+        ctx.fillStyle = o.c || "#e6e7ef";
+        ctx.font = "bold " + Math.max(6, (o.z || 12) * scale) + "px system-ui, sans-serif";
+        ctx.textAlign = o.al === "center" ? "center" : o.al === "right" ? "right" : "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(String(o.s || ""), PX(o.x), PY(o.y));
+      }
+    }
+  }
+
   // Paint a saved runtime scene (real sprite positions captured at publish time).
   function renderScene(scene, canvas) {
     const ctx = canvas.getContext("2d");
@@ -184,6 +330,10 @@
     if (sceneJson) {
       try {
         const scene = typeof sceneJson === "string" ? JSON.parse(sceneJson) : sceneJson;
+        if (scene && scene.kind === "turtle" && scene.ops) {
+          renderTurtle(scene, canvas);
+          return "turtle";
+        }
         if (scene && scene.sprites && scene.sprites.length) {
           renderScene(scene, canvas);
           setTimeout(function () { try { renderScene(scene, canvas); } catch (e) {} }, 150);
@@ -194,13 +344,16 @@
     const kind = detectKind(code);
     if (kind === "game") {
       const drew = drawGame(code, canvas);
-      if (drew === 0) drawPlaceholder("python", canvas);
+      // A game we couldn't parse a scene from falls back to its code, not a
+      // blank placeholder.
+      if (drew === 0) drawCode(code, canvas);
       else setTimeout(function () { try { drawGame(code, canvas); } catch (e) {} }, 150);
     } else {
-      drawPlaceholder(kind, canvas);
+      // python (and a turtle program that wasn't run) show their code.
+      drawCode(code, canvas);
     }
     return kind;
   }
 
-  PWL.preview = { renderInto: renderInto, renderScene: renderScene, detectKind: detectKind };
+  PWL.preview = { renderInto: renderInto, renderScene: renderScene, renderTurtle: renderTurtle, drawCode: drawCode, detectKind: detectKind };
 })();
