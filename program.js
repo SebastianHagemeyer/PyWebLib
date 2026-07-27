@@ -38,9 +38,9 @@
   }
   function avatarOf(profile) {
     const url = profile && profile.avatar_url;
-    const name = (profile && profile.display_name) || "Someone";
-    if (url) return '<img class="pwl-avatar sm" src="' + esc(url) + '" alt="" referrerpolicy="no-referrer" />';
-    return '<span class="pwl-avatar sm pwl-avatar-text">' + esc((name[0] || "?").toUpperCase()) + "</span>";
+    const cross = window.crossOriginIsolated ? ' crossorigin="anonymous"' : "";
+    const photo = url ? '<img class="pwl-avatar-photo" src="' + esc(url) + '" alt="" referrerpolicy="no-referrer"' + cross + ' onerror="this.remove()" />' : "";
+    return '<span class="pwl-avatar sm"><svg class="pwl-avatar-person" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4.2"/><path d="M12 14.4c-4.3 0-7.8 2.7-7.8 6.1V24h15.6v-3.5c0-3.4-3.5-6.1-7.8-6.1z"/></svg>' + photo + "</span>";
   }
   function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
   const EYE_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>';

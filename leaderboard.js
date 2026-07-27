@@ -24,9 +24,9 @@
   }
   function avatarOf(row) {
     const url = row && row.avatar_url;
-    const name = (row && row.display_name) || "Someone";
-    if (url) return '<img class="pwl-avatar" src="' + esc(url) + '" alt="" referrerpolicy="no-referrer" />';
-    return '<span class="pwl-avatar pwl-avatar-text">' + esc((name[0] || "?").toUpperCase()) + "</span>";
+    const cross = window.crossOriginIsolated ? ' crossorigin="anonymous"' : "";
+    const photo = url ? '<img class="pwl-avatar-photo" src="' + esc(url) + '" alt="" referrerpolicy="no-referrer"' + cross + ' onerror="this.remove()" />' : "";
+    return '<span class="pwl-avatar"><svg class="pwl-avatar-person" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4.2"/><path d="M12 14.4c-4.3 0-7.8 2.7-7.8 6.1V24h15.6v-3.5c0-3.4-3.5-6.1-7.8-6.1z"/></svg>' + photo + "</span>";
   }
 
   async function load() {
