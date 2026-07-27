@@ -18,6 +18,11 @@
   }
   function supported() { return !!window.PyRun; }
   function jspiOk() { return !!(window.PyRun && window.PyRun.jspiSupported()); }
+  // Turtle & games run if the browser has JSPI (Chrome/Edge) OR the cross-browser
+  // worker runtime is available (cross-origin isolated, with SharedArrayBuffer).
+  function canRunGraphics() {
+    return jspiOk() || (typeof window !== "undefined" && window.crossOriginIsolated && typeof SharedArrayBuffer !== "undefined");
+  }
 
   // Build the player DOM into `container` and start running
   // program = { code, kind, title }. opts.onScore(points) receives scores from
@@ -56,11 +61,11 @@
     editorEl.style.display = "none";
     container.appendChild(editorEl);
 
-    const needsJspi = kind === "game" || kind === "turtle";
-    if (needsJspi && !jspiOk()) {
+    const needsRuntime = kind === "game" || kind === "turtle";
+    if (needsRuntime && !canRunGraphics()) {
       outEl.textContent =
-        "This browser can't run it here yet: games and turtle need Chrome or Edge 137+ " +
-        "(for WebAssembly stack switching). Try \"Open in the Playground\", or update your browser.";
+        "Getting your browser ready for games & turtle… if nothing happens, reload the page. " +
+        "(Chrome and Edge run them instantly.)";
     }
 
     const runner = window.PyRun.create({
@@ -79,8 +84,8 @@
     });
     runner.setCode(program.code);
     // Auto-run so a click on Play just plays. Skip auto-run only when a game or
-    // turtle can't run here (no JSPI); the Run button is still there to try.
-    if (!needsJspi || jspiOk()) runner.run();
+    // turtle can't run here yet; the Run button is still there to try.
+    if (!needsRuntime || canRunGraphics()) runner.run();
 
     return {
       runner: runner,
