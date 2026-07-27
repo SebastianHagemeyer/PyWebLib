@@ -44,6 +44,30 @@
       typeof WebAssembly.Suspending === "function";
   }
 
+  // ---- Non-JSPI runtime (Safari/Firefox): run Pyodide in a Web Worker and
+  //      block on SharedArrayBuffer instead of stack switching. Chrome/Edge keep
+  //      the fast main-thread JSPI path and never touch any of this. ----------
+  let workerMem = null;                 // shared SAB views (main side)
+  let sharedWorker = null, sharedWorkerReady = null, workerReadyResolve = null, workerFinalize = null;
+  const WORKER_URL = "/runtime/pyrun-worker.js";
+  let FORCE_WORKER = false;
+  try { FORCE_WORKER = /[?&#]pyworker=1\b/.test(location.search + location.hash) || localStorage.getItem("pyworker") === "1"; } catch (e) {}
+  function useWorkerRuntime() { return !jspiSupported() || FORCE_WORKER; }
+
+  // Only non-JSPI browsers register coi-serviceworker (it reloads once to apply
+  // the isolation headers SharedArrayBuffer needs). So isolation, and its OAuth
+  // question, only ever apply on Safari/Firefox, never on Chrome.
+  (function registerCoi() {
+    try {
+      if (!useWorkerRuntime() || typeof window === "undefined") return;
+      if (window.crossOriginIsolated || !window.isSecureContext || !navigator.serviceWorker) return;
+      navigator.serviceWorker.register("/coi-serviceworker.js", { scope: "/" }).then(function (reg) {
+        if (!navigator.serviceWorker.controller && reg.active) window.location.reload();
+      }).catch(function () {});
+      navigator.serviceWorker.addEventListener("controllerchange", function () { window.location.reload(); });
+    } catch (e) {}
+  })();
+
   // ---- Python-side setup strings (same behaviour as sandbox.js) ----------
 
   const PY_INSTALL_INPUT = `
@@ -726,11 +750,14 @@ del _pyrun_install_game
     if (!gameActive()) return;
     const n = gameKeyName(e);
     gameKeys[n] = true;
+    if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.keyIndex(n), 1);
     if (GAME_KEYS_TO_EAT[n]) e.preventDefault();
   });
   window.addEventListener("keyup", function (e) {
     if (!gameActive()) return;
-    gameKeys[gameKeyName(e)] = false;
+    const n = gameKeyName(e);
+    gameKeys[n] = false;
+    if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.keyIndex(n), 0);
   });
 
   // Mouse (and touch, via pointer events) over the game canvas. Positions are
@@ -749,6 +776,12 @@ del _pyrun_install_game
     gameMouse.y = (e.clientY - r.top) * (cv.height / r.height);
     gameMouse.inside = e.clientX >= r.left && e.clientX < r.right &&
                        e.clientY >= r.top && e.clientY < r.bottom;
+    if (workerMem) {
+      const K = window.PRProto.CTRL, c = workerMem.ctrl;
+      Atomics.store(c, K.MX, Math.round(gameMouse.x));
+      Atomics.store(c, K.MY, Math.round(gameMouse.y));
+      Atomics.store(c, K.MIN, gameMouse.inside ? 1 : 0);
+    }
   }
   window.addEventListener("pointermove", gameMouseTrack);
   window.addEventListener("pointerdown", function (e) {
@@ -756,8 +789,16 @@ del _pyrun_install_game
     if (!gameActive() || !gameMouse.inside) return;
     gameMouse.down = true;
     gameMouse.clicks += 1;
+    if (workerMem) {
+      const K = window.PRProto.CTRL, c = workerMem.ctrl;
+      Atomics.store(c, K.MDOWN, 1);
+      Atomics.add(c, K.MCLICKS, 1);
+    }
   });
-  window.addEventListener("pointerup", function () { gameMouse.down = false; });
+  window.addEventListener("pointerup", function () {
+    gameMouse.down = false;
+    if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.CTRL.MDOWN, 0);
+  });
 
   // ---- Built-in themed sprite art ----
   // The flat SVG art lives in sprites.js (window.PWL_SPRITES), the single
@@ -1283,6 +1324,97 @@ del _pyrun_install_game
     }
   };
 
+  // ---- Worker runtime plumbing (main side) --------------------------------
+  // Replays the worker's draw calls through the SAME TURTLE_IO/GAME_IO used by
+  // the JSPI path, and feeds it live input via the shared buffer.
+  function zeroInputState() {
+    if (!workerMem) return;
+    const c = workerMem.ctrl, K = window.PRProto.CTRL;
+    for (let i = 0; i < K.NKEYS; i++) Atomics.store(c, K.KEYS + i, 0);
+    Atomics.store(c, K.MX, 0); Atomics.store(c, K.MY, 0);
+    Atomics.store(c, K.MDOWN, 0); Atomics.store(c, K.MCLICKS, 0); Atomics.store(c, K.MIN, 0);
+  }
+  function ensureWorker() {
+    if (sharedWorkerReady) return sharedWorkerReady;
+    sharedWorkerReady = new Promise(function (resolve, reject) {
+      try {
+        workerMem = window.PRProto.make();
+        const w = new Worker(WORKER_URL);
+        w.onmessage = onWorkerMessage;
+        w.onerror = function (ev) { reject(new Error("worker failed: " + (ev && ev.message || "load error"))); };
+        workerReadyResolve = resolve;
+        w.postMessage({
+          type: "init", sab: workerMem.sab, interrupt: workerMem.interrupt,
+          installs: [PY_INSTALL_INPUT, PY_PATCH_SLEEP, PY_INSTALL_INTERRUPT, PY_INSTALL_CLEAR, PY_INSTALL_COLOR_PRINT, PY_INSTALL_TURTLE, PY_INSTALL_GAME]
+        });
+        sharedWorker = w;
+      } catch (e) { reject(e); }
+    });
+    return sharedWorkerReady;
+  }
+  function onWorkerMessage(e) {
+    const m = e.data;
+    if (!m) return;
+    if (m.t === "io") { handleWorkerIO(m); return; }
+    if (m.t === "done" || m.t === "runerror") {
+      if (m.t === "runerror" && active) {
+        const msg = m.msg || "";
+        if (/KeyboardInterrupt|Stopped by user/.test(msg)) active.appendOut("[stopped]", "info");
+        else if (msg) active.appendOut(msg, "stderr");
+      }
+      if (workerFinalize) { const f = workerFinalize; workerFinalize = null; f(); }
+    }
+  }
+  function handleWorkerIO(m) {
+    const a = m.args || [];
+    try {
+      if (m.io === "t") { if (TURTLE_IO[m.op]) TURTLE_IO[m.op].apply(null, a); }
+      else if (m.io === "g") {
+        if (m.op === "reset") { GAME_IO.reset(); zeroInputState(); }
+        else if (GAME_IO[m.op]) GAME_IO[m.op].apply(null, a);
+      } else if (m.io === "s") {
+        if (m.op === "stdout") appendToActive(a[0], "stdout");
+        else if (m.op === "stderr") appendToActive(a[0], "stderr");
+        else if (m.op === "writeColored") SANDBOX_IO.writeColored(a[0], a[1]);
+        else if (m.op === "clearOutput") SANDBOX_IO.clearOutput();
+        else if (m.op === "requestInput") workerRequestInput(a[0]);
+        else if (m.op === "ready") { if (workerReadyResolve) { const r = workerReadyResolve; workerReadyResolve = null; r(); } }
+      }
+    } catch (err) { /* one bad op must not kill the run */ }
+  }
+  function workerRequestInput(promptText) {
+    if (!active) return;
+    const output = active.opts.output;
+    const line = document.createElement("span");
+    line.className = "out-stdin-line";
+    if (promptText) line.appendChild(document.createTextNode(promptText));
+    const field = document.createElement("input");
+    field.type = "text"; field.className = "sandbox-stdin";
+    field.autocapitalize = "off"; field.autocomplete = "off"; field.spellcheck = false;
+    line.appendChild(field);
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+    setTimeout(function () { try { field.focus(); } catch (e) {} }, 0);
+    function submit() {
+      const val = field.value;
+      const done = document.createElement("span");
+      done.className = "out-stdin"; done.textContent = val;
+      field.replaceWith(done);
+      output.appendChild(document.createTextNode("\n"));
+      output.scrollTop = output.scrollHeight;
+      const bytes = new TextEncoder().encode(val);
+      const n = Math.min(bytes.length, workerMem.str.length);
+      workerMem.str.set(bytes.subarray(0, n));
+      const K = window.PRProto.CTRL;
+      Atomics.store(workerMem.ctrl, K.INLEN, n);
+      Atomics.add(workerMem.ctrl, K.INPUT, 1);
+      Atomics.notify(workerMem.ctrl, K.INPUT);
+    }
+    field.addEventListener("keydown", function onKey(ev) {
+      if (ev.key === "Enter") { ev.preventDefault(); field.removeEventListener("keydown", onKey); submit(); }
+    });
+  }
+
   // ---- Pyodide bootstrap ----------------------------------------------------
 
   function loadPyodideScript() {
@@ -1481,6 +1613,56 @@ del _pyrun_install_game
       }
     }
 
+    // ---- Non-JSPI path: same run()/stop() surface, backed by the worker ----
+    const useWorker = useWorkerRuntime();
+    async function runWorker() {
+      if (running) { stopWorker(); return; }
+      if (typeof SharedArrayBuffer === "undefined" || !window.crossOriginIsolated) {
+        runner.appendOut("Getting this browser ready for turtle & games… if nothing happens, reload the page.", "info");
+        return;
+      }
+      running = true;
+      active = runner;
+      try { window.PWL = window.PWL || {}; window.PWL.runningCode = getCode(); } catch (e) {}
+      stopRequested = false;
+      clearOut();
+      resetTurtle();
+      setRunMode(sharedWorker ? "busy" : "loading");
+      if (opts.onRunStart) opts.onRunStart();
+      workerFinalize = function () {
+        running = false; stopRequested = false;
+        try { captureTurtleScene(runner); } catch (e) {}
+        setRunMode("idle");
+        if (opts.onRunEnd) opts.onRunEnd();
+      };
+      try {
+        await ensureWorker();
+        if (active !== runner) return;   // superseded while Pyodide loaded
+        setRunMode("busy");
+        const c = workerMem.ctrl, K = window.PRProto.CTRL;
+        Atomics.store(c, K.STOP, 0);
+        Atomics.store(c, K.PLAYING, 1);
+        workerMem.interruptView[0] = 0;
+        zeroInputState();
+        sharedWorker.postMessage({ type: "run", code: getCode() });
+      } catch (err) {
+        runner.appendOut(String(err && err.message || err), "stderr");
+        if (workerFinalize) { const f = workerFinalize; workerFinalize = null; f(); }
+      }
+    }
+    function stopWorker() {
+      if (!running || !workerMem) return;
+      stopRequested = true;
+      const c = workerMem.ctrl, K = window.PRProto.CTRL;
+      Atomics.store(c, K.STOP, 1);
+      Atomics.store(c, K.PLAYING, 0);
+      workerMem.interruptView[0] = 2;    // Pyodide SIGINT at the next Python opcode
+      Atomics.add(c, K.SLEEP, 1); Atomics.notify(c, K.SLEEP);   // wake a frame sleep
+      Atomics.add(c, K.INPUT, 1); Atomics.notify(c, K.INPUT);   // wake an input wait
+    }
+    function runDispatch() { return useWorker ? runWorker() : run(); }
+    function stopDispatch() { return useWorker ? stopWorker() : stop(); }
+
     function enableHighlighting(CodeJar) {
       jar = CodeJar(editor, function (el) {
         window.Prism.highlightElement(el);
@@ -1515,16 +1697,16 @@ del _pyrun_install_game
     editor.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
-        run();
+        runDispatch();
       }
     });
-    if (runBtn) runBtn.addEventListener("click", run);
+    if (runBtn) runBtn.addEventListener("click", runDispatch);
 
     initEditor();
 
     return {
-      run: run,
-      stop: stop,
+      run: runDispatch,
+      stop: stopDispatch,
       getCode: getCode,
       setCode: setCode,
       reloadSaved: function () { setCode(loadSaved()); },
@@ -1537,7 +1719,7 @@ del _pyrun_install_game
       stopAndWait: function () {
         return new Promise(function (resolve) {
           if (!(running && active === runner)) { resolve(); return; }
-          stop();
+          stopDispatch();
           let n = 0;
           (function poll() {
             if (!(running && active === runner) || n++ > 150) resolve();
