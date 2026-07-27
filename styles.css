@@ -526,6 +526,11 @@ img { max-width: 100%; display: block; }
   background: #0b1020;
   outline: none;
   cursor: pointer;
+  /* Touch drives the game, not the page: no scroll/zoom/selection on iOS. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .game-stage canvas:focus-visible {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.55);

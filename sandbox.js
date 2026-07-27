@@ -332,7 +332,7 @@
     {
       title: "Game: flappy bird",
       cat: "Advanced Games",
-      desc: "Tap SPACE to flap. Gravity pulls you down, dodge the pipes, one point each.",
+      desc: "Tap the screen (or SPACE) to flap. Gravity pulls you down, dodge the pipes, one point each.",
       code:
         "import game\n" +
         "import random\n" +
@@ -366,9 +366,9 @@
         "space_was = False\n" +
         "\n" +
         "while game.playing():\n" +
-        "    # Flap on a fresh SPACE press (tap it, do not hold it).\n" +
+        "    # Flap on a tap/click, or a fresh SPACE press (tap, do not hold it).\n" +
         '    space_now = game.pressed("space")\n' +
-        "    if space_now and not space_was:\n" +
+        "    if game.clicked() or (space_now and not space_was):\n" +
         "        vel = FLAP\n" +
         "    space_was = space_now\n" +
         "\n" +
