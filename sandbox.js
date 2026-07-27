@@ -1194,6 +1194,8 @@ while game.playing():
   const runBtn   = document.getElementById("sandbox-run");
   const resetBtn = document.querySelector(".sandbox-reset");
   const clearBtn = document.querySelector(".sandbox-clear");
+  const maxBtn   = document.querySelector(".sandbox-max");
+  const editorPanel = document.querySelector(".sandbox-editor");
 
   if (!editor || !output || !runBtn || !window.PyRun) return;
 
@@ -1264,6 +1266,24 @@ while game.playing():
     loadInto(DEFAULT_CODE, "Reset to the example");
   });
   if (clearBtn) clearBtn.addEventListener("click", function () { runner.clearOutput(); });
+
+  // Maximise: blow the code editor up to fill the screen for distraction-free
+  // reading/writing. The bar (Run/Reset) rides along; Esc or the button exits.
+  function setMaximised(on) {
+    if (!editorPanel) return;
+    editorPanel.classList.toggle("is-max", on);
+    document.body.classList.toggle("sandbox-maxed", on);
+    if (maxBtn) maxBtn.title = on ? "Minimise the code (Esc)" : "Maximise the code";
+    editor.focus();
+  }
+  if (maxBtn && editorPanel) {
+    maxBtn.addEventListener("click", function () {
+      setMaximised(!editorPanel.classList.contains("is-max"));
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && editorPanel.classList.contains("is-max")) setMaximised(false);
+    });
+  }
 
   // The category order shown in the snippet dropdowns, and which one starts open.
   const EXAMPLE_CATEGORIES = ["Basic", "Intermediate", "Coloured Text", "Turtle", "Basic Games", "Advanced Games"];
