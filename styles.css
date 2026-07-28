@@ -1164,7 +1164,9 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 12px; }
 .asset-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .asset-card-pic { width: 52px; height: 52px; cursor: pointer; }
-.asset-card-id { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+.asset-card-id { font-size: 0.72rem; font-weight: 700; color: var(--muted); border: none; background: none; padding: 0; cursor: pointer; }
+.asset-card-id:hover { color: var(--primary); text-decoration: underline; }
+.asset-card-pic { cursor: pointer; }
 .asset-card-name { font-size: 0.8rem; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-card-del { position: absolute; top: 3px; right: 6px; border: none; background: none; color: var(--muted); font-size: 17px; line-height: 1; cursor: pointer; }
 .asset-card-del:hover { color: #c0392b; }

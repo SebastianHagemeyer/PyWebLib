@@ -407,7 +407,7 @@ def _pyrun_install_game():
             self.w = kw.get("w", self.size)
             self.h = kw.get("h", self.size)
             self.art = kw.get("art", -1)
-            self.asset = kw.get("asset", None)   # a published Asset id, or None
+            self._asset = kw.get("asset", None)   # a published Asset id, or None
             self._display = kw.get("display", "")
             self._content = kw.get("content", self._display)
             self._resolvable = kw.get("resolvable", False)
@@ -452,6 +452,7 @@ def _pyrun_install_game():
             self._content = value
             if self._resolvable:
                 self.kind, self.art, self._display = _resolve_skin(value)
+                self._asset = None   # a built-in skin replaces any asset
                 # Pick up (or drop) any built-in animation for the new skin.
                 if self.art in _ANIM_ART:
                     self.animate(_ANIM_ART[self.art])
@@ -468,6 +469,25 @@ def _pyrun_install_game():
         @text.setter
         def text(self, value):
             self.content = value
+
+        # .asset switches this sprite to a published Asset by id, the same one
+        # you would pass to game.sprite(id, asset=True). Set it to None (or set
+        # .content to a built-in skin) to switch back.
+        @property
+        def asset(self):
+            return self._asset
+
+        @asset.setter
+        def asset(self, value):
+            if value is None or value == "":
+                self._asset = None
+                if self.kind == "asset":
+                    self.kind = "emoji"
+                    self._display = ""
+            else:
+                self._asset = str(value)
+                self.kind = "asset"
+                self._anim = None
 
         def _hit_wh(self):
             # The unrotated width and height of the collision box, before angle.
@@ -600,7 +620,8 @@ def _pyrun_install_game():
         cy = W["h"] // 2 if y is None else y
         if asset:
             # A sprite you designed in the Asset studio, used by its id number.
-            return Sprite("asset", asset=str(skin), size=size, x=cx, y=cy)
+            return Sprite("asset", asset=str(skin), size=size, x=cx, y=cy,
+                          content=skin, resolvable=True)
         kind, art, display = _resolve_skin(skin)
         sp = Sprite(kind, art=art, display=display, content=skin,
                     resolvable=True, size=size, x=cx, y=cy)

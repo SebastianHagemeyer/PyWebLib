@@ -255,16 +255,18 @@
     const el = document.createElement("div");
     el.className = "asset-card";
     el.innerHTML =
-      '<img class="asset-card-pic" alt="" src="' + esc(dataUri(a.svg)) + '" />' +
-      '<span class="asset-card-id">#' + a.id + '</span>' +
+      '<img class="asset-card-pic" alt="" title="' + (mine ? "Click to edit" : "Click to remix a copy") + '" src="' + esc(dataUri(a.svg)) + '" />' +
+      '<button type="button" class="asset-card-id" title="Copy the game.sprite line">#' + a.id + '</button>' +
       '<span class="asset-card-name"></span>' +
       (mine ? '<button type="button" class="asset-card-del" title="Delete">×</button>' : "");
     el.querySelector(".asset-card-name").textContent = a.name || "untitled";
-    el.querySelector(".asset-card-pic").addEventListener("click", function () {
-      // Click a sprite to copy the line that uses it.
+    // Open the sprite in the editor: yours to edit, someone else's as a fresh
+    // copy to remix and publish as your own.
+    el.querySelector(".asset-card-pic").addEventListener("click", function () { loadIntoEditor(a, !mine); });
+    // The #id copies the line that uses it in a game.
+    el.querySelector(".asset-card-id").addEventListener("click", function () {
       const snippet = "game.sprite(" + a.id + ", 100, 100, asset=True)";
       try { navigator.clipboard.writeText(snippet); showMsg("Copied: " + snippet, true); } catch (e) { showMsg(snippet, true); }
-      if (mine) loadIntoEditor(a);
     });
     if (mine) el.querySelector(".asset-card-del").addEventListener("click", async function (ev) {
       ev.stopPropagation();
@@ -274,11 +276,20 @@
     });
     return el;
   }
-  function loadIntoEditor(a) {
-    try {
-      const parsed = parseSvg(a.svg);
-      if (parsed) { snapshot(); shapes = parsed; selected = -1; editingId = a.id; nameInput.value = a.name || ""; setPublishLabel(); render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
-    } catch (e) {}
+  function loadIntoEditor(a, asTemplate) {
+    const parsed = parseSvg(a.svg);
+    if (!parsed) { showMsg("Couldn't open that sprite.", false); return; }
+    snapshot();
+    shapes = parsed;
+    selected = -1;
+    editingId = asTemplate ? null : a.id;   // a remix publishes as a NEW asset
+    nameInput.value = asTemplate ? ((a.name || "sprite") + " remix") : (a.name || "");
+    setPublishLabel();
+    render();
+    showMsg(asTemplate
+      ? "Opened a copy of #" + a.id + " to remix. Publish it to save your own."
+      : "Editing your asset #" + a.id + ".", true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function loadLibrary() {
