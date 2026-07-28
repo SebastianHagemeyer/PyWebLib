@@ -764,6 +764,9 @@ body.sandbox-maxed { overflow: hidden; }
 .sandbox-editor.is-expanded .sandbox-expand-chev { transform: rotate(180deg); }
 /* When opened out, don't let the grid stretch the output column to match. */
 .sandbox-shell.editor-expanded { align-items: start; }
+/* Maximised editor already fills the screen: nothing to collapse or expand. */
+.sandbox-editor.is-max .sandbox-expand,
+.sandbox-editor.is-max .sandbox-expand-fade { display: none; }
 
 /* ===== Editor helpers: block-indent hint strip + inline flags (editor-tools.js) ===== */
 .sandbox-editor { position: relative; }
