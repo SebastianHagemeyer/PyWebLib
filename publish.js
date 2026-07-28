@@ -120,7 +120,7 @@
     // always publishing a fresh copy.
     let mine = [];
     if (user) {
-      const r = await sb.from("projects").select("id,title,description")
+      const r = await sb.from("projects").select("id,title,description,scene")
         .eq("author_id", user.id).order("updated_at", { ascending: false });
       if (!r.error && r.data) mine = r.data;
     }
@@ -140,6 +140,7 @@
         '<h2 class="pwl-modal-title">Share to community</h2>' +
         '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
         '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' +
+        '<p class="pwl-thumb-keep" hidden style="margin:6px 0 0;font-size:0.85rem;color:var(--muted)">Keeping this program\'s thumbnail. Run it to capture a new one.</p>' +
         ((kind === "turtle" || kind === "game") && !scene
           ? '<div class="pwl-share-runfirst"><span>' +
               (kind === "game"
@@ -186,31 +187,52 @@
     const targetEl = form.querySelector('select[name="target"]');
     const submitBtn = form.querySelector('button[type="submit"]');
     const capNote = form.querySelector(".pwl-cap-note");
+    const keepNote = back.querySelector(".pwl-thumb-keep");
     if (capNote) capNote.textContent =
       "You have " + mine.length + " programs, the most allowed. Pick one above to update, or delete one in the community first.";
 
-    // Hard gate: a turtle/game with no live thumbnail (never run for this code)
-    // can't be published until it's been run, so cards aren't just code. The
-    // "Publish without a thumbnail" link is the escape hatch.
-    const needsThumb = (kind === "turtle" || kind === "game") && !scene;
+    // A turtle/game normally needs a live thumbnail before it can be published,
+    // so cards aren't just code. The exception: updating a program that already
+    // has a saved thumbnail keeps the old one, so the gate depends on the target.
+    const runfirstBox = back.querySelector(".pwl-share-runfirst");
     let allowNoScene = false;
     const anywayBtn = back.querySelector(".pwl-publish-anyway");
     if (anywayBtn) anywayBtn.addEventListener("click", function () {
       allowNoScene = true;
       anywayBtn.remove();
-      const rf = back.querySelector(".pwl-share-runfirst");
-      if (rf) rf.classList.add("bypassed");
+      if (runfirstBox) runfirstBox.classList.add("bypassed");
       refreshSubmit();
       titleEl.focus();
     });
+
+    function targetSceneJson() {
+      // The saved thumbnail of the program we're about to update, if it has one.
+      if (!targetEl || !targetEl.value) return null;
+      const m = mine.filter(function (x) { return x.id === targetEl.value; })[0];
+      return (m && m.scene) ? m.scene : null;
+    }
+    function needsThumbNow() {
+      if (scene) return false;                       // captured one this run
+      if (kind !== "turtle" && kind !== "game") return false;
+      return !targetSceneJson();                     // else keep the target's own
+    }
+    function renderPreview() {
+      if (!pv || !window.PWL.preview) return;
+      // A fresh capture wins; otherwise show the target's existing thumbnail.
+      try { window.PWL.preview.renderInto(pv, code, scene || targetSceneJson()); } catch (e) {}
+    }
 
     // At the cap you can still update an existing program, just not add a new one.
     function refreshSubmit() {
       const isNew = !targetEl || !targetEl.value;
       const capBlocked = atCap && isNew;
-      const thumbBlocked = needsThumb && !allowNoScene;
+      const needs = needsThumbNow();
       if (capNote) capNote.hidden = !capBlocked;
-      submitBtn.disabled = capBlocked || thumbBlocked;
+      // Hide the "run first / no thumbnail" prompts when the old one is kept.
+      if (runfirstBox) runfirstBox.style.display = needs ? "" : "none";
+      if (anywayBtn) anywayBtn.style.display = (needs && !allowNoScene) ? "" : "none";
+      if (keepNote) keepNote.hidden = !(!scene && !!targetSceneJson());
+      submitBtn.disabled = capBlocked || (needs && !allowNoScene);
     }
     // Choosing an existing program fills in its title and description and turns
     // the button into an update; "A new program" resets to a fresh post.
@@ -224,6 +246,7 @@
         } else {
           submitBtn.textContent = "Publish";
         }
+        renderPreview();
         refreshSubmit();
       });
     }
@@ -241,7 +264,7 @@
       if (!u) { PWL.auth.signInWithGoogle(); return; }
       const title = titleEl.value.trim();
       if (!title) return;
-      if (needsThumb && !allowNoScene) { toast("Run your program first to capture a thumbnail, or choose \"Publish without a thumbnail\"."); return; }
+      if (needsThumbNow() && !allowNoScene) { toast("Run your program first to capture a thumbnail, or choose \"Publish without a thumbnail\"."); return; }
       const targetId = targetEl ? targetEl.value : "";
       if (atCap && !targetId) { toast("You're at the " + PROGRAM_CAP + " program limit. Update one, or delete one first."); return; }
       const sceneJson = scene
@@ -255,14 +278,17 @@
       if (targetId) {
         // Overwrite the chosen program with the current editor code. RLS only
         // lets an author touch their own rows, and the list is theirs anyway.
-        res = await sb.from("projects").update({
+        const upd = {
           title: title,
           description: descEl.value.trim() || null,
           code: code,
           kind: kind,
-          scene: sceneJson,
           updated_at: new Date().toISOString()
-        }).eq("id", targetId).select("id").single();
+        };
+        // Only replace the thumbnail when we captured a fresh one this run;
+        // otherwise leave the program's existing thumbnail untouched.
+        if (sceneJson !== null) upd.scene = sceneJson;
+        res = await sb.from("projects").update(upd).eq("id", targetId).select("id").single();
       } else {
         res = await sb.from("projects").insert({
           author_id: u.id,
