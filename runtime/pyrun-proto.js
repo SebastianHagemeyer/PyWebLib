@@ -17,6 +17,7 @@
     PLAYING: 3,      // game.playing()
     MX: 4, MY: 5, MDOWN: 6, MCLICKS: 7, MIN: 8,
     INLEN: 9,        // number of UTF-8 bytes of the submitted input line
+    RESTART: 10,     // 1 = the game asked to restart (game_over(retry=True))
     KEYS: 16,        // key states live at KEYS .. KEYS+NKEYS-1 (1 = down)
     NKEYS: 48
   };

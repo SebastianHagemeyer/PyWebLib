@@ -731,9 +731,25 @@ def _pyrun_install_game():
         if _jspi:
             run_sync(_io.nextFrame(1.0 / max(1, int(fps))))
 
-    def game_over(message="Game Over"):
+    def game_over(message="Game Over", retry=False):
+        # retry=True lets a tap or click restart the game, instead of the player
+        # having to press Run again. Great on a phone.
         W["over"] = str(message)
         _draw()
+        if retry:
+            # Settle briefly so the tap that ended the game doesn't instantly
+            # retry it, then wait on the banner for a fresh tap and ask the host
+            # to re-run the whole program from the top.
+            for _ in range(12):
+                frame(30)
+            base = int(_io.mouseClicks())
+            rst = getattr(_io, "restart", None)
+            while _io.playing():
+                if int(_io.mouseClicks()) != base:
+                    if rst:
+                        rst()
+                    break
+                frame(30)
         _io.stop()
 
     def _reset_all():
@@ -775,6 +791,7 @@ del _pyrun_install_game
   // ---- JS side of the game: canvas drawing + keyboard, dispatched to active -
   let gameKeys = {};
   let gamePlaying = true;
+  let gameRestart = false;   // set by game_over(retry=True) on a tap: re-run
 
   function gameCtx() {
     if (!active || !active.opts.game) return null;
@@ -996,6 +1013,7 @@ del _pyrun_install_game
     fullscreen: function (on) { setGameFullscreen(null, on !== false); },
     playing: function () { return gamePlaying; },
     stop: function () { gamePlaying = false; },
+    restart: function () { gameRestart = true; },
     reset: function () {
       gameKeys = {};
       gamePlaying = true;
@@ -1696,26 +1714,31 @@ del _pyrun_install_game
       try {
         const py = await ensurePyodide();
         setRunMode("busy");
-        // Fresh turtle/game state every run, so re-running behaves like
-        // running a .py file from scratch.
-        await py.runPythonAsync(
-          "import sys\n" +
-          "if 'turtle' in sys.modules:\n" +
-          "    sys.modules['turtle']._reset_all()\n" +
-          "if 'game' in sys.modules:\n" +
-          "    sys.modules['game']._reset_all()\n"
-        );
-        resetTurtle();
-        // Run in a FRESH namespace each time, so variables from a previous
-        // run can't linger and produce "ghost" results after the code has
-        // changed. Without this, a value set last run (e.g. age) is still
-        // there this run if the new code reads it before assigning it.
-        const ns = py.runPython("dict(__name__='__main__')");
-        try {
-          await py.runPythonAsync(getCode(), { globals: ns });
-        } finally {
-          ns.destroy();
-        }
+        // A game can ask to restart itself (game_over(retry=True)); re-run the
+        // whole program each time it does, until it ends normally or is stopped.
+        do {
+          gameRestart = false;
+          // Fresh turtle/game state every run, so re-running behaves like
+          // running a .py file from scratch.
+          await py.runPythonAsync(
+            "import sys\n" +
+            "if 'turtle' in sys.modules:\n" +
+            "    sys.modules['turtle']._reset_all()\n" +
+            "if 'game' in sys.modules:\n" +
+            "    sys.modules['game']._reset_all()\n"
+          );
+          resetTurtle();
+          // Run in a FRESH namespace each time, so variables from a previous
+          // run can't linger and produce "ghost" results after the code has
+          // changed. Without this, a value set last run (e.g. age) is still
+          // there this run if the new code reads it before assigning it.
+          const ns = py.runPython("dict(__name__='__main__')");
+          try {
+            await py.runPythonAsync(getCode(), { globals: ns });
+          } finally {
+            ns.destroy();
+          }
+        } while (gameRestart && !stopRequested);
       } catch (err) {
         const msg = (err && err.message) ? String(err.message) : String(err);
         if (/Stopped by user|KeyboardInterrupt/.test(msg)) {

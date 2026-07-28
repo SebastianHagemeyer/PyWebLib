@@ -57,6 +57,7 @@ const GAME_IO = {
   jspiOk: function () { return true; },
   playing: function () { return Atomics.load(mem.ctrl, CTRL.PLAYING) === 1; },
   stop: function () { Atomics.store(mem.ctrl, CTRL.PLAYING, 0); },
+  restart: function () { Atomics.store(mem.ctrl, CTRL.RESTART, 1); },
   reset: function () { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("g", "reset", []); },
   setup: function (w, h, bg) { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("g", "setup", [w, h, bg]); },
   setCursor: function (hidden) { post("g", "setCursor", [hidden]); },
@@ -108,12 +109,17 @@ self.onmessage = async function (e) {
       // Fresh state each run, like the main-thread path.
       Atomics.store(mem.ctrl, CTRL.STOP, 0);
       mem.interruptView[0] = 0;
-      await pyodide.runPythonAsync(RESET_PY);
-      const ns = pyodide.runPython("dict(__name__='__main__')");
-      try {
-        await pyodide.runPythonAsync(msg.code, { globals: ns });
-        self.postMessage({ t: "done" });
-      } finally { ns.destroy(); }
+      // A game can ask to restart itself (game_over(retry=True)); re-run the
+      // whole program each time it does, until it ends normally or is stopped.
+      do {
+        Atomics.store(mem.ctrl, CTRL.RESTART, 0);
+        await pyodide.runPythonAsync(RESET_PY);
+        const ns = pyodide.runPython("dict(__name__='__main__')");
+        try {
+          await pyodide.runPythonAsync(msg.code, { globals: ns });
+        } finally { ns.destroy(); }
+      } while (Atomics.load(mem.ctrl, CTRL.RESTART) === 1 && Atomics.load(mem.ctrl, CTRL.STOP) === 0);
+      self.postMessage({ t: "done" });
     }
   } catch (err) {
     const m = (err && err.message) ? String(err.message) : String(err);

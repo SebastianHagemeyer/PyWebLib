@@ -1259,11 +1259,11 @@ while game.playing():
             if bird.touches(p["top"]) or bird.touches(p["bot"]):
                 game.sound("hit")
                 game.submit_score(game.score())
-                game.game_over("Score " + str(game.score()) + " - tap Run to play again")
+                game.game_over("Score " + str(game.score()) + " - tap to play again", retry=True)
         if bird.touches(ground) or bird.y < 0:
             game.sound("hit")
             game.submit_score(game.score())
-            game.game_over("Score " + str(game.score()) + " - tap Run to play again")
+            game.game_over("Score " + str(game.score()) + " - tap to play again", retry=True)
 
     game.frame(60)
 `
