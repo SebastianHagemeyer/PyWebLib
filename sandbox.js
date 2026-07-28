@@ -519,6 +519,8 @@ def sell_pop(plant):
             arc = 4 * t * (1 - t)             # 0 -> 1 -> 0, a smooth arc
             plant.y = base_y - arc * hop
             plant.size = base_size + arc * hop * 0.4
+            can.x = game.mouse_x()           # keep the cursor with the mouse:
+            can.y = game.mouse_y() - 12       # this bounce runs its own frames
             game.frame()
     plant.y = base_y
     plant.size = base_size
@@ -570,7 +572,9 @@ while game.playing():
                 game.sound(1)                  # buzz: not enough coins
         else:
             for plot in plots:
-                if plot["planted"] and plot["plant"].at_mouse():
+                # Click anywhere on the pot (the soil or the plant), so a small
+                # sprout is easy to hit and a wet plot can still be topped up.
+                if plot["planted"] and (plot["plant"].at_mouse() or plot["soil"].at_mouse()):
                     if plot["growth"] >= 100:
                         game.sound(2)                   # coin: cha-ching!
                         sell_pop(plot["plant"])         # a little bounce first
@@ -594,7 +598,7 @@ while game.playing():
     else:
         over_ripe = False
         for plot in plots:
-            if plot["planted"] and plot["growth"] >= 100 and plot["plant"].at_mouse():
+            if plot["planted"] and plot["growth"] >= 100 and (plot["plant"].at_mouse() or plot["soil"].at_mouse()):
                 over_ripe = True
                 break
         can.content = "✂️" if over_ripe else "🚿"
