@@ -1203,6 +1203,7 @@ GRAVITY = 0.5
 FLAP = -8.5
 GAP = 180                               # space between the top and bottom pipe
 SPEED = 3.2
+SPACING = 260                           # distance from one pipe to the next
 
 bird = game.sprite("bird", 110, H // 2, size=46)
 vy = 0.0
@@ -1224,7 +1225,7 @@ pipes = []
 for i in range(3):
     p = {"top": game.box(0, 0, 64, 10, "#5aa02c"),
          "bot": game.box(0, 0, 64, 10, "#5aa02c")}
-    place(p, W + 60 + i * 200)
+    place(p, W + 100 + i * SPACING)
     pipes.append(p)
 
 tip = game.label("Tap to flap", W // 2, H // 2 + 90, size=22,
@@ -1250,7 +1251,7 @@ while game.playing():
                 score_lbl.content = str(game.score(1))
                 game.sound("coin")
             if p["top"].x < -40:
-                place(p, W + 60)
+                place(p, max(q["top"].x for q in pipes) + SPACING)
             if bird.touches(p["top"]) or bird.touches(p["bot"]):
                 game.sound("hit")
                 game.submit_score(game.score())
