@@ -658,6 +658,17 @@ def _pyrun_install_game():
         # that is what collisions really use, so a spun sprite looks off.
         W["debug"] = bool(on)
 
+    def fullscreen(on=True):
+        # Fill the whole screen with the game window. Perfect for phones. On
+        # iPhone this is a full-window overlay (Safari there has no true
+        # fullscreen); on a computer or Android it also asks for real fullscreen.
+        # Put it right after game.window():
+        #   game.window(400, 640)
+        #   game.fullscreen()
+        fn = getattr(_io, "fullscreen", None)
+        if fn is not None:
+            fn(bool(on))
+
     def _draw(banner=None):
         arr = []
         # Draw low layers first so high layers land on top. sorted() is stable,
@@ -718,6 +729,7 @@ def _pyrun_install_game():
     mod.submit_score = submit_score
     mod.sound = sound
     mod.debug = debug
+    mod.fullscreen = fullscreen
     mod.Sprite = Sprite
     mod._reset_all = _reset_all
     sys.modules["game"] = mod
@@ -800,6 +812,76 @@ del _pyrun_install_game
     if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.CTRL.MDOWN, 0);
   });
 
+  // ---- Fullscreen games. A full-viewport CSS overlay is the workhorse (the ONLY
+  // way on iPhone, whose Safari has no Fullscreen API), and it needs no user
+  // gesture, so game.fullscreen() can trigger it straight from Python. Where the
+  // real API exists (desktop/Android/iPad) we also request it as a bonus. Input
+  // already maps through getBoundingClientRect, so a CSS-scaled canvas is fine.
+  function pwlGameCanvasEl() {
+    const c = gameCtx();
+    if (c) return c.canvas;
+    return document.getElementById("game-canvas");
+  }
+  function fitGameCanvas() {
+    const cv = pwlGameCanvasEl();
+    if (!cv) return;
+    if (document.body.classList.contains("pwl-game-fs")) {
+      const stage = cv.parentElement;
+      if (!stage) return;
+      const availW = stage.clientWidth || window.innerWidth;
+      const availH = stage.clientHeight || window.innerHeight;
+      const scale = Math.min(availW / cv.width, availH / cv.height);
+      if (scale > 0 && isFinite(scale)) {
+        cv.style.width = Math.round(cv.width * scale) + "px";
+        cv.style.height = Math.round(cv.height * scale) + "px";
+      }
+    } else {
+      cv.style.width = "";
+      cv.style.height = "";
+    }
+  }
+  function setGameFullscreen(canvas, on) {
+    const cv = canvas || pwlGameCanvasEl();
+    if (!cv) return;
+    const panel = cv.closest ? cv.closest(".game-panel") : null;
+    document.body.classList.toggle("pwl-game-fs", !!on);
+    if (panel) panel.classList.toggle("is-fs", !!on);
+    if (on) {
+      const el = panel || cv;
+      try {
+        if (el.requestFullscreen) { const p = el.requestFullscreen(); if (p && p.catch) p.catch(function () {}); }
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      } catch (e) {}
+    } else {
+      try {
+        if (document.exitFullscreen && document.fullscreenElement) { const p = document.exitFullscreen(); if (p && p.catch) p.catch(function () {}); }
+        else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+      } catch (e) {}
+    }
+    fitGameCanvas();
+    requestAnimationFrame(fitGameCanvas);
+  }
+  window.addEventListener("resize", fitGameCanvas);
+  window.addEventListener("orientationchange", function () { setTimeout(fitGameCanvas, 120); });
+  document.addEventListener("fullscreenchange", function () {
+    // Real fullscreen exited (Esc / system gesture): keep the CSS overlay in sync.
+    if (!document.fullscreenElement && document.body.classList.contains("pwl-game-fs")) {
+      document.body.classList.remove("pwl-game-fs");
+      const cv = pwlGameCanvasEl();
+      const panel = cv && cv.closest ? cv.closest(".game-panel") : null;
+      if (panel) panel.classList.remove("is-fs");
+      fitGameCanvas();
+    }
+  });
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && document.body.classList.contains("pwl-game-fs")) setGameFullscreen(null, false);
+  });
+  window.PWL = window.PWL || {};
+  window.PWL.setGameFullscreen = function (on) { setGameFullscreen(null, on !== false); };
+  window.PWL.toggleGameFullscreen = function () {
+    setGameFullscreen(null, !document.body.classList.contains("pwl-game-fs"));
+  };
+
   // ---- Built-in themed sprite art ----
   // The flat SVG art lives in sprites.js (window.PWL_SPRITES), the single
   // source shared with the community preview renderer. Order matches
@@ -877,12 +959,15 @@ del _pyrun_install_game
   const GAME_IO = {
     jspiOk: function () { return jspiSupported(); },
     sound: function (which) { playGameSound(which); },
+    fullscreen: function (on) { setGameFullscreen(null, on !== false); },
     playing: function () { return gamePlaying; },
     stop: function () { gamePlaying = false; },
     reset: function () {
       gameKeys = {};
       gamePlaying = true;
       gameMouse.down = false; gameMouse.clicks = 0;
+      // Each run starts windowed; the program re-enters fullscreen if it asks to.
+      setGameFullscreen(null, false);
       const c = gameCtx();
       if (c) {
         c.canvas.style.cursor = "";
@@ -899,6 +984,8 @@ del _pyrun_install_game
       c.canvas.height = Number(h) || 360;
       c.canvas.style.background = String(bg || "#0b1020");
       c.canvas.style.cursor = "";
+      // If we are already fullscreen, refit to the new game resolution.
+      fitGameCanvas();
     },
     setCursor: function (hidden) {
       const c = gameCtx();

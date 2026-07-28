@@ -536,6 +536,63 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.55);
 }
 
+/* ===== Fullscreen game: a full-viewport overlay that works even on iPhone
+   (whose Safari has no Fullscreen API), plus real fullscreen where available.
+   The canvas is sized in JS to the largest aspect-preserving fit. ===== */
+.game-stage { position: relative; }
+.game-fs-btn { padding: 6px 9px; }
+.game-fs-btn svg { display: block; }
+.game-fs-exit { display: none; }
+body.pwl-game-fs { overflow: hidden; }
+body.pwl-game-fs .game-panel {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 500;
+  margin: 0;
+  border-radius: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+body.pwl-game-fs .game-panel .sandbox-bar { display: none; }
+body.pwl-game-fs .game-stage {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.pwl-game-fs .game-stage canvas {
+  max-width: none;   /* JS sets the exact letterboxed pixel size */
+  height: auto;
+  border-radius: 0;
+}
+body.pwl-game-fs .game-fs-exit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 510;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
 /* ===== Snippet categories: collapsible groups so the list is not crowded ===== */
 .sandbox-example-groups { display: flex; flex-direction: column; gap: 10px; }
 .sandbox-example-group {
@@ -663,6 +720,50 @@ img { max-width: 100%; display: block; }
 }
 .sandbox-editor.is-max .sandbox-code { max-height: none; }
 body.sandbox-maxed { overflow: hidden; }
+
+/* ===== Collapsible code: cap to the output column's height by default, with a
+   faded bottom + an expand pill to open it out. --code-cap is measured in JS. */
+.sandbox-editor:not(.is-max):not(.is-expanded) .sandbox-code {
+  max-height: var(--code-cap, 420px);
+}
+.sandbox-expand-fade {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 88px;
+  background: linear-gradient(to bottom, rgba(11, 16, 32, 0), var(--code-bg) 82%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+}
+.sandbox-editor.can-expand:not(.is-expanded):not(.scrolled-end) .sandbox-expand-fade {
+  opacity: 1;
+}
+.sandbox-expand {
+  position: absolute;
+  left: 50%; bottom: 10px;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--code-text);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  font: 600 0.8rem ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  z-index: 3;
+  transition: background 0.12s ease;
+}
+.sandbox-editor.can-expand .sandbox-expand { display: inline-flex; }
+.sandbox-expand:hover { background: rgba(255, 255, 255, 0.2); }
+.sandbox-expand-chev { display: block; transition: transform 0.15s ease; }
+.sandbox-editor.is-expanded .sandbox-expand-chev { transform: rotate(180deg); }
+/* When opened out, don't let the grid stretch the output column to match. */
+.sandbox-shell.editor-expanded { align-items: start; }
 
 /* ===== Editor helpers: block-indent hint strip + inline flags (editor-tools.js) ===== */
 .sandbox-editor { position: relative; }

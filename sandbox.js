@@ -1186,6 +1186,82 @@ while game.playing():
         "        out += ch\n" +
         "print('Original:', msg)\n" +
         "print('Result:  ', out)\n"
+    },
+    {
+      title: "Game: Flappy (made for phones)",
+      cat: "Advanced Games",
+      desc: "A portrait, tap-to-flap game that fills the whole screen with game.fullscreen(). Tap (or press Space) to flap through the pipes. Try it on your phone.",
+      code:
+`import game, random
+
+# A tall, portrait window, then fill the screen. Tap (or Space) to flap.
+W, H = 400, 640
+game.window(W, H, background="#70c5ce")
+game.fullscreen()                       # fills the whole screen, great on phones
+
+GRAVITY = 0.5
+FLAP = -8.5
+GAP = 180                               # space between the top and bottom pipe
+SPEED = 3.2
+
+bird = game.sprite("bird", 110, H // 2, size=46)
+vy = 0.0
+started = False
+
+ground = game.box(W // 2, H - 20, W, 40, "#ded895")
+score_lbl = game.label("0", W // 2, 70, size=44, color="#ffffff", background="#00000055")
+
+def place(p, x):
+    gap_y = random.randint(150, H - 220)          # centre of the gap
+    top_h = gap_y - GAP // 2
+    bot_h = (H - 40) - (gap_y + GAP // 2)         # leave room for the ground
+    p["x"] = x
+    p["scored"] = False
+    p["top"].x = x; p["top"].y = top_h / 2;             p["top"].h = top_h
+    p["bot"].x = x; p["bot"].y = (H - 40) - bot_h / 2;  p["bot"].h = bot_h
+
+pipes = []
+for i in range(3):
+    p = {"top": game.box(0, 0, 64, 10, "#5aa02c"),
+         "bot": game.box(0, 0, 64, 10, "#5aa02c")}
+    place(p, W + 60 + i * 200)
+    pipes.append(p)
+
+tip = game.label("Tap to flap", W // 2, H // 2 + 90, size=22,
+                 color="#ffffff", background="#00000055")
+
+while game.playing():
+    if game.clicked() or game.pressed("space"):
+        vy = FLAP
+        if not started:
+            started = True
+            tip.hide()
+        game.sound("jump")
+
+    if started:
+        vy += GRAVITY
+        bird.y += vy
+        bird.angle = max(-25, min(75, vy * 5))    # tilt down as it falls
+        for p in pipes:
+            p["top"].x -= SPEED
+            p["bot"].x -= SPEED
+            if not p["scored"] and p["top"].x < bird.x:
+                p["scored"] = True
+                score_lbl.content = str(game.score(1))
+                game.sound("coin")
+            if p["top"].x < -40:
+                place(p, W + 60)
+            if bird.touches(p["top"]) or bird.touches(p["bot"]):
+                game.sound("hit")
+                game.submit_score(game.score())
+                game.game_over("Score " + str(game.score()) + " - tap Run to play again")
+        if bird.touches(ground) or bird.y < 0:
+            game.sound("hit")
+            game.submit_score(game.score())
+            game.game_over("Score " + str(game.score()) + " - tap Run to play again")
+
+    game.frame(60)
+`
     }
   ];
 
@@ -1284,6 +1360,72 @@ while game.playing():
       if (e.key === "Escape" && editorPanel.classList.contains("is-max")) setMaximised(false);
     });
   }
+
+  // ---- Collapsible editor: keep the code capped to the output column's height
+  // (game window + output) so the left and right sides line up, with a faded
+  // bottom + an expand pill to open the whole file out. ----
+  (function setupCollapse() {
+    const shell = document.querySelector(".sandbox-shell");
+    const right = document.querySelector(".sandbox-right");
+    const bar = editorPanel ? editorPanel.querySelector(".sandbox-bar") : null;
+    const expandBtn = document.getElementById("sandbox-expand");
+    if (!shell || !editorPanel || !right || !expandBtn) return;
+    const isMobile = function () { return window.matchMedia("(max-width: 760px)").matches; };
+
+    function measureCap() {
+      // Single column (phones): a plain viewport-based cap. Two columns: match
+      // the output side so the code never towers over the game/output boxes.
+      if (isMobile()) { editorPanel.style.setProperty("--code-cap", "62vh"); return; }
+      const barH = bar ? bar.offsetHeight : 44;
+      const cap = Math.max(240, Math.round(right.offsetHeight - barH));
+      editorPanel.style.setProperty("--code-cap", cap + "px");
+    }
+    function refreshOverflow() {
+      if (editorPanel.classList.contains("is-expanded")) { editorPanel.classList.add("can-expand"); return; }
+      const overflowing = editor.scrollHeight > editor.clientHeight + 4;
+      editorPanel.classList.toggle("can-expand", overflowing);
+    }
+    function onScroll() {
+      const atEnd = editor.scrollTop + editor.clientHeight >= editor.scrollHeight - 6;
+      editorPanel.classList.toggle("scrolled-end", atEnd);
+    }
+    function refresh() { measureCap(); refreshOverflow(); onScroll(); }
+
+    expandBtn.addEventListener("click", function () {
+      const on = !editorPanel.classList.contains("is-expanded");
+      editorPanel.classList.toggle("is-expanded", on);
+      shell.classList.toggle("editor-expanded", on);
+      expandBtn.setAttribute("aria-expanded", on ? "true" : "false");
+      const lbl = expandBtn.querySelector(".sandbox-expand-label");
+      if (lbl) lbl.textContent = on ? "Collapse" : "Expand";
+      if (!on) { editor.scrollTop = 0; editor.focus(); }
+      requestAnimationFrame(refreshOverflow);
+    });
+    editor.addEventListener("scroll", onScroll);
+    editor.addEventListener("input", refresh);
+    window.addEventListener("resize", refresh);
+    if (window.ResizeObserver) {
+      try { new ResizeObserver(refresh).observe(right); } catch (e) {}
+    }
+    // Recheck after the code first renders and after panels toggle in.
+    requestAnimationFrame(refresh);
+    setTimeout(refresh, 300);
+    window.PWL = window.PWL || {};
+    window.PWL.refreshEditorCap = refresh;
+  })();
+
+  // ---- Fullscreen the game window: the button in the game bar, and the exit
+  // ✕ that shows while fullscreen. game.fullscreen() from Python does the same. ----
+  (function setupGameFullscreen() {
+    const fsBtn = document.querySelector(".game-fs-btn");
+    const fsExit = document.querySelector(".game-fs-exit");
+    if (fsBtn) fsBtn.addEventListener("click", function () {
+      if (window.PWL && window.PWL.toggleGameFullscreen) window.PWL.toggleGameFullscreen();
+    });
+    if (fsExit) fsExit.addEventListener("click", function () {
+      if (window.PWL && window.PWL.setGameFullscreen) window.PWL.setGameFullscreen(false);
+    });
+  })();
 
   // The category order shown in the snippet dropdowns, and which one starts open.
   const EXAMPLE_CATEGORIES = ["Basic", "Intermediate", "Coloured Text", "Turtle", "Basic Games", "Advanced Games"];

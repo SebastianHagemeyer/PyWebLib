@@ -60,6 +60,7 @@ const GAME_IO = {
   reset: function () { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("g", "reset", []); },
   setup: function (w, h, bg) { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("g", "setup", [w, h, bg]); },
   setCursor: function (hidden) { post("g", "setCursor", [hidden]); },
+  fullscreen: function (on) { post("g", "fullscreen", [!!on]); },
   submitScore: function (points) { post("g", "submitScore", [points]); },
   sound: function (name) { post("g", "sound", [name]); },
   pressed: function (key) { return Atomics.load(mem.ctrl, self.PRProto.keyIndex(key)) === 1; },
