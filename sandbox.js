@@ -1308,6 +1308,14 @@ while game.playing():
       if (usesGame(runner.getCode())) {
         const cv = document.getElementById("game-canvas");
         if (cv) cv.focus();
+        // Warm any user-made asset sprites the code names, so they don't pop in.
+        try {
+          const ids = [], re = /game\.sprite\(\s*(\d+)[^)]*asset\s*=\s*True/g;
+          const code = runner.getCode();
+          let m;
+          while ((m = re.exec(code))) ids.push(m[1]);
+          if (ids.length && window.PWL && window.PWL.preloadGameAssets) window.PWL.preloadGameAssets(ids);
+        } catch (e) {}
       }
     },
     turtle: {

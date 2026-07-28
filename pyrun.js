@@ -407,6 +407,7 @@ def _pyrun_install_game():
             self.w = kw.get("w", self.size)
             self.h = kw.get("h", self.size)
             self.art = kw.get("art", -1)
+            self.asset = kw.get("asset", None)   # a published Asset id, or None
             self._display = kw.get("display", "")
             self._content = kw.get("content", self._display)
             self._resolvable = kw.get("resolvable", False)
@@ -594,9 +595,12 @@ def _pyrun_install_game():
             return ("art", idx, "")
         return ("emoji", -1, str(skin))
 
-    def sprite(skin, x=None, y=None, size=40):
+    def sprite(skin, x=None, y=None, size=40, asset=False):
         cx = W["w"] // 2 if x is None else x
         cy = W["h"] // 2 if y is None else y
+        if asset:
+            # A sprite you designed in the Asset studio, used by its id number.
+            return Sprite("asset", asset=str(skin), size=size, x=cx, y=cy)
         kind, art, display = _resolve_skin(skin)
         sp = Sprite(kind, art=art, display=display, content=skin,
                     resolvable=True, size=size, x=cx, y=cy)
@@ -715,7 +719,7 @@ def _pyrun_install_game():
             hbw, hbh = s._hit_wh()
             arr.append({"kind": kind, "x": s.x, "y": s.y, "size": s.size,
                         "w": s.w, "h": s.h, "text": str(disp), "color": s.color,
-                        "art": art, "angle": s.angle,
+                        "art": art, "asset": s.asset, "angle": s.angle,
                         "sx": s.scale_x, "sy": s.scale_y, "back": s.background,
                         "hbw": hbw, "hbh": hbh, "hba": s.angle})
         # Once the game is over the banner is sticky: every later redraw (like
@@ -945,6 +949,34 @@ del _pyrun_install_game
     return img;
   });
 
+  // ---- User-made assets (from the Asset studio): game.sprite(id, asset=True).
+  // Each id's SVG is fetched from Supabase once and cached as an Image, then
+  // drawn like a built-in. Worker-runtime games still draw here on the main
+  // thread, so this one cache serves both runtimes. ----
+  const ASSET_IMAGES = {};       // "id" -> Image, or null while it loads
+  function ensureAsset(id) {
+    if (id == null || id === "") return;
+    const key = String(id);
+    if (key in ASSET_IMAGES) return;    // already loaded, loading, or missing
+    ASSET_IMAGES[key] = null;           // mark in-flight so we fetch only once
+    const sb = window.PWL && window.PWL.supabase;
+    if (!sb) return;
+    try {
+      sb.from("assets").select("svg").eq("id", key).single().then(function (r) {
+        if (r && r.data && r.data.svg) {
+          const img = new Image();
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(r.data.svg);
+          ASSET_IMAGES[key] = img;
+        }
+      }, function () {});
+    } catch (e) {}
+  }
+  // Hosts can warm the cache before a run so assets don't pop in mid-game.
+  window.PWL = window.PWL || {};
+  window.PWL.preloadGameAssets = function (ids) {
+    (ids || []).forEach(function (id) { ensureAsset(id); });
+  };
+
   // ---- Arcade sound: a tiny Web Audio synth, no audio files. game.sound(0..9)
   // (or by name) plays a short built-in effect. Browsers only allow audio after
   // a user gesture, but games are clicked to play, so it unlocks by then.
@@ -1102,6 +1134,17 @@ del _pyrun_install_game
             // Unknown skin index (or not loaded yet): a purple square shows up.
             c.fillStyle = "#9b59b6";
             c.fillRect(dx - sz / 2, dy - sz / 2, sz, sz);
+          }
+        } else if (s.kind === "asset") {
+          ensureAsset(s.asset);
+          var aimg = ASSET_IMAGES[String(s.asset)];
+          var asz = s.size || 40;
+          if (aimg && aimg.complete && aimg.naturalWidth) {
+            c.drawImage(aimg, dx - asz / 2, dy - asz / 2, asz, asz);
+          } else {
+            // Still loading (or unknown id): a soft placeholder square.
+            c.fillStyle = "rgba(155,89,182,0.45)";
+            c.fillRect(dx - asz / 2, dy - asz / 2, asz, asz);
           }
         } else if (s.kind === "text") {
           c.font = "bold " + (s.size || 20) + "px system-ui, sans-serif";
