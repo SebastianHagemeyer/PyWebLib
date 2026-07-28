@@ -489,6 +489,16 @@ def _pyrun_install_game():
                 self.kind = "asset"
                 self._anim = None
 
+        # .z is a friendly alias for .layer: higher numbers draw in front,
+        # lower numbers sit behind. Sprites sharing a value keep creation order.
+        @property
+        def z(self):
+            return self.layer
+
+        @z.setter
+        def z(self, value):
+            self.layer = value
+
         def _hit_wh(self):
             # The unrotated width and height of the collision box, before angle.
             if self._hitbox is not None:
