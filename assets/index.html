@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asset studio | PyWebLib</title>
+  <meta name="description" content="Design your own sprite in the browser from simple shapes, publish it, and use it in a game with game.sprite(id, asset=True)." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../" class="logo">
+        <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="../">Playground</a>
+        <a class="header-link" href="../community/">Community</a>
+        <a class="header-link active" href="./">Assets</a>
+        <a class="header-link" href="../leaderboard/">Leaderboard</a>
+        <a class="header-link" href="../docs/">Docs</a>
+        <span id="pwl-account" class="pwl-account" data-root="../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Asset studio</p>
+        <h1>Design a sprite</h1>
+        <p class="lead">Build a little sprite out of shapes, publish it, then drop it into any game with <code>game.sprite(id, asset=True)</code>. Pick a tool, drag on the canvas to draw, and pick a colour.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <p class="community-notice" id="asset-notice" hidden>
+        Assets need the community backend: a Supabase project with Google sign-in and the <code>assets</code> table from <strong>supabase-schema.sql</strong>.
+      </p>
+
+      <div class="asset-studio" id="asset-studio">
+        <div class="asset-tools">
+          <div class="asset-tool-row" id="asset-toolbar">
+            <button type="button" class="asset-tool is-on" data-tool="select" title="Select and move (V)"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M4 3l12 5-5 2-2 5z" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-tool="rect" title="Rectangle (R)"><svg viewBox="0 0 20 20" width="18" height="18"><rect x="3" y="5" width="14" height="10" rx="1.5" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-tool="circle" title="Circle (C)"><svg viewBox="0 0 20 20" width="18" height="18"><circle cx="10" cy="10" r="7" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-tool="ellipse" title="Ellipse (E)"><svg viewBox="0 0 20 20" width="18" height="18"><ellipse cx="10" cy="10" rx="8" ry="5" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-tool="line" title="Line (L)"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M4 15L16 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+            <button type="button" class="asset-tool" data-tool="triangle" title="Triangle (T)"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M10 4l7 12H3z" fill="currentColor"/></svg></button>
+          </div>
+          <div class="asset-swatches" id="asset-swatches"></div>
+          <label class="asset-custom-color">Colour
+            <input type="color" id="asset-color" value="#4f46e5" />
+          </label>
+          <div class="asset-tool-row asset-edit-actions">
+            <button type="button" class="btn btn-ghost" id="asset-forward" title="Bring forward">Forward</button>
+            <button type="button" class="btn btn-ghost" id="asset-back" title="Send back">Back</button>
+            <button type="button" class="btn btn-ghost" id="asset-delete" title="Delete (Del)">Delete</button>
+          </div>
+          <div class="asset-tool-row asset-edit-actions">
+            <button type="button" class="btn btn-ghost" id="asset-undo" title="Undo (Ctrl+Z)">Undo</button>
+            <button type="button" class="btn btn-ghost" id="asset-clear" title="Clear the canvas">Clear</button>
+          </div>
+        </div>
+
+        <div class="asset-stage-wrap">
+          <svg class="asset-stage" id="asset-stage" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="Drawing canvas"></svg>
+        </div>
+
+        <div class="asset-side">
+          <div class="asset-preview">
+            <span class="asset-preview-title">Preview</span>
+            <div class="asset-preview-row">
+              <img class="asset-prev" id="asset-prev-a" width="64" height="64" alt="" />
+              <img class="asset-prev" id="asset-prev-b" width="40" height="40" alt="" />
+              <img class="asset-prev" id="asset-prev-c" width="24" height="24" alt="" />
+            </div>
+          </div>
+          <label class="asset-name-label">Name
+            <input type="text" id="asset-name" maxlength="40" autocomplete="off" placeholder="my sprite" />
+          </label>
+          <button type="button" class="btn btn-primary" id="asset-publish">Publish asset</button>
+          <p class="asset-msg" id="asset-msg" hidden></p>
+        </div>
+      </div>
+
+      <section class="asset-library">
+        <h2>Your assets</h2>
+        <div class="asset-grid" id="asset-mine"><p class="community-empty">Sign in to save and reuse your sprites.</p></div>
+        <h2>Community assets</h2>
+        <div class="asset-grid" id="asset-all"><p class="community-empty">Loading…</p></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script src="../auth.js"></script>
+  <script src="../assets.js"></script>
+</body>
+</html>
