@@ -398,6 +398,17 @@ def _pyrun_install_game():
          "debug": False, "clicks": 0, "tick": 0}
     _sprites = []
 
+    def _norm_asset(v):
+        # Asset ids are numbers (you see them as #2 and write game.sprite(2,...)),
+        # so keep them as ints where possible. That way sprite.asset == 2 works
+        # the way you'd expect instead of secretly being the string "2".
+        if v is None or v == "":
+            return None
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return str(v)
+
     class Sprite:
         def __init__(self, kind, **kw):
             self.kind = kind
@@ -407,7 +418,7 @@ def _pyrun_install_game():
             self.w = kw.get("w", self.size)
             self.h = kw.get("h", self.size)
             self.art = kw.get("art", -1)
-            self._asset = kw.get("asset", None)   # a published Asset id, or None
+            self._asset = _norm_asset(kw.get("asset", None))   # a published Asset id, or None
             self._display = kw.get("display", "")
             self._content = kw.get("content", self._display)
             self._resolvable = kw.get("resolvable", False)
@@ -485,7 +496,7 @@ def _pyrun_install_game():
                     self.kind = "emoji"
                     self._display = ""
             else:
-                self._asset = str(value)
+                self._asset = _norm_asset(value)
                 self.kind = "asset"
                 self._anim = None
 
@@ -630,7 +641,7 @@ def _pyrun_install_game():
         cy = W["h"] // 2 if y is None else y
         if asset:
             # A sprite you designed in the Asset studio, used by its id number.
-            return Sprite("asset", asset=str(skin), size=size, x=cx, y=cy,
+            return Sprite("asset", asset=skin, size=size, x=cx, y=cy,
                           content=skin, resolvable=True)
         kind, art, display = _resolve_skin(skin)
         sp = Sprite(kind, art=art, display=display, content=skin,
@@ -985,6 +996,18 @@ del _pyrun_install_game
   // drawn like a built-in. Worker-runtime games still draw here on the main
   // thread, so this one cache serves both runtimes. ----
   const ASSET_IMAGES = {};       // "id" -> Image, or null while it loads
+  const ASSET_RATIO = {};        // "id" -> width/height of the SVG (defaults to 1)
+  // The SVG's own width:height, so a wide sprite is drawn wide rather than
+  // squashed into a square. Studio shapes use viewBox "0 0 64 64" (ratio 1);
+  // an imported SVG keeps whatever shape it was drawn at.
+  function svgRatio(svg) {
+    var m = /viewBox\s*=\s*["']?\s*[-\d.eE]+[ ,]+[-\d.eE]+[ ,]+([-\d.eE]+)[ ,]+([-\d.eE]+)/.exec(svg || "");
+    if (m) { var w = parseFloat(m[1]), h = parseFloat(m[2]); if (w > 0 && h > 0) return w / h; }
+    var mw = /\bwidth\s*=\s*["']?\s*([\d.]+)/.exec(svg || "");
+    var mh = /\bheight\s*=\s*["']?\s*([\d.]+)/.exec(svg || "");
+    if (mw && mh) { var ww = parseFloat(mw[1]), hh = parseFloat(mh[1]); if (ww > 0 && hh > 0) return ww / hh; }
+    return 1;
+  }
   function ensureAsset(id) {
     if (id == null || id === "") return;
     const key = String(id);
@@ -995,6 +1018,7 @@ del _pyrun_install_game
     try {
       sb.from("assets").select("svg").eq("id", key).single().then(function (r) {
         if (r && r.data && r.data.svg) {
+          ASSET_RATIO[key] = svgRatio(r.data.svg);
           const img = new Image();
           img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(r.data.svg);
           ASSET_IMAGES[key] = img;
@@ -1168,10 +1192,17 @@ del _pyrun_install_game
           }
         } else if (s.kind === "asset") {
           ensureAsset(s.asset);
-          var aimg = ASSET_IMAGES[String(s.asset)];
+          var akey = String(s.asset);
+          var aimg = ASSET_IMAGES[akey];
           var asz = s.size || 40;
           if (aimg && aimg.complete && aimg.naturalWidth) {
-            c.drawImage(aimg, dx - asz / 2, dy - asz / 2, asz, asz);
+            // Fit the sprite to its own proportions: the longer side is `size`,
+            // the shorter side follows the SVG's aspect ratio. scale_x/scale_y
+            // (already applied to the canvas above) still stretch it further.
+            var ratio = ASSET_RATIO[akey] || 1;
+            var aw = ratio >= 1 ? asz : asz * ratio;
+            var ah = ratio >= 1 ? asz / ratio : asz;
+            c.drawImage(aimg, dx - aw / 2, dy - ah / 2, aw, ah);
           } else {
             // Still loading (or unknown id): a soft placeholder square.
             c.fillStyle = "rgba(155,89,182,0.45)";
