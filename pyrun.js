@@ -524,7 +524,8 @@ def _pyrun_install_game():
     # any emoji of your own.
     _ART_NAMES = ["chicken", "dog", "bird", "egg", "coin", "basket",
                   "shocked", "calm", "turtle", "car", "mouse",
-                  "rocket", "asteroid", "laser"]
+                  "rocket", "asteroid", "laser",
+                  "snake", "pacman", "ghost", "dino"]
 
     # Default collision-box shape per art (width, height as a fraction of size),
     # so a wide car gets a wide box and a tall egg a tall one. Anything not
@@ -533,6 +534,8 @@ def _pyrun_install_game():
         3: (0.60, 0.80),   # egg: taller than wide
         8: (0.84, 0.68),   # turtle: a bit wide
         9: (0.84, 0.50),   # car: wide and low
+        14: (0.72, 0.90),  # snake: taller than wide
+        17: (0.92, 0.62),  # dino: wide, side-on
     }
 
     def _obb_overlap(a, b):
