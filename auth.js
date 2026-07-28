@@ -84,7 +84,28 @@
   }
 
   // Event delegation so we never lose handlers when the markup is re-rendered.
+  function closeNavDropdowns(except) {
+    document.querySelectorAll(".nav-dd.open").forEach(function (dd) {
+      if (dd === except) return;
+      dd.classList.remove("open");
+      const t = dd.querySelector(".nav-dd-trigger");
+      if (t) t.setAttribute("aria-expanded", "false");
+    });
+  }
+
   document.addEventListener("click", function (e) {
+    // Header nav dropdown trigger: tap/click to open, so it works on touch
+    // where :hover never fires.
+    const navTrigger = e.target.closest(".nav-dd-trigger");
+    if (navTrigger) {
+      e.preventDefault();
+      const dd = navTrigger.closest(".nav-dd");
+      const open = dd.classList.toggle("open");
+      navTrigger.setAttribute("aria-expanded", open ? "true" : "false");
+      closeNavDropdowns(dd);
+      return;
+    }
+
     const trigger = e.target.closest("[data-pwl]");
     if (trigger) {
       const what = trigger.getAttribute("data-pwl");
@@ -97,10 +118,15 @@
         return;
       }
     }
-    // Click outside closes any open account menu.
+    // A click anywhere else closes any open account menu or nav dropdown.
     document.querySelectorAll(".pwl-acct[data-open='true']").forEach(function (box) {
       if (!box.contains(e.target)) box.dataset.open = "false";
     });
+    closeNavDropdowns(null);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeNavDropdowns(null);
   });
 
   function emit() {
@@ -191,15 +217,55 @@
     });
   }
 
+  const caret =
+    '<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  // Mark whichever menu item is the page you are on, and light up the trigger
+  // when one of its items is active.
+  function markActive(dd) {
+    const here = location.pathname.replace(/index\.html$/, "");
+    let any = false;
+    dd.querySelectorAll(".nav-dd-menu a").forEach(function (a) {
+      if (a.pathname.replace(/index\.html$/, "") === here) { a.classList.add("active"); any = true; }
+    });
+    if (any) {
+      const t = dd.querySelector(".nav-dd-trigger, .header-link");
+      if (t) t.classList.add("active");
+    }
+  }
+
+  // Fold Community, Assets and Leaderboard into one "Community" dropdown. The
+  // trigger is a button (not a link) so a tap opens the menu on touch, where
+  // hover does nothing; the community page is the first item inside.
+  function enhanceCommunityNav(nav, root) {
+    let community = null, assets = null, leaderboard = null;
+    nav.querySelectorAll("a.header-link").forEach(function (a) {
+      const t = a.textContent.trim();
+      if (t === "Community") community = a;
+      else if (t === "Assets") assets = a;
+      else if (t === "Leaderboard") leaderboard = a;
+    });
+    if (!community) return;
+    const dd = document.createElement("div");
+    dd.className = "nav-dd";
+    dd.innerHTML =
+      '<button type="button" class="header-link nav-dd-trigger" aria-haspopup="true" aria-expanded="false">Community' +
+        caret +
+      "</button>" +
+      '<div class="nav-dd-menu">' +
+        '<a href="' + root + 'community/">Community</a>' +
+        '<a href="' + root + 'assets/">Assets</a>' +
+        '<a href="' + root + 'leaderboard/">Leaderboard</a>' +
+      "</div>";
+    community.replaceWith(dd);
+    if (assets) assets.remove();
+    if (leaderboard) leaderboard.remove();
+    markActive(dd);
+  }
+
   // Turn the "Docs" header link into a dropdown (Docs stays a link to the
-  // reference; the menu adds the guides). Shared across every page so the nav
-  // markup itself does not have to be duplicated. Paths come from the account
-  // element's data-root (its path back to the site root).
-  function enhanceNav() {
-    const nav = document.querySelector(".site-nav");
-    if (!nav || nav.querySelector(".nav-dd")) return;
-    const acct = document.querySelector("#pwl-account, .pwl-account");
-    const root = (acct && acct.getAttribute("data-root")) || "";
+  // reference; the menu adds the guides).
+  function enhanceDocsNav(nav, root) {
     let docsLink = null;
     nav.querySelectorAll("a.header-link").forEach(function (a) {
       if (a.textContent.trim() === "Docs") docsLink = a;
@@ -210,7 +276,7 @@
     dd.className = "nav-dd";
     dd.innerHTML =
       '<a class="header-link' + (wasActive ? " active" : "") + '" href="' + root + 'docs/">Docs' +
-        '<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        caret +
       "</a>" +
       '<div class="nav-dd-menu">' +
         '<a href="' + root + 'docs/guide/">Guide</a>' +
@@ -218,11 +284,18 @@
         '<a href="' + root + 'docs/game/">Game guide</a>' +
       "</div>";
     docsLink.replaceWith(dd);
-    // Mark whichever guide page you are on.
-    const here = location.pathname.replace(/index\.html$/, "");
-    dd.querySelectorAll(".nav-dd-menu a").forEach(function (a) {
-      if (a.pathname.replace(/index\.html$/, "") === here) a.classList.add("active");
-    });
+    markActive(dd);
+  }
+
+  // Shared across every page so the nav markup itself does not have to be
+  // duplicated. Paths come from the account element's data-root.
+  function enhanceNav() {
+    const nav = document.querySelector(".site-nav");
+    if (!nav || nav.querySelector(".nav-dd")) return;
+    const acct = document.querySelector("#pwl-account, .pwl-account");
+    const root = (acct && acct.getAttribute("data-root")) || "";
+    enhanceCommunityNav(nav, root);
+    enhanceDocsNav(nav, root);
   }
 
   async function init() {

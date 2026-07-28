@@ -443,7 +443,10 @@ img { max-width: 100%; display: block; }
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: 0 12px 30px rgba(15, 18, 38, 0.16); padding: 6px; display: none; z-index: 60;
 }
-.nav-dd:hover .nav-dd-menu, .nav-dd:focus-within .nav-dd-menu { display: block; }
+.nav-dd:hover .nav-dd-menu, .nav-dd:focus-within .nav-dd-menu, .nav-dd.open .nav-dd-menu { display: block; }
+.nav-dd-trigger { background: none; border: 0; cursor: pointer; font-family: inherit; }
+.nav-caret { transition: transform 0.15s ease; }
+.nav-dd.open .nav-caret { transform: rotate(180deg); }
 .nav-dd-menu a {
   display: block; padding: 8px 10px; border-radius: 7px; color: var(--text);
   text-decoration: none; font-weight: 600; font-size: 0.9rem; white-space: nowrap;
