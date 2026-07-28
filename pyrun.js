@@ -586,7 +586,7 @@ def _pyrun_install_game():
     _ART_NAMES = ["chicken", "dog", "bird", "egg", "coin", "basket",
                   "shocked", "calm", "turtle", "car", "mouse",
                   "rocket", "asteroid", "laser",
-                  "snake", "pacman", "ghost", "dino", "pacman2", "kid"]
+                  "snake", "pacman", "ghost", "pacman2", "kid"]
 
     # Sprites that flip through frames on their own (art index -> frame skins).
     _ANIM_ART = {}
@@ -601,8 +601,7 @@ def _pyrun_install_game():
         8: (0.84, 0.68),   # turtle: a bit wide
         9: (0.84, 0.50),   # car: wide and low
         14: (0.72, 0.90),  # snake: taller than wide
-        17: (0.92, 0.62),  # dino (T-rex): wide, side-on
-        19: (0.50, 0.86),  # kid: tall and narrow
+        18: (0.50, 0.86),  # kid: tall and narrow
     }
 
     def _obb_overlap(a, b):
