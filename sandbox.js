@@ -1428,7 +1428,10 @@ while game.playing():
       if (window.PWL && window.PWL.toggleGameFullscreen) window.PWL.toggleGameFullscreen();
     });
     if (fsExit) fsExit.addEventListener("click", function () {
+      // The on-screen X leaves fullscreen AND ends the program, so a fullscreen
+      // game (where the Stop button is hidden behind it) can always be quit.
       if (window.PWL && window.PWL.setGameFullscreen) window.PWL.setGameFullscreen(false);
+      if (window.PWL && window.PWL.stopRun) window.PWL.stopRun();
     });
   })();
 

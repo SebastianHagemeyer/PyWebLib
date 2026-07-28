@@ -544,7 +544,7 @@ def _pyrun_install_game():
     _ART_NAMES = ["chicken", "dog", "bird", "egg", "coin", "basket",
                   "shocked", "calm", "turtle", "car", "mouse",
                   "rocket", "asteroid", "laser",
-                  "snake", "pacman", "ghost", "dino", "pacman2"]
+                  "snake", "pacman", "ghost", "dino", "pacman2", "kid"]
 
     # Sprites that flip through frames on their own (art index -> frame skins).
     _ANIM_ART = {}
@@ -559,7 +559,8 @@ def _pyrun_install_game():
         8: (0.84, 0.68),   # turtle: a bit wide
         9: (0.84, 0.50),   # car: wide and low
         14: (0.72, 0.90),  # snake: taller than wide
-        17: (0.92, 0.62),  # dino: wide, side-on
+        17: (0.92, 0.62),  # dino (T-rex): wide, side-on
+        19: (0.50, 0.86),  # kid: tall and narrow
     }
 
     def _obb_overlap(a, b):
@@ -1018,8 +1019,6 @@ del _pyrun_install_game
       gameKeys = {};
       gamePlaying = true;
       gameMouse.down = false; gameMouse.clicks = 0;
-      // Each run starts windowed; the program re-enters fullscreen if it asks to.
-      setGameFullscreen(null, false);
       const c = gameCtx();
       if (c) {
         c.canvas.style.cursor = "";
@@ -1165,19 +1164,24 @@ del _pyrun_install_game
         var maxW = cv.width - 40;
         var size = 30;
         c.font = "bold " + size + "px system-ui, sans-serif";
-        var words = String(scene.banner).split(" ");
+        // Split on newlines first (so "\n" in a message is a real line break),
+        // then word-wrap each line so it still fits the window.
         var lines = [];
-        var line = "";
-        for (var wi = 0; wi < words.length; wi++) {
-          var test = line ? line + " " + words[wi] : words[wi];
-          if (line && c.measureText(test).width > maxW) {
-            lines.push(line);
-            line = words[wi];
-          } else {
-            line = test;
+        var paras = String(scene.banner).split("\n");
+        for (var pi = 0; pi < paras.length; pi++) {
+          var words = paras[pi].split(" ");
+          var line = "";
+          for (var wi = 0; wi < words.length; wi++) {
+            var test = line ? line + " " + words[wi] : words[wi];
+            if (line && c.measureText(test).width > maxW) {
+              lines.push(line);
+              line = words[wi];
+            } else {
+              line = test;
+            }
           }
+          lines.push(line);
         }
-        if (line) lines.push(line);
         var widest = 0;
         for (var li = 0; li < lines.length; li++) {
           widest = Math.max(widest, c.measureText(lines[li]).width);
@@ -1709,6 +1713,8 @@ del _pyrun_install_game
       pendingReject = null;
       clearOut();
       resetTurtle();
+      // A fresh run starts windowed; restarts (game_over retry) keep fullscreen.
+      setGameFullscreen(null, false);
       setRunMode(pyodide ? "busy" : "loading");
       if (opts.onRunStart) opts.onRunStart();
       try {
@@ -1771,6 +1777,8 @@ del _pyrun_install_game
       stopRequested = false;
       clearOut();
       resetTurtle();
+      // A fresh run starts windowed; restarts (game_over retry) keep fullscreen.
+      setGameFullscreen(null, false);
       setRunMode(sharedWorker ? "busy" : "loading");
       if (opts.onRunStart) opts.onRunStart();
       workerFinalize = function () {
