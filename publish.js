@@ -93,7 +93,7 @@
       w: scene.w, h: scene.h, bg: scene.bg,
       sprites: scene.sprites.map(function (s) {
         return { kind: s.kind, x: s.x, y: s.y, size: s.size, w: s.w, h: s.h,
-                 text: s.text, color: s.color, art: s.art, angle: s.angle,
+                 text: s.text, color: s.color, art: s.art, asset: s.asset, angle: s.angle,
                  sx: s.sx, sy: s.sy, back: s.back };
       })
     };
