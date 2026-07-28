@@ -27,6 +27,54 @@
     return i >= 0 ? IMAGES[i] : null;
   }
 
+  // ---- Custom assets: game.sprite(id, asset=True). Their SVG already lives in
+  // the Supabase `assets` table, so we fetch that text once (no stored images)
+  // and cache it as an Image, exactly like the game runtime. The cache is shared
+  // across every card, so one asset id is fetched a single time no matter how
+  // many previews use it. onReady repaints the card once the SVG arrives. ----
+  const ASSET_IMG = {};     // "id" -> Image (null while it loads)
+  const ASSET_RATIO = {};   // "id" -> width / height from the viewBox (default 1)
+  const ASSET_WAIT = {};    // "id" -> callbacks waiting for the load
+  function assetSvgRatio(svg) {
+    const m = /viewBox\s*=\s*["']?\s*[-\d.eE]+[ ,]+[-\d.eE]+[ ,]+([-\d.eE]+)[ ,]+([-\d.eE]+)/.exec(svg || "");
+    if (m) { const w = parseFloat(m[1]), h = parseFloat(m[2]); if (w > 0 && h > 0) return w / h; }
+    return 1;
+  }
+  function assetImage(id, onReady) {
+    const key = String(id);
+    if (key in ASSET_IMG) {
+      const cached = ASSET_IMG[key];
+      if (cached && cached.complete && cached.naturalWidth) return cached;
+      if (onReady) (ASSET_WAIT[key] = ASSET_WAIT[key] || []).push(onReady);
+      return null;
+    }
+    ASSET_IMG[key] = null;   // mark in-flight so we fetch only once
+    if (onReady) (ASSET_WAIT[key] = ASSET_WAIT[key] || []).push(onReady);
+    const sb = PWL.supabase;
+    if (!sb) return null;
+    try {
+      sb.from("assets").select("svg").eq("id", key).single().then(function (r) {
+        if (r && r.data && r.data.svg) {
+          ASSET_RATIO[key] = assetSvgRatio(r.data.svg);
+          const img = new Image();
+          img.onload = function () {
+            const cbs = ASSET_WAIT[key] || []; ASSET_WAIT[key] = [];
+            cbs.forEach(function (cb) { try { cb(); } catch (e) {} });
+          };
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(r.data.svg);
+          ASSET_IMG[key] = img;
+        }
+      }, function () {});
+    } catch (e) {}
+    return null;
+  }
+  // Coalesce several asset loads on one card into a single repaint.
+  function scheduleRerender(scene, canvas) {
+    if (canvas.__pwlPending) return;
+    canvas.__pwlPending = true;
+    setTimeout(function () { canvas.__pwlPending = false; try { renderScene(scene, canvas); } catch (e) {} }, 30);
+  }
+
   function detectKind(code) {
     if (/(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code)) return "game";
     if (/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return "turtle";
@@ -52,6 +100,10 @@
     const calls = [];
     const spriteRe = /game\.sprite\(\s*("([^"]*)"|'([^']*)'|(\d+))\s*,\s*(-?\d+)\s*,\s*(-?\d+)(?:\s*,\s*size\s*=\s*(\d+))?/g;
     while ((m = spriteRe.exec(setup))) {
+      // Skip custom assets (asset=True): the number is an asset id, not a
+      // built-in skin, and their real spot comes from the saved scene.
+      const close = setup.indexOf(")", m.index);
+      if (close !== -1 && /\basset\s*=\s*True\b/.test(setup.slice(m.index, close + 1))) continue;
       const skin = m[2] != null ? m[2] : (m[3] != null ? m[3] : m[4]);
       calls.push({ i: m.index, kind: "sprite", skin: skin, x: +m[5], y: +m[6], size: m[7] ? +m[7] : 40 });
     }
@@ -322,6 +374,18 @@
         const img = IMAGES[s.art];
         const sz = (s.size || 40) * scale;
         if (img && img.complete && img.naturalWidth) ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
+      } else if (s.kind === "asset") {
+        // A sprite the author designed in the Asset studio: fetch its SVG once
+        // and draw it at its real proportions (longer side = size), repainting
+        // the card when it loads.
+        const aimg = assetImage(s.asset, function () { scheduleRerender(scene, canvas); });
+        if (aimg) {
+          const sz = (s.size || 40) * scale;
+          const ratio = ASSET_RATIO[String(s.asset)] || 1;
+          const aw = ratio >= 1 ? sz : sz * ratio;
+          const ah = ratio >= 1 ? sz / ratio : sz;
+          ctx.drawImage(aimg, -aw / 2, -ah / 2, aw, ah);
+        }
       } else if (s.kind === "text") {
         ctx.font = "bold " + ((s.size || 20) * scale) + "px system-ui, sans-serif";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
