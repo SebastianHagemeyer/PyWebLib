@@ -55,11 +55,16 @@
             <button type="button" class="asset-tool" data-tool="ellipse" title="Ellipse (E)"><svg viewBox="0 0 20 20" width="18" height="18"><ellipse cx="10" cy="10" rx="8" ry="5" fill="currentColor"/></svg></button>
             <button type="button" class="asset-tool" data-tool="line" title="Line (L)"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M4 15L16 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
             <button type="button" class="asset-tool" data-tool="triangle" title="Triangle (T)"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M10 4l7 12H3z" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-tool="path" title="Path: click points, click the first dot or Enter to finish (P)"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M3 15 L7 5 L12 12 L17 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="15" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="17" cy="6" r="1.7" fill="currentColor"/></svg></button>
           </div>
           <div class="asset-swatches" id="asset-swatches"></div>
           <label class="asset-custom-color">Colour
             <input type="color" id="asset-color" value="#4f46e5" />
           </label>
+          <div class="asset-recent-row" id="asset-recent-row" hidden>
+            <span class="asset-recent-label">Recent</span>
+            <div class="asset-swatches asset-recent" id="asset-recent"></div>
+          </div>
           <div class="asset-tool-row asset-edit-actions">
             <button type="button" class="btn btn-ghost" id="asset-forward" title="Bring forward">Forward</button>
             <button type="button" class="btn btn-ghost" id="asset-back" title="Send back">Back</button>
@@ -84,6 +89,8 @@
               <img class="asset-prev" id="asset-prev-c" width="24" height="24" alt="" />
             </div>
           </div>
+          <button type="button" class="btn btn-ghost asset-import-btn" id="asset-import-btn">Import an SVG file</button>
+          <input type="file" id="asset-import" accept=".svg,image/svg+xml" hidden />
           <label class="asset-name-label">Name
             <input type="text" id="asset-name" maxlength="40" autocomplete="off" placeholder="my sprite" />
           </label>

@@ -1167,6 +1167,11 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-card-id { font-size: 0.72rem; font-weight: 700; color: var(--muted); border: none; background: none; padding: 0; cursor: pointer; }
 .asset-card-id:hover { color: var(--primary); text-decoration: underline; }
 .asset-card-pic { cursor: pointer; }
+.asset-recent-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.asset-recent-label { font-size: 0.76rem; color: var(--muted); }
+.asset-recent { display: flex; flex-wrap: wrap; gap: 5px; }
+.asset-recent .asset-swatch { width: 22px; height: 22px; aspect-ratio: auto; }
+.asset-import-btn { width: 100%; }
 .asset-card-name { font-size: 0.8rem; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-card-del { position: absolute; top: 3px; right: 6px; border: none; background: none; color: var(--muted); font-size: 17px; line-height: 1; cursor: pointer; }
 .asset-card-del:hover { color: #c0392b; }
