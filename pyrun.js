@@ -395,7 +395,7 @@ def _pyrun_install_game():
         from pyodide.ffi import run_sync
 
     W = {"w": 480, "h": 360, "bg": "#0b1020", "score": 0, "over": None,
-         "debug": False, "clicks": 0}
+         "debug": False, "clicks": 0, "tick": 0}
     _sprites = []
 
     class Sprite:
@@ -423,6 +423,8 @@ def _pyrun_install_game():
             # from the art. Set it with sprite.hitbox = (w, h).
             self._hitbox = kw.get("hitbox", None)
             self.visible = True
+            self._anim = None
+            self._anim_every = 6
             _sprites.append(self)
 
         @property
@@ -449,6 +451,11 @@ def _pyrun_install_game():
             self._content = value
             if self._resolvable:
                 self.kind, self.art, self._display = _resolve_skin(value)
+                # Pick up (or drop) any built-in animation for the new skin.
+                if self.art in _ANIM_ART:
+                    self.animate(_ANIM_ART[self.art])
+                else:
+                    self._anim = None
             else:
                 self._display = str(value)
 
@@ -506,6 +513,18 @@ def _pyrun_install_game():
             if self in _sprites:
                 _sprites.remove(self)
 
+        def animate(self, frames, every=6):
+            # Flip through a list of skins on a timer, like a little flip-book:
+            #   coin.animate(["🌑", "🌓", "🌕", "🌗"])   # spins through phases
+            # Each frame shows for "every" calls to game.frame() (default 6).
+            # Pass None to stop. (Pac-Man chomps this way on its own.)
+            if not frames:
+                self._anim = None
+                return self
+            self._anim = [_resolve_skin(f) for f in frames]
+            self._anim_every = max(1, int(every))
+            return self
+
     def window(width=480, height=360, background=None):
         if not _jspi:
             raise RuntimeError(
@@ -525,7 +544,12 @@ def _pyrun_install_game():
     _ART_NAMES = ["chicken", "dog", "bird", "egg", "coin", "basket",
                   "shocked", "calm", "turtle", "car", "mouse",
                   "rocket", "asteroid", "laser",
-                  "snake", "pacman", "ghost", "dino"]
+                  "snake", "pacman", "ghost", "dino", "pacman2"]
+
+    # Sprites that flip through frames on their own (art index -> frame skins).
+    _ANIM_ART = {}
+    if "pacman" in _ART_NAMES and "pacman2" in _ART_NAMES:
+        _ANIM_ART[_ART_NAMES.index("pacman")] = ["pacman", "pacman2"]
 
     # Default collision-box shape per art (width, height as a fraction of size),
     # so a wide car gets a wide box and a tall egg a tall one. Anything not
@@ -573,8 +597,11 @@ def _pyrun_install_game():
         cx = W["w"] // 2 if x is None else x
         cy = W["h"] // 2 if y is None else y
         kind, art, display = _resolve_skin(skin)
-        return Sprite(kind, art=art, display=display, content=skin,
-                      resolvable=True, size=size, x=cx, y=cy)
+        sp = Sprite(kind, art=art, display=display, content=skin,
+                    resolvable=True, size=size, x=cx, y=cy)
+        if art in _ANIM_ART:
+            sp.animate(_ANIM_ART[art])
+        return sp
 
     def box(x, y, w, h, color="#ffffff"):
         return Sprite("box", x=x, y=y, w=w, h=h, color=color)
@@ -681,10 +708,13 @@ def _pyrun_install_game():
                 continue
             # hbw/hbh/hba are the collision box touches() actually uses (size
             # and rotation), so debug mode outlines exactly what overlaps.
+            kind, art, disp = s.kind, s.art, s._display
+            if s._anim:
+                kind, art, disp = s._anim[(W["tick"] // s._anim_every) % len(s._anim)]
             hbw, hbh = s._hit_wh()
-            arr.append({"kind": s.kind, "x": s.x, "y": s.y, "size": s.size,
-                        "w": s.w, "h": s.h, "text": str(s._display), "color": s.color,
-                        "art": s.art, "angle": s.angle,
+            arr.append({"kind": kind, "x": s.x, "y": s.y, "size": s.size,
+                        "w": s.w, "h": s.h, "text": str(disp), "color": s.color,
+                        "art": art, "angle": s.angle,
                         "sx": s.scale_x, "sy": s.scale_y, "back": s.background,
                         "hbw": hbw, "hbh": hbh, "hba": s.angle})
         # Once the game is over the banner is sticky: every later redraw (like
@@ -696,6 +726,7 @@ def _pyrun_install_game():
                              "debug": W["debug"]}))
 
     def frame(fps=30):
+        W["tick"] += 1
         _draw()
         if _jspi:
             run_sync(_io.nextFrame(1.0 / max(1, int(fps))))
@@ -708,7 +739,7 @@ def _pyrun_install_game():
     def _reset_all():
         _sprites.clear()
         W.update(w=480, h=360, bg="#0b1020", score=0, over=None, debug=False,
-                 clicks=0)
+                 clicks=0, tick=0)
         _io.reset()
 
     mod = types.ModuleType("game")

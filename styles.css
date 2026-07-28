@@ -985,14 +985,31 @@ body.sandbox-maxed { overflow: hidden; }
   border-radius: var(--radius-sm); padding: 10px 14px; font-size: 0.95rem;
 }
 
-.sprite-table-wrap { overflow-x: auto; margin: 14px 0 18px; }
-.sprite-table { border-collapse: collapse; }
-.sprite-table th, .sprite-table td {
-  border: 1px solid var(--border); padding: 8px 16px; text-align: left; vertical-align: middle;
+/* The built-in sprite gallery: a responsive grid, built from PWL_SPRITES. */
+.sprite-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+  margin: 14px 0 18px;
 }
-.sprite-table th { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--bg); }
-.sprite-pic { width: 56px; }
-.sprite-pic svg { width: 40px; height: 40px; display: block; }
+.sprite-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.sprite-cell-pic { width: 52px; height: 52px; }
+.sprite-cell-pic svg { width: 100%; height: 100%; display: block; }
+.sprite-cell-name { font-size: 0.82rem; color: var(--text); }
+.sprite-cell-num {
+  position: absolute; top: 6px; left: 9px;
+  font-size: 0.72rem; font-weight: 700; color: var(--muted);
+}
 
 /* Code textarea in the edit-post dialog (dark + monospace). */
 .pwl-share-form textarea.pwl-code-edit {
