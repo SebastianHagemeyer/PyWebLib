@@ -68,6 +68,10 @@
       return '<polygon points="' + rnd(s.x + s.w / 2) + ',' + rnd(s.y) + ' ' + rnd(s.x) + ',' + rnd(s.y + s.h) + ' ' + rnd(s.x + s.w) + ',' + rnd(s.y + s.h) + '" fill="' + s.fill + '"/>';
     if (s.type === "path")
       return '<path d="' + s.points.map(function (pt, i) { return (i ? "L" : "M") + rnd(pt[0]) + " " + rnd(pt[1]); }).join(" ") + ' Z" fill="' + s.fill + '"/>';
+    if (s.type === "raw")
+      // A piece of an imported SVG kept verbatim (curves, strokes, clips and all),
+      // positioned/stretched by a matrix wrapper so we never touch its geometry.
+      return '<g transform="matrix(' + s.m.map(function (v) { return Math.round(v * 100000) / 100000; }).join(" ") + ')">' + s.markup + '</g>';
     return "";
   }
   function toSvg(list) {
@@ -85,6 +89,15 @@
       const x = Math.min.apply(null, xs), y = Math.min.apply(null, ys);
       return { x: x, y: y, w: Math.max.apply(null, xs) - x, h: Math.max.apply(null, ys) - y };
     }
+    if (s.type === "raw") {
+      // Axis-aligned bounds of the base box pushed through the piece's matrix.
+      const m = s.m, xs = [], ys = [];
+      [[s.bx, s.by], [s.bx + s.bw, s.by], [s.bx, s.by + s.bh], [s.bx + s.bw, s.by + s.bh]].forEach(function (p) {
+        xs.push(m[0] * p[0] + m[2] * p[1] + m[4]); ys.push(m[1] * p[0] + m[3] * p[1] + m[5]);
+      });
+      const x = Math.min.apply(null, xs), y = Math.min.apply(null, ys);
+      return { x: x, y: y, w: Math.max.apply(null, xs) - x, h: Math.max.apply(null, ys) - y };
+    }
     return { x: 0, y: 0, w: 0, h: 0 };
   }
   function hit(s, px, py) {
@@ -96,6 +109,7 @@
     else if (s.type === "circle" || s.type === "ellipse") { s.cx += dx; s.cy += dy; }
     else if (s.type === "line") { s.x1 += dx; s.y1 += dy; s.x2 += dx; s.y2 += dy; }
     else if (s.type === "path") { s.points = s.points.map(function (p) { return [p[0] + dx, p[1] + dy]; }); }
+    else if (s.type === "raw") { s.m[4] += dx; s.m[5] += dy; }
   }
   // Remap a shape from one bounding box to another (used by the resize handles),
   // so you can stretch anything in any direction, great for remixing.
@@ -108,6 +122,14 @@
     else if (s.type === "circle") { s.cx = mx(s.cx); s.cy = my(s.cy); s.r *= (fx + fy) / 2; }
     else if (s.type === "line") { s.x1 = mx(s.x1); s.y1 = my(s.y1); s.x2 = mx(s.x2); s.y2 = my(s.y2); }
     else if (s.type === "path") { s.points = s.points.map(function (p) { return [mx(p[0]), my(p[1])]; }); }
+    else if (s.type === "raw") {
+      // Compose the bbox remap (a plain scale+translate in canvas space) onto the
+      // piece's matrix, so its curves stretch as one without editing the path data.
+      const A = { a: fx, b: 0, c: 0, d: fy, e: nx - ox * fx, f: ny - oy * fy };
+      const o = { a: s.m[0], b: s.m[1], c: s.m[2], d: s.m[3], e: s.m[4], f: s.m[5] };
+      const r = matMul(A, o);
+      s.m = [r.a, r.b, r.c, r.d, r.e, r.f];
+    }
   }
   const HANDLES = [[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];
   // The 8 resize handles sit on a frame that hugs the shape from just OUTSIDE it
@@ -535,16 +557,18 @@
     return out;
   }
 
-  // ---- Import decomposition: an arbitrary SVG -> our editable shapes -----------
-  // The browser does the hard parts: getCTM() bakes every ancestor <g transform>
-  // and the element's own transform into absolute coords, and getPointAtLength()
-  // flattens curves/arcs into points. Each drawable element becomes one movable
-  // shape: a rect/circle/ellipse/line kept as-is when the baked transform is
-  // axis-aligned, otherwise sampled into a filled path. Gradients, text, filters,
-  // opacity and <use> are dropped by design; this splits simple sprite art into
-  // pieces, it isn't a faithful SVG renderer.
-  const FLAT_MAX_PTS = 36;     // most points kept for one sampled piece
-  const FLAT_MAX_SHAPES = 80;  // safety cap on total pieces
+  // ---- Import decomposition: an SVG -> movable pieces -------------------------
+  // Splits an imported SVG into pieces you can move/stretch while KEEPING each
+  // piece's original markup (curves, strokes, clips, everything), so a see-through
+  // part (a stroked open path, a clip) is never flattened into a solid blob. The
+  // browser bakes each piece's transform via getCTM(); folded with a viewBox->0..64
+  // fit, that becomes one matrix wrapper, so the geometry itself is never rewritten.
+  // A plain solid-filled rect/circle/ellipse with no stroke becomes a native
+  // editable shape (a bonus); everything else is kept as a verbatim "raw" piece.
+  const FLAT_MAX_SHAPES = 120;   // safety cap on total pieces
+  const SKIP_TAGS = { defs: 1, style: 1, title: 1, desc: 1, metadata: 1, clippath: 1, mask: 1, symbol: 1, marker: 1, lineargradient: 1, radialgradient: 1, filter: 1, pattern: 1 };
+  const DRAW_TAGS = { path: 1, rect: 1, circle: 1, ellipse: 1, line: 1, polygon: 1, polyline: 1, text: 1 };
+  const PAINT_PROPS = ["fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-dasharray", "fill-rule", "opacity", "fill-opacity", "stroke-opacity"];
   function matMul(m, n) {      // m * n, each { a,b,c,d,e,f }
     return {
       a: m.a * n.a + m.c * n.b, b: m.b * n.a + m.d * n.b,
@@ -570,23 +594,51 @@
     if (/rgba?\([^)]*[,/]\s*0(\.0+)?\s*\)$/i.test(v)) return null;   // fully transparent
     return toHex(v);
   }
-  function flatSample(el, M) {
-    let len = 0;
-    try { len = el.getTotalLength(); } catch (e) { return null; }
-    if (!len || !isFinite(len)) return null;
-    const sc = Math.sqrt(Math.abs(M.a * M.d - M.b * M.c)) || 1;
-    const n = Math.max(6, Math.min(FLAT_MAX_PTS, Math.round(len * sc / 2.2)));
-    const pts = [];
-    let last = null;
-    for (let i = 0; i < n; i++) {
-      let sp;
-      try { sp = el.getPointAtLength(len * i / n); } catch (e) { return null; }
-      const p = matAt(M, sp.x, sp.y);
-      const x = rnd(clamp(p[0])), y = rnd(clamp(p[1]));
-      if (last && Math.abs(x - last[0]) < 0.15 && Math.abs(y - last[1]) < 0.15) continue;
-      pts.push([x, y]); last = [x, y];
+  // A <g> must stay whole when its clip/mask/opacity/filter would break if we
+  // pulled its children out; a plain wrapper group we descend through so its parts
+  // separate into their own pieces.
+  function isAtomicGroup(g) {
+    if (g.getAttribute("clip-path") || g.getAttribute("mask") || g.getAttribute("filter")) return true;
+    const op = g.getAttribute("opacity");
+    return op !== null && parseFloat(op) < 1;
+  }
+  function collectPieces(node, acc) {
+    for (let i = 0; i < node.children.length && acc.length < FLAT_MAX_SHAPES; i++) {
+      const el = node.children[i], tag = el.tagName.toLowerCase();
+      if (SKIP_TAGS[tag]) continue;
+      if (tag === "g") { if (isAtomicGroup(el)) acc.push(el); else collectPieces(el, acc); }
+      else if (DRAW_TAGS[tag]) acc.push(el);
     }
-    return pts.length >= 3 ? pts : null;
+    return acc;
+  }
+  // Copy resolved paint onto a clone so it still looks right once pulled out of any
+  // inherited context. "none" is kept on purpose: that is how see-through parts and
+  // stroked "holes" are made.
+  function bakePaint(clone, src) {
+    let cs = null;
+    try { cs = getComputedStyle(src); } catch (e) {}
+    if (!cs) return;
+    PAINT_PROPS.forEach(function (p) {
+      let v = (cs.getPropertyValue(p) || "").trim();
+      if (!v || v === "normal") return;
+      if (/^url\(/i.test(v)) v = "#888888";        // gradient/pattern we don't keep
+      else if (/^rgb/i.test(v)) v = toHex(v);
+      clone.setAttribute(p, v.replace(/px/g, ""));  // SVG attrs take unitless lengths
+    });
+  }
+  // Pull the defs a piece references into the piece itself, with per-piece-unique
+  // ids so two pieces sharing a clip never cross-talk after one is moved.
+  function inlineDefs(markup, root, uid) {
+    const seen = {};
+    const rewritten = markup.replace(/url\(#([^)\s]+)\)/g, function (_, id) {
+      seen[id] = id + "__p" + uid; return "url(#" + seen[id] + ")";
+    });
+    let defs = "";
+    Object.keys(seen).forEach(function (id) {
+      const def = root.querySelector('[id="' + id.replace(/["\\]/g, "") + '"]');
+      if (def) { const c = def.cloneNode(true); c.setAttribute("id", seen[id]); defs += new XMLSerializer().serializeToString(c); }
+    });
+    return defs ? ("<defs>" + defs + "</defs>" + rewritten) : rewritten;
   }
   function flattenSvg(svgText) {
     const clean = sanitizeSvg(svgText);
@@ -606,39 +658,43 @@
         vb = [0, 0, w, h];
       }
       // viewBox units -> 0..64, aspect-preserving and centred (same "meet" fit as
-      // the as-is preview), as a matrix folded onto each element's baked CTM.
+      // the as-is preview), folded onto each piece's baked CTM.
       const s = Math.min(64 / vb[2], 64 / vb[3]) || 1;
       const fit = { a: s, b: 0, c: 0, d: s, e: (64 - vb[2] * s) / 2 - vb[0] * s, f: (64 - vb[3] * s) / 2 - vb[1] * s };
-      const els = root.querySelectorAll("rect,circle,ellipse,line,polygon,polyline,path");
+      const els = collectPieces(root, []);
       for (let i = 0; i < els.length && out.length < FLAT_MAX_SHAPES; i++) {
-        const el = els[i];
+        const el = els[i], tag = el.tagName.toLowerCase();
         const ctm = el.getCTM && el.getCTM();
-        if (!ctm) continue;   // not rendered (e.g. inside <defs>): skip
+        if (!ctm) continue;   // not rendered
         const M = matMul(fit, { a: ctm.a, b: ctm.b, c: ctm.c, d: ctm.d, e: ctm.e, f: ctm.f });
         const axis = Math.abs(M.b) < 1e-3 && Math.abs(M.c) < 1e-3;   // no rotation/skew
         const fill = flatColor(el, "fill"), stroke = flatColor(el, "stroke");
-        const paint = fill || stroke || "#888888";
-        const tag = el.tagName.toLowerCase();
         const num = function (a) { return parseFloat(el.getAttribute(a)) || 0; };
-        if (tag === "rect" && axis) {
+        // Native editable shape only for a plain solid-filled primitive with no
+        // stroke or clip and an axis-aligned transform (visually identical, and you
+        // get full reshape/recolour). Anything else is kept verbatim.
+        const simple = axis && fill && !stroke && !el.getAttribute("clip-path") && !el.getAttribute("mask");
+        if (simple && tag === "rect") {
           const c0 = matAt(M, num("x"), num("y")), c1 = matAt(M, num("x") + num("width"), num("y") + num("height"));
           out.push({ type: "rect", x: rnd(clamp(Math.min(c0[0], c1[0]))), y: rnd(clamp(Math.min(c0[1], c1[1]))),
-                     w: rnd(Math.abs(c1[0] - c0[0])), h: rnd(Math.abs(c1[1] - c0[1])), rx: rnd(Math.abs(num("rx") * M.a)), fill: paint });
-        } else if (tag === "circle" && axis) {
+                     w: rnd(Math.abs(c1[0] - c0[0])), h: rnd(Math.abs(c1[1] - c0[1])), rx: rnd(Math.abs(num("rx") * M.a)), fill: fill });
+        } else if (simple && tag === "circle") {
           const c = matAt(M, num("cx"), num("cy")), rx = Math.abs(num("r") * M.a), ry = Math.abs(num("r") * M.d);
-          if (Math.abs(rx - ry) < 0.5) out.push({ type: "circle", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), r: rnd(rx), fill: paint });
-          else out.push({ type: "ellipse", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), rx: rnd(rx), ry: rnd(ry), fill: paint });
-        } else if (tag === "ellipse" && axis) {
+          if (Math.abs(rx - ry) < 0.5) out.push({ type: "circle", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), r: rnd(rx), fill: fill });
+          else out.push({ type: "ellipse", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), rx: rnd(rx), ry: rnd(ry), fill: fill });
+        } else if (simple && tag === "ellipse") {
           const c = matAt(M, num("cx"), num("cy"));
-          out.push({ type: "ellipse", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), rx: rnd(Math.abs(num("rx") * M.a)), ry: rnd(Math.abs(num("ry") * M.d)), fill: paint });
-        } else if (tag === "line") {
-          const a = matAt(M, num("x1"), num("y1")), b = matAt(M, num("x2"), num("y2"));
-          const lsc = Math.sqrt(Math.abs(M.a * M.d - M.b * M.c)) || 1;
-          out.push({ type: "line", x1: rnd(clamp(a[0])), y1: rnd(clamp(a[1])), x2: rnd(clamp(b[0])), y2: rnd(clamp(b[1])),
-                     width: rnd(Math.max(1, (parseFloat(el.getAttribute("stroke-width")) || 1) * lsc)), fill: stroke || paint });
+          out.push({ type: "ellipse", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), rx: rnd(Math.abs(num("rx") * M.a)), ry: rnd(Math.abs(num("ry") * M.d)), fill: fill });
         } else {
-          const pts = flatSample(el, M);   // polygon / polyline / path / transformed primitive
-          if (pts) out.push({ type: "path", points: pts, fill: paint });
+          // Raw piece: keep the markup exactly, place it with the baked matrix.
+          let bb; try { bb = el.getBBox(); } catch (e) { bb = null; }
+          if (!bb || (!bb.width && !bb.height)) continue;
+          const clone = el.cloneNode(true);
+          clone.removeAttribute("transform");
+          bakePaint(clone, el);
+          let markup = new XMLSerializer().serializeToString(clone);
+          if (/url\(#/.test(markup)) markup = inlineDefs(markup, root, i);   // carry clip/mask
+          out.push({ type: "raw", markup: markup, m: [M.a, M.b, M.c, M.d, M.e, M.f], bx: bb.x, by: bb.y, bw: bb.width, bh: bb.height });
         }
       }
     } catch (e) { out = []; }
@@ -653,12 +709,12 @@
     if (!importedSvg) return;
     const flat = flattenSvg(importedSvg);
     if (!flat || !flat.length) {
-      showMsg("Couldn't split this one into shapes (it may use gradients, text, or <use>). It's still fine to publish as-is.", false);
+      showMsg("Couldn't find separable parts in this one. It's still fine to publish as-is.", false);
       return;
     }
     shapes = flat; importedSvg = null; selected = -1; pathPts = [];
     reflectImport(); render();
-    showMsg("Split into " + flat.length + " editable shape" + (flat.length === 1 ? "" : "s") + ". Tweak or delete any piece, then publish.", true);
+    showMsg("Split into " + flat.length + " piece" + (flat.length === 1 ? "" : "s") + " you can move, stretch or delete. Curvy parts keep their exact shape. Then publish.", true);
   }
   const breakupBtn = document.getElementById("asset-breakup");
   if (breakupBtn) breakupBtn.addEventListener("click", breakupImported);
