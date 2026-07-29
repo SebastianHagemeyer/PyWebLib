@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy | PyWebLib</title>
+  <meta name="description" content="What PyWebLib collects and how it is used. We collect as little as possible: no ads, no tracking, no selling your data." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    .legal { max-width: 760px; }
+    .legal h2 { margin: 1.7em 0 0.5em; font-size: 1.2rem; }
+    .legal p, .legal li { color: var(--text); line-height: 1.65; }
+    .legal ul { margin: 0.4em 0 0.6em 1.2em; }
+    .legal li { margin: 0.35em 0; }
+    .legal a { color: var(--primary); }
+    .legal .muted { color: var(--muted); font-size: 0.9rem; margin-top: 2em; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../" class="logo">
+        <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="../">Playground</a>
+        <a class="header-link" href="../community/">Community</a>
+        <a class="header-link" href="/assets/">Assets</a>
+        <a class="header-link" href="../leaderboard/">Leaderboard</a>
+        <a class="header-link" href="../docs/">Docs</a>
+        <span id="pwl-account" class="pwl-account" data-root="../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Privacy</p>
+        <h1>Privacy Policy</h1>
+        <p class="lead">PyWebLib is a free website for learning and sharing Python in your browser. Here is what we collect and why. The short version: as little as possible, with no ads, no tracking, and no selling your data.</p>
+      </div>
+    </section>
+
+    <div class="container section legal">
+      <h2>What we collect</h2>
+      <ul>
+        <li><strong>When you sign in with Google:</strong> your name, email address, and profile picture. We use these to sign you in and to show who made a program you share.</li>
+        <li><strong>Things you choose to publish:</strong> the programs, sprites, comments, upvotes, and game scores you post to the community. These are public by design. Programs you keep as private drafts are visible only to you.</li>
+        <li><strong>A few basics:</strong> how many times a shared program has been viewed, and small settings saved inside your own browser (your sign-in session, and in the Asset studio your recently used colours). We do not use tracking cookies, we do not show ads, and we never sell your information.</li>
+      </ul>
+
+      <h2>How we use it</h2>
+      <p>Only to run the community features: signing you in, showing your name and picture on your shared work, ordering the leaderboards, and displaying comments. That is all.</p>
+
+      <h2>Where it is stored</h2>
+      <ul>
+        <li>Sign-in is handled by <strong>Google</strong>.</li>
+        <li>Your account and published content are stored in <strong>Supabase</strong>, our database and authentication provider.</li>
+        <li>The Python engine and libraries load in your browser from a public CDN (<strong>Pyodide</strong>). Your code runs on your own device, not on our servers.</li>
+      </ul>
+
+      <h2>Your choices</h2>
+      <ul>
+        <li>Edit your display name, or delete any program you have made, at any time while signed in.</li>
+        <li>Sign out to end your session.</li>
+        <li>To remove your account and everything tied to it, contact us at the address below and we will delete it.</li>
+      </ul>
+
+      <h2>Children</h2>
+      <p>PyWebLib is meant for learners of all ages, including children. We deliberately collect only what is needed to sign in and to share work. If you are a parent or guardian and would like your child's account or content removed, email us and we will take care of it.</p>
+
+      <h2>Changes</h2>
+      <p>If we change this policy we will update the date below.</p>
+
+      <h2>Contact</h2>
+      <p>Questions or requests: <a href="mailto:hello@qmarkapp.com">hello@qmarkapp.com</a></p>
+
+      <p class="muted">Last updated: 29 July 2026</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.
+        &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script src="../auth.js"></script>
+</body>
+</html>
