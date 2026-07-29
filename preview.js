@@ -166,6 +166,12 @@
     function X(x) { return ox + x * scale; }
     function Y(y) { return oy + y * scale; }
 
+    // Same window clip as renderScene: keep off-window items out of the bg bleed.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ox, oy, scene.w * scale, scene.h * scale);
+    ctx.clip();
+
     let drew = 0;
     scene.items.forEach(function (it) {
       if (it.kind === "box") {
@@ -191,6 +197,7 @@
         drew++;
       }
     });
+    ctx.restore();   // release the window clip
     return drew;
   }
 
@@ -392,6 +399,15 @@
     ctx.fillRect(0, 0, CW, CH);
     const scale = Math.min(CW / W, CH / H);
     const ox = (CW - W * scale) / 2, oy = (CH - H * scale) / 2;
+    // Clip the sprites to the game window so anything the game parked off-screen
+    // (e.g. pipes spawned to the right, not yet scrolled into the player's view)
+    // stays hidden in the gallery too, exactly as the live canvas clips whatever
+    // falls past its edge. The background still fills the whole card (the bleed
+    // the author likes) because this clip covers only the sprites, after the fill.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ox, oy, W * scale, H * scale);
+    ctx.clip();
     (scene.sprites || []).forEach(function (s) {
       const ang = Number(s.angle) || 0;
       const sx = (s.sx == null || !isFinite(+s.sx)) ? 1 : +s.sx;
@@ -448,6 +464,7 @@
       }
       ctx.restore();
     });
+    ctx.restore();   // release the window clip
   }
 
   // A saved runtime scene wins (real sprite positions); otherwise parse the
