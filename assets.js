@@ -110,12 +110,38 @@
     else if (s.type === "path") { s.points = s.points.map(function (p) { return [mx(p[0]), my(p[1])]; }); }
   }
   const HANDLES = [[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];
+  // The 8 resize handles sit on a frame that hugs the shape from just OUTSIDE it
+  // and never shrinks below H_MIN across. So on a tiny shape they frame it instead
+  // of piling on top and burying it (the old bug: fixed-size handles on a shrunk
+  // shape covered it completely, and their hit-zones swallowed the shape body so
+  // you couldn't even grab it to move).
+  const H_GAP = 2;    // push handles this far outside the shape box
+  const H_MIN = 13;   // smallest frame span, so 8 handles can't crowd a small shape
+  function handleFrame(b) {
+    return {
+      cx: b.x + b.w / 2, cy: b.y + b.h / 2,
+      halfW: Math.max(b.w / 2 + H_GAP, H_MIN / 2),
+      halfH: Math.max(b.h / 2 + H_GAP, H_MIN / 2)
+    };
+  }
+  // Drawn/hit centre of every handle (clamped onto the canvas), plus the offset
+  // from the real box edge it controls, so a drag maps back to that edge cleanly.
+  function handleList(b) {
+    const f = handleFrame(b);
+    return HANDLES.map(function (h) {
+      const x = clamp(f.cx + (h[0] - 0.5) * 2 * f.halfW);
+      const y = clamp(f.cy + (h[1] - 0.5) * 2 * f.halfH);
+      return { hx: h[0], hy: h[1], x: x, y: y, offX: x - (b.x + h[0] * b.w), offY: y - (b.y + h[1] * b.h) };
+    });
+  }
   function handleAt(px, py) {
     if (selected < 0 || tool !== "select") return null;
     const b = bbox(shapes[selected]);
-    for (let i = 0; i < HANDLES.length; i++) {
-      const cx = b.x + HANDLES[i][0] * b.w, cy = b.y + HANDLES[i][1] * b.h;
-      if (Math.abs(px - cx) <= 2.6 && Math.abs(py - cy) <= 2.6) return { hx: HANDLES[i][0], hy: HANDLES[i][1], ox: b.x, oy: b.y, ow: b.w, oh: b.h };
+    const list = handleList(b);
+    for (let i = 0; i < list.length; i++) {
+      const hp = list[i];
+      if (Math.abs(px - hp.x) <= 2.6 && Math.abs(py - hp.y) <= 2.6)
+        return { hx: hp.hx, hy: hp.hy, ox: b.x, oy: b.y, ow: b.w, oh: b.h, offX: hp.offX, offY: hp.offY };
     }
     return null;
   }
@@ -132,9 +158,8 @@
         svg += '<rect x="' + rnd(b.x) + '" y="' + rnd(b.y) + '" width="' + rnd(b.w) + '" height="' + rnd(b.h) +
                '" fill="none" stroke="#4f46e5" stroke-width="0.8" stroke-dasharray="2 1.5" vector-effect="non-scaling-stroke"/>';
         if (tool === "select") {   // drag these to stretch the shape
-          svg += HANDLES.map(function (h) {
-            const cx = b.x + h[0] * b.w, cy = b.y + h[1] * b.h;
-            return '<rect x="' + rnd(cx - 1.5) + '" y="' + rnd(cy - 1.5) + '" width="3" height="3" fill="#ffffff" stroke="#4f46e5" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
+          svg += handleList(b).map(function (hp) {
+            return '<rect x="' + rnd(hp.x - 1.5) + '" y="' + rnd(hp.y - 1.5) + '" width="3" height="3" fill="#ffffff" stroke="#4f46e5" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
           }).join("");
         }
       }
@@ -147,6 +172,7 @@
     }
     const uri = dataUri(currentSvg());
     previews.forEach(function (img) { if (img) img.src = uri; });
+    reflectImport();
   }
 
   // ---- pointer coordinates in the 0..64 canvas space ----
@@ -196,12 +222,14 @@
     const p = toStage(e);
     if (resizing) {
       // Rebuild the box from the drag, keeping the handle's opposite side fixed.
+      // Handles sit outside the box, so subtract their offset to hit the real edge.
       const h = resizing.h;
+      const ex = p.x - h.offX, ey = p.y - h.offY;
       let nx = h.ox, ny = h.oy, nw = h.ow, nh = h.oh;
-      if (h.hx === 0) { nx = Math.min(p.x, h.ox + h.ow - 1); nw = h.ox + h.ow - nx; }
-      else if (h.hx === 1) { nw = Math.max(1, p.x - h.ox); }
-      if (h.hy === 0) { ny = Math.min(p.y, h.oy + h.oh - 1); nh = h.oy + h.oh - ny; }
-      else if (h.hy === 1) { nh = Math.max(1, p.y - h.oy); }
+      if (h.hx === 0) { nx = Math.min(ex, h.ox + h.ow - 1); nw = h.ox + h.ow - nx; }
+      else if (h.hx === 1) { nw = Math.max(1, ex - h.ox); }
+      if (h.hy === 0) { ny = Math.min(ey, h.oy + h.oh - 1); nh = h.oy + h.oh - ny; }
+      else if (h.hy === 1) { nh = Math.max(1, ey - h.oy); }
       shapes[selected] = JSON.parse(JSON.stringify(resizing.orig));
       scaleShape(shapes[selected], h.ox, h.oy, h.ow, h.oh, nx, ny, nw, nh);
       render();
@@ -316,7 +344,7 @@
         importedSvg = clean; shapes = []; selected = -1; pathPts = []; editingId = null;
         if (!nameInput.value) nameInput.value = (f.name || "sprite").replace(/\.svg$/i, "").slice(0, 40);
         setPublishLabel(); render();
-        showMsg("Imported! Publish it, or hit Clear to draw your own instead.", true);
+        showMsg('Imported! Publish it as-is, hit "Break into editable shapes" to edit it, or Clear to start over.', true);
       };
       rd.readAsText(f);
     });
@@ -457,7 +485,7 @@
     nameInput.value = asTemplate ? ((a.name || "sprite") + " remix") : (a.name || "");
     setPublishLabel();
     render();
-    const extra = imported ? " It was imported, so you can rename and republish it, but not edit its shapes here." : "";
+    const extra = imported ? ' It came in as one piece: hit "Break into editable shapes" to split it up, or just rename and republish it.' : "";
     showMsg(asTemplate
       ? ("Opened a copy of #" + a.id + " to remix." + extra + (imported ? "" : " Publish it to save your own."))
       : ("Editing your asset #" + a.id + "." + extra), true);
@@ -507,9 +535,139 @@
     return out;
   }
 
+  // ---- Import decomposition: an arbitrary SVG -> our editable shapes -----------
+  // The browser does the hard parts: getCTM() bakes every ancestor <g transform>
+  // and the element's own transform into absolute coords, and getPointAtLength()
+  // flattens curves/arcs into points. Each drawable element becomes one movable
+  // shape: a rect/circle/ellipse/line kept as-is when the baked transform is
+  // axis-aligned, otherwise sampled into a filled path. Gradients, text, filters,
+  // opacity and <use> are dropped by design; this splits simple sprite art into
+  // pieces, it isn't a faithful SVG renderer.
+  const FLAT_MAX_PTS = 36;     // most points kept for one sampled piece
+  const FLAT_MAX_SHAPES = 80;  // safety cap on total pieces
+  function matMul(m, n) {      // m * n, each { a,b,c,d,e,f }
+    return {
+      a: m.a * n.a + m.c * n.b, b: m.b * n.a + m.d * n.b,
+      c: m.a * n.c + m.c * n.d, d: m.b * n.c + m.d * n.d,
+      e: m.a * n.e + m.c * n.f + m.e, f: m.b * n.e + m.d * n.f + m.f
+    };
+  }
+  function matAt(M, x, y) { return [M.a * x + M.c * y + M.e, M.b * x + M.d * y + M.f]; }
+  function toHex(v) {   // "rgb(239, 68, 68)" -> "#ef4444"; leave names/hex as-is
+    const m = /^rgba?\(([^)]+)\)/i.exec(v);
+    if (!m) return v;
+    const p = m[1].split(/[ ,/]+/).map(parseFloat);
+    if (p.length < 3 || p.slice(0, 3).some(isNaN)) return v;
+    const h = function (n) { return ("0" + Math.max(0, Math.min(255, Math.round(n))).toString(16)).slice(-2); };
+    return "#" + h(p[0]) + h(p[1]) + h(p[2]);
+  }
+  function flatColor(el, prop) {
+    // Resolved paint; none / transparent / gradient url() -> null (caller decides).
+    let v = "";
+    try { v = getComputedStyle(el)[prop]; } catch (e) {}
+    v = (v || el.getAttribute(prop) || "").trim();
+    if (!v || v === "none" || v === "transparent" || /^url\(/i.test(v)) return null;
+    if (/rgba?\([^)]*[,/]\s*0(\.0+)?\s*\)$/i.test(v)) return null;   // fully transparent
+    return toHex(v);
+  }
+  function flatSample(el, M) {
+    let len = 0;
+    try { len = el.getTotalLength(); } catch (e) { return null; }
+    if (!len || !isFinite(len)) return null;
+    const sc = Math.sqrt(Math.abs(M.a * M.d - M.b * M.c)) || 1;
+    const n = Math.max(6, Math.min(FLAT_MAX_PTS, Math.round(len * sc / 2.2)));
+    const pts = [];
+    let last = null;
+    for (let i = 0; i < n; i++) {
+      let sp;
+      try { sp = el.getPointAtLength(len * i / n); } catch (e) { return null; }
+      const p = matAt(M, sp.x, sp.y);
+      const x = rnd(clamp(p[0])), y = rnd(clamp(p[1]));
+      if (last && Math.abs(x - last[0]) < 0.15 && Math.abs(y - last[1]) < 0.15) continue;
+      pts.push([x, y]); last = [x, y];
+    }
+    return pts.length >= 3 ? pts : null;
+  }
+  function flattenSvg(svgText) {
+    const clean = sanitizeSvg(svgText);
+    if (!clean) return null;
+    // Off-screen but rendered (not display:none), so the geometry APIs work.
+    const holder = document.createElement("div");
+    holder.setAttribute("style", "position:absolute;left:-99999px;top:0;width:0;height:0;overflow:hidden;");
+    holder.innerHTML = clean;
+    const root = holder.querySelector("svg");
+    if (!root) return null;
+    document.body.appendChild(holder);
+    let out = [];
+    try {
+      let vb = (root.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(parseFloat);
+      if (vb.length !== 4 || !vb.every(isFinite) || vb[2] <= 0 || vb[3] <= 0) {
+        const w = parseFloat(root.getAttribute("width")) || 64, h = parseFloat(root.getAttribute("height")) || 64;
+        vb = [0, 0, w, h];
+      }
+      // viewBox units -> 0..64, aspect-preserving and centred (same "meet" fit as
+      // the as-is preview), as a matrix folded onto each element's baked CTM.
+      const s = Math.min(64 / vb[2], 64 / vb[3]) || 1;
+      const fit = { a: s, b: 0, c: 0, d: s, e: (64 - vb[2] * s) / 2 - vb[0] * s, f: (64 - vb[3] * s) / 2 - vb[1] * s };
+      const els = root.querySelectorAll("rect,circle,ellipse,line,polygon,polyline,path");
+      for (let i = 0; i < els.length && out.length < FLAT_MAX_SHAPES; i++) {
+        const el = els[i];
+        const ctm = el.getCTM && el.getCTM();
+        if (!ctm) continue;   // not rendered (e.g. inside <defs>): skip
+        const M = matMul(fit, { a: ctm.a, b: ctm.b, c: ctm.c, d: ctm.d, e: ctm.e, f: ctm.f });
+        const axis = Math.abs(M.b) < 1e-3 && Math.abs(M.c) < 1e-3;   // no rotation/skew
+        const fill = flatColor(el, "fill"), stroke = flatColor(el, "stroke");
+        const paint = fill || stroke || "#888888";
+        const tag = el.tagName.toLowerCase();
+        const num = function (a) { return parseFloat(el.getAttribute(a)) || 0; };
+        if (tag === "rect" && axis) {
+          const c0 = matAt(M, num("x"), num("y")), c1 = matAt(M, num("x") + num("width"), num("y") + num("height"));
+          out.push({ type: "rect", x: rnd(clamp(Math.min(c0[0], c1[0]))), y: rnd(clamp(Math.min(c0[1], c1[1]))),
+                     w: rnd(Math.abs(c1[0] - c0[0])), h: rnd(Math.abs(c1[1] - c0[1])), rx: rnd(Math.abs(num("rx") * M.a)), fill: paint });
+        } else if (tag === "circle" && axis) {
+          const c = matAt(M, num("cx"), num("cy")), rx = Math.abs(num("r") * M.a), ry = Math.abs(num("r") * M.d);
+          if (Math.abs(rx - ry) < 0.5) out.push({ type: "circle", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), r: rnd(rx), fill: paint });
+          else out.push({ type: "ellipse", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), rx: rnd(rx), ry: rnd(ry), fill: paint });
+        } else if (tag === "ellipse" && axis) {
+          const c = matAt(M, num("cx"), num("cy"));
+          out.push({ type: "ellipse", cx: rnd(clamp(c[0])), cy: rnd(clamp(c[1])), rx: rnd(Math.abs(num("rx") * M.a)), ry: rnd(Math.abs(num("ry") * M.d)), fill: paint });
+        } else if (tag === "line") {
+          const a = matAt(M, num("x1"), num("y1")), b = matAt(M, num("x2"), num("y2"));
+          const lsc = Math.sqrt(Math.abs(M.a * M.d - M.b * M.c)) || 1;
+          out.push({ type: "line", x1: rnd(clamp(a[0])), y1: rnd(clamp(a[1])), x2: rnd(clamp(b[0])), y2: rnd(clamp(b[1])),
+                     width: rnd(Math.max(1, (parseFloat(el.getAttribute("stroke-width")) || 1) * lsc)), fill: stroke || paint });
+        } else {
+          const pts = flatSample(el, M);   // polygon / polyline / path / transformed primitive
+          if (pts) out.push({ type: "path", points: pts, fill: paint });
+        }
+      }
+    } catch (e) { out = []; }
+    try { document.body.removeChild(holder); } catch (e) {}
+    return out.length ? out : null;
+  }
+  function reflectImport() {
+    const b = document.getElementById("asset-breakup");
+    if (b) b.hidden = !importedSvg;
+  }
+  function breakupImported() {
+    if (!importedSvg) return;
+    const flat = flattenSvg(importedSvg);
+    if (!flat || !flat.length) {
+      showMsg("Couldn't split this one into shapes (it may use gradients, text, or <use>). It's still fine to publish as-is.", false);
+      return;
+    }
+    shapes = flat; importedSvg = null; selected = -1; pathPts = [];
+    reflectImport(); render();
+    showMsg("Split into " + flat.length + " editable shape" + (flat.length === 1 ? "" : "s") + ". Tweak or delete any piece, then publish.", true);
+  }
+  const breakupBtn = document.getElementById("asset-breakup");
+  if (breakupBtn) breakupBtn.addEventListener("click", breakupImported);
+  PWL.assetStudio = { flatten: flattenSvg };
+
   render();
   renderRecent();
   setPublishLabel();
+  reflectImport();
   if (PWL.configured && sb) {
     loadLibrary();
     if (PWL.auth && PWL.auth.onChange) PWL.auth.onChange(function () { loadLibrary(); });
