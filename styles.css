@@ -444,6 +444,11 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 12px 30px rgba(15, 18, 38, 0.16); padding: 6px; display: none; z-index: 60;
 }
 .nav-dd:hover .nav-dd-menu, .nav-dd:focus-within .nav-dd-menu, .nav-dd.open .nav-dd-menu { display: block; }
+/* Invisible bridge spanning the 4px gap above the menu, so moving the mouse
+   down from the trigger onto the menu never crosses a dead zone that closes it.
+   It's a child of the menu (itself a child of .nav-dd), so hovering it keeps
+   .nav-dd:hover true; it only exists while the menu is open. */
+.nav-dd-menu::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 6px; }
 .nav-dd-trigger { background: none; border: 0; cursor: pointer; font-family: inherit; }
 .nav-caret { transition: transform 0.15s ease; }
 .nav-dd.open .nav-caret { transform: rotate(180deg); }
