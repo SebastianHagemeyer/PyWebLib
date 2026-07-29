@@ -33,7 +33,6 @@
     container.innerHTML =
       '<div class="pwl-player pwl-player-is-' + kind + '">' +
         '<div class="pwl-player-bar">' +
-          '<span class="pwl-player-hint">' + (kind === "game" ? "click the game, then use the arrow keys" : "") + "</span>" +
           '<button type="button" class="btn btn-primary pwl-player-run"><span class="sandbox-run-label">Run</span></button>' +
         "</div>" +
         '<div class="pwl-player-stage">' +
