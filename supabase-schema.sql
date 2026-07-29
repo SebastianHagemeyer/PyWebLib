@@ -69,6 +69,7 @@ create table if not exists public.projects (
   code        text not null check (char_length(code) <= 20000),
   kind        text not null default 'python',   -- python | turtle | game
   vote_count  integer not null default 0,
+  published   boolean not null default true,     -- false = a private draft (author only)
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -78,9 +79,14 @@ create index if not exists projects_author_idx on public.projects (author_id);
 
 alter table public.projects enable row level security;
 
+-- Draft support: on databases created before this column existed, add it now (it
+-- must exist before the read policy below, which references it). Existing rows
+-- default to published = true, so nothing that was public becomes hidden.
+alter table public.projects add column if not exists published boolean not null default true;
+
 drop policy if exists "projects readable by everyone" on public.projects;
 create policy "projects readable by everyone"
-  on public.projects for select using (true);
+  on public.projects for select using (published or auth.uid() = author_id);
 drop policy if exists "authenticated users publish" on public.projects;
 create policy "authenticated users publish"
   on public.projects for insert with check (auth.uid() = author_id);
@@ -107,16 +113,16 @@ returns void language sql security definer set search_path = public as $$
 $$;
 grant execute on function public.increment_view(uuid) to anon, authenticated;
 
--- Cap how many programs one person can publish. Enforced here because a
--- client-side limit is trivially bypassed. To change the cap, edit the number
--- and re-run this block (and keep PROGRAM_CAP in publish.js in step).
+-- Cap how many programs one person can save (drafts and published both count).
+-- Enforced here because a client-side limit is trivially bypassed. To change the
+-- cap, edit the number and re-run this block (keep PROGRAM_CAP in publish.js in step).
 create or replace function public.enforce_project_limit()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare n integer;
 begin
   select count(*) into n from public.projects where author_id = new.author_id;
   if n >= 10 then
-    raise exception 'You have reached the limit of 10 published programs. Update or delete one first.'
+    raise exception 'You have reached the limit of 10 programs. Update or delete one first.'
       using errcode = 'check_violation';
   end if;
   return new;

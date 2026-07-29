@@ -155,7 +155,10 @@
           '<label>Title<input name="title" type="text" maxlength="80" required autocomplete="off" placeholder="My cool ' + esc(kind) + " program\" /></label>" +
           '<label>Description (optional)<textarea name="description" maxlength="280" rows="2" placeholder="What does it do? Any keys to press?"></textarea></label>' +
           '<pre class="pwl-modal-code"></pre>' +
-          '<div class="pwl-modal-actions"><button type="submit" class="btn btn-primary">Publish</button></div>' +
+          '<div class="pwl-modal-actions">' +
+            '<button type="button" class="btn btn-ghost" data-role="draft" title="Save to your account privately, without sharing it">Save as draft</button>' +
+            '<button type="submit" class="btn btn-primary">Publish</button>' +
+          "</div>" +
         "</form>" +
       "</div>";
     back.querySelector(".pwl-modal-code").textContent = code;
@@ -186,6 +189,7 @@
     const descEl = form.querySelector('textarea[name="description"]');
     const targetEl = form.querySelector('select[name="target"]');
     const submitBtn = form.querySelector('button[type="submit"]');
+    const draftBtn = form.querySelector('[data-role="draft"]');
     const capNote = form.querySelector(".pwl-cap-note");
     const keepNote = back.querySelector(".pwl-thumb-keep");
     if (capNote) capNote.textContent =
@@ -233,6 +237,8 @@
       if (anywayBtn) anywayBtn.style.display = (needs && !allowNoScene) ? "" : "none";
       if (keepNote) keepNote.hidden = !(!scene && !!targetSceneJson());
       submitBtn.disabled = capBlocked || (needs && !allowNoScene);
+      // A private draft doesn't need a thumbnail, so only the cap can block it.
+      if (draftBtn) draftBtn.disabled = capBlocked;
     }
     // Choosing an existing program fills in its title and description and turns
     // the button into an update; "A new program" resets to a fresh post.
@@ -258,13 +264,20 @@
     refreshSubmit();
     titleEl.focus();
 
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
+    function resetButtons(targetId) {
+      submitBtn.disabled = false; if (draftBtn) draftBtn.disabled = false;
+      submitBtn.textContent = targetId ? "Update program" : "Publish";
+      if (draftBtn) draftBtn.textContent = "Save as draft";
+    }
+
+    // makePublic true = Publish (goes to the community); false = Save as draft
+    // (private to the author's account, thumbnail optional).
+    async function doSave(makePublic) {
       const u = PWL.auth && PWL.auth.user();
       if (!u) { PWL.auth.signInWithGoogle(); return; }
       const title = titleEl.value.trim();
-      if (!title) return;
-      if (needsThumbNow() && !allowNoScene) { toast("Run your program first to capture a thumbnail, or choose \"Publish without a thumbnail\"."); return; }
+      if (!title) { titleEl.focus(); return; }
+      if (makePublic && needsThumbNow() && !allowNoScene) { toast("Run your program first to capture a thumbnail, or choose \"Publish without a thumbnail\"."); return; }
       const targetId = targetEl ? targetEl.value : "";
       if (atCap && !targetId) { toast("You're at the " + PROGRAM_CAP + " program limit. Update one, or delete one first."); return; }
       const sceneJson = scene
@@ -272,43 +285,48 @@
             ? { kind: "turtle", w: scene.w, h: scene.h, bg: scene.bg, ops: scene.ops }
             : trimScene(scene))
         : null;
-      submitBtn.disabled = true;
-      submitBtn.textContent = targetId ? "Updating…" : "Publishing…";
-      let res;
-      if (targetId) {
-        // Overwrite the chosen program with the current editor code. RLS only
-        // lets an author touch their own rows, and the list is theirs anyway.
-        const upd = {
-          title: title,
-          description: descEl.value.trim() || null,
-          code: code,
-          kind: kind,
-          updated_at: new Date().toISOString()
-        };
-        // Only replace the thumbnail when we captured a fresh one this run;
-        // otherwise leave the program's existing thumbnail untouched.
-        if (sceneJson !== null) upd.scene = sceneJson;
-        res = await sb.from("projects").update(upd).eq("id", targetId).select("id").single();
-      } else {
-        res = await sb.from("projects").insert({
-          author_id: u.id,
-          title: title,
-          description: descEl.value.trim() || null,
-          code: code,
-          kind: kind,
-          scene: sceneJson
-        }).select("id").single();
+      submitBtn.disabled = true; if (draftBtn) draftBtn.disabled = true;
+      (makePublic ? submitBtn : draftBtn).textContent = makePublic ? (targetId ? "Updating…" : "Publishing…") : "Saving…";
+
+      // withPublished false is the pre-migration fallback (no `published` column).
+      function run(withPublished) {
+        if (targetId) {
+          // Overwrite the chosen program with the current editor code. RLS only
+          // lets an author touch their own rows, and the list is theirs anyway.
+          const upd = { title: title, description: descEl.value.trim() || null, code: code, kind: kind, updated_at: new Date().toISOString() };
+          // Only replace the thumbnail when we captured a fresh one this run;
+          // otherwise leave the program's existing thumbnail untouched.
+          if (sceneJson !== null) upd.scene = sceneJson;
+          if (withPublished) upd.published = makePublic;
+          return sb.from("projects").update(upd).eq("id", targetId).select("id").single();
+        }
+        const ins = { author_id: u.id, title: title, description: descEl.value.trim() || null, code: code, kind: kind, scene: sceneJson };
+        if (withPublished) ins.published = makePublic;
+        return sb.from("projects").insert(ins).select("id").single();
       }
-      if (res.error) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = targetId ? "Update program" : "Publish";
-        toast("Couldn't save: " + res.error.message);
-        return;
+
+      let res = await run(true);
+      if (res.error && /published/i.test(res.error.message || "")) {
+        // The database doesn't have the `published` column yet.
+        if (makePublic) res = await run(false);   // publish the old way (everything is public)
+        else {
+          resetButtons(targetId);
+          toast("Drafts need the latest supabase-schema.sql (a 'published' column). Run it, then try again.");
+          return;
+        }
       }
+      if (res.error) { resetButtons(targetId); toast("Couldn't save: " + res.error.message); return; }
       close();
-      toast(targetId ? "Updated! Taking you to the community…" : "Shared! Taking you to the community…");
-      setTimeout(function () { window.location.href = "community/"; }, 700);
-    });
+      if (makePublic) {
+        toast(targetId ? "Updated! Taking you to the community…" : "Shared! Taking you to the community…");
+        setTimeout(function () { window.location.href = "community/"; }, 700);
+      } else {
+        toast("Saved to your account as a private draft. Find it under your name in the community.");
+      }
+    }
+
+    form.addEventListener("submit", function (e) { e.preventDefault(); doSave(true); });
+    if (draftBtn) draftBtn.addEventListener("click", function () { doSave(false); });
   }
 
   async function loadMine() {

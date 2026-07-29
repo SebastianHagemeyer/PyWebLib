@@ -26,6 +26,7 @@
   let projects = [];
   let votedSet = new Set();
   let currentUserId = null;
+  let pubSupported = true;   // set false once we learn the DB has no `published` column
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -92,22 +93,25 @@
     const user = PWL.auth && PWL.auth.user();
     currentUserId = user ? user.id : null;
 
-    function cols(withViews) {
-      return "id,title,description,code,kind,scene,vote_count," + (withViews ? "view_count," : "") +
+    function cols(withViews, withPub) {
+      return "id,title,description,code,kind,scene,vote_count," +
+        (withPub ? "published," : "") + (withViews ? "view_count," : "") +
         "created_at,updated_at,author_id,profiles!author_id(display_name,avatar_url),comments(count)";
     }
-    function build(withViews) {
-      let q = sb.from("projects").select(cols(withViews));
-      if (mineOnly && user) q = q.eq("author_id", user.id);
+    function build(withViews, withPub) {
+      let q = sb.from("projects").select(cols(withViews, withPub));
+      if (mineOnly && user) q = q.eq("author_id", user.id);      // your own, drafts included
+      else if (withPub) q = q.eq("published", true);             // public feed: published only
       q = sort === "new"
         ? q.order("created_at", { ascending: false })
         : q.order("vote_count", { ascending: false }).order("created_at", { ascending: false });
       return q.limit(100);
     }
-    // Ask for view_count, but tolerate a database that hasn't added it yet
-    // (schema not re-run): fall back so the gallery still loads, views show 0.
-    let res = await build(true);
-    if (res.error && /view_count/i.test(res.error.message || "")) res = await build(false);
+    // Ask for view_count and published, but tolerate a database that hasn't added
+    // them yet (schema not re-run): fall back so the gallery still loads.
+    let res = await build(true, pubSupported);
+    if (res.error && /published/i.test(res.error.message || "")) { pubSupported = false; res = await build(true, false); }
+    if (res.error && /view_count/i.test(res.error.message || "")) res = await build(false, pubSupported);
     const { data, error } = res;
     if (error) {
       grid.innerHTML = '<p class="community-empty">Could not load programs: ' + esc(error.message) + "</p>";
@@ -137,13 +141,15 @@
       const commentCount = (p.comments && p.comments[0] && p.comments[0].count) || 0;
       const voted = votedSet.has(p.id);
       const mine = currentUserId && p.author_id === currentUserId;
+      const isDraft = p.published === false;   // false only when the column exists
       const card = document.createElement("article");
-      card.className = "community-card";
+      card.className = "community-card" + (isDraft ? " is-draft" : "");
       card._p = p;
       card.innerHTML =
         '<a class="cc-thumb-wrap" href="../game/?id=' + encodeURIComponent(p.id) + '"><canvas class="cc-thumb" width="320" height="180"></canvas></a>' +
         '<div class="cc-head">' +
           '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
+          (isDraft ? '<span class="cc-kind cc-draft" title="Only you can see this">Draft</span>' : "") +
           '<h3 class="cc-title"></h3>' +
           '<button type="button" class="cc-play" data-act="play" title="' + (p.kind === "game" ? "Play" : "Run") + '">' +
             '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3l9 5-9 5z" fill="currentColor"/></svg> ' +
@@ -158,6 +164,7 @@
             '<span class="cc-arrow"><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M8 4l5 6.5H3z" fill="currentColor"/></svg></span> <span class="cc-votes">' + p.vote_count + "</span></button>" +
           '<button type="button" class="cc-btn" data-act="open">Open in Playground</button>' +
           '<button type="button" class="cc-btn cc-comment-btn" data-act="detail"><svg class="cc-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3 2h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H7l-3 3v-3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="currentColor"/></svg> ' + commentCount + "</button>" +
+          (mine && isDraft ? '<button type="button" class="cc-btn cc-publish" data-act="publish">Publish</button>' : "") +
           (mine ? '<button type="button" class="cc-btn cc-edit" data-act="edit">Edit</button>' : "") +
         "</div>";
       card.querySelector(".cc-title").textContent = p.title;
@@ -174,9 +181,21 @@
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
       if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });
+      if (mine && isDraft) card.querySelector('[data-act="publish"]').addEventListener("click", function () { publishDraft(p); });
       if (window.PWL.preview) { try { window.PWL.preview.renderInto(card.querySelector(".cc-thumb"), p.code, p.scene); } catch (e) {} }
       grid.appendChild(card);
     });
+  }
+
+  // Flip one of your drafts to public, straight from its card.
+  async function publishDraft(p) {
+    const res = await sb.from("projects")
+      .update({ published: true, updated_at: new Date().toISOString() })
+      .eq("id", p.id).select("id").single();
+    if (res.error) { toast("Couldn't publish: " + res.error.message); return; }
+    p.published = true;
+    toast("Published! It's live in the community now.");
+    refresh();
   }
 
   async function toggleVote(p, card) {
