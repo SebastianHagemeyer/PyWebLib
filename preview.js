@@ -35,10 +35,47 @@
   const ASSET_IMG = {};     // "id" -> Image (null while it loads)
   const ASSET_RATIO = {};   // "id" -> width / height from the viewBox (default 1)
   const ASSET_WAIT = {};    // "id" -> callbacks waiting for the load
+  // Shared localStorage cache (a few days), same keys as the game runtime, so a
+  // fetched sprite is reused across cards, sessions and the game itself instead
+  // of re-reading Supabase every time.
+  const assetCache = PWL.assetSvgCache || (PWL.assetSvgCache = (function () {
+    var TTL = 3 * 24 * 3600 * 1000, PREFIX = "pwl-asset:";
+    function get(id) {
+      try {
+        var raw = localStorage.getItem(PREFIX + id);
+        if (!raw) return null;
+        var o = JSON.parse(raw);
+        if (!o || typeof o.svg !== "string" || (Date.now() - (o.ts || 0)) > TTL) { localStorage.removeItem(PREFIX + id); return null; }
+        return o.svg;
+      } catch (e) { return null; }
+    }
+    function put(id, svg) {
+      var rec = JSON.stringify({ svg: svg, ts: Date.now() });
+      try { localStorage.setItem(PREFIX + id, rec); }
+      catch (e) {
+        try {
+          for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && k.indexOf(PREFIX) === 0) localStorage.removeItem(k); }
+          localStorage.setItem(PREFIX + id, rec);
+        } catch (e2) {}
+      }
+    }
+    return { get: get, put: put };
+  })());
   function assetSvgRatio(svg) {
     const m = /viewBox\s*=\s*["']?\s*[-\d.eE]+[ ,]+[-\d.eE]+[ ,]+([-\d.eE]+)[ ,]+([-\d.eE]+)/.exec(svg || "");
     if (m) { const w = parseFloat(m[1]), h = parseFloat(m[2]); if (w > 0 && h > 0) return w / h; }
     return 1;
+  }
+  function buildAssetImg(key, svg) {
+    ASSET_RATIO[key] = assetSvgRatio(svg);
+    const img = new Image();
+    img.onload = function () {
+      const cbs = ASSET_WAIT[key] || []; ASSET_WAIT[key] = [];
+      cbs.forEach(function (cb) { try { cb(); } catch (e) {} });
+    };
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    ASSET_IMG[key] = img;
+    return img;
   }
   function assetImage(id, onReady) {
     const key = String(id);
@@ -50,20 +87,16 @@
     }
     ASSET_IMG[key] = null;   // mark in-flight so we fetch only once
     if (onReady) (ASSET_WAIT[key] = ASSET_WAIT[key] || []).push(onReady);
+    const hit = assetCache && assetCache.get(key);
+    if (hit) {   // served from localStorage, no DB read
+      const img = buildAssetImg(key, hit);
+      return (img.complete && img.naturalWidth) ? img : null;
+    }
     const sb = PWL.supabase;
     if (!sb) return null;
     try {
       sb.from("assets").select("svg").eq("id", key).single().then(function (r) {
-        if (r && r.data && r.data.svg) {
-          ASSET_RATIO[key] = assetSvgRatio(r.data.svg);
-          const img = new Image();
-          img.onload = function () {
-            const cbs = ASSET_WAIT[key] || []; ASSET_WAIT[key] = [];
-            cbs.forEach(function (cb) { try { cb(); } catch (e) {} });
-          };
-          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(r.data.svg);
-          ASSET_IMG[key] = img;
-        }
+        if (r && r.data && r.data.svg) { if (assetCache) assetCache.put(key, r.data.svg); buildAssetImg(key, r.data.svg); }
       }, function () {});
     } catch (e) {}
     return null;

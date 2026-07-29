@@ -798,6 +798,23 @@ def _pyrun_install_game():
                 frame(30)
         _io.stop()
 
+    def preload(*ids):
+        # Fetch custom asset art up front so a sprite you later set with
+        # sprite.asset = id (or game.sprite(id, asset=True)) is ready instead of
+        # popping in on first draw. Call it once near the top, before the loop:
+        #   game.preload(7, 8, 9)   or   game.preload(my_ids)
+        flat = []
+        for i in ids:
+            if isinstance(i, (list, tuple)):
+                flat.extend(i)
+            else:
+                flat.append(i)
+        want = [x for x in (_norm_asset(v) for v in flat) if x is not None]
+        try:
+            _io.preloadAssets(json.dumps(want))
+        except Exception:
+            pass
+
     def _reset_all():
         _sprites.clear()
         W.update(w=480, h=360, bg="#0b1020", score=0, over=None, debug=False,
@@ -826,6 +843,7 @@ def _pyrun_install_game():
     mod.sound = sound
     mod.debug = debug
     mod.fullscreen = fullscreen
+    mod.preload = preload
     mod.Sprite = Sprite
     mod._reset_all = _reset_all
     sys.modules["game"] = mod
@@ -990,6 +1008,40 @@ del _pyrun_install_game
     return img;
   });
 
+  // ---- Shared asset SVG cache (localStorage, a few days). Fetched sprite art
+  // is kept in the browser so repeat visits (and every viewer's later sessions)
+  // draw from cache instead of hammering Supabase. Shared with preview.js via
+  // the same keys, so warming it in a game also warms the gallery thumbnails.
+  window.PWL = window.PWL || {};
+  window.PWL.assetSvgCache = window.PWL.assetSvgCache || (function () {
+    var TTL = 3 * 24 * 3600 * 1000, PREFIX = "pwl-asset:";
+    function get(id) {
+      try {
+        var raw = localStorage.getItem(PREFIX + id);
+        if (!raw) return null;
+        var o = JSON.parse(raw);
+        if (!o || typeof o.svg !== "string" || (Date.now() - (o.ts || 0)) > TTL) {
+          localStorage.removeItem(PREFIX + id); return null;
+        }
+        return o.svg;
+      } catch (e) { return null; }
+    }
+    function put(id, svg) {
+      var rec = JSON.stringify({ svg: svg, ts: Date.now() });
+      try { localStorage.setItem(PREFIX + id, rec); }
+      catch (e) {   // out of space: drop cached sprites and keep just this one
+        try {
+          for (var i = localStorage.length - 1; i >= 0; i--) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf(PREFIX) === 0) localStorage.removeItem(k);
+          }
+          localStorage.setItem(PREFIX + id, rec);
+        } catch (e2) {}
+      }
+    }
+    return { get: get, put: put };
+  })();
+
   // ---- User-made assets (from the Asset studio): game.sprite(id, asset=True).
   // Each id's SVG is fetched from Supabase once and cached as an Image, then
   // drawn like a built-in. Worker-runtime games still draw here on the main
@@ -1007,20 +1059,27 @@ del _pyrun_install_game
     if (mw && mh) { var ww = parseFloat(mw[1]), hh = parseFloat(mh[1]); if (ww > 0 && hh > 0) return ww / hh; }
     return 1;
   }
+  function useAssetSvg(key, svg) {
+    ASSET_RATIO[key] = svgRatio(svg);
+    const img = new Image();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    ASSET_IMAGES[key] = img;
+  }
   function ensureAsset(id) {
     if (id == null || id === "") return;
     const key = String(id);
     if (key in ASSET_IMAGES) return;    // already loaded, loading, or missing
     ASSET_IMAGES[key] = null;           // mark in-flight so we fetch only once
+    const cache = window.PWL && window.PWL.assetSvgCache;
+    const hit = cache && cache.get(key);
+    if (hit) { useAssetSvg(key, hit); return; }   // served from localStorage, no DB read
     const sb = window.PWL && window.PWL.supabase;
     if (!sb) return;
     try {
       sb.from("assets").select("svg").eq("id", key).single().then(function (r) {
         if (r && r.data && r.data.svg) {
-          ASSET_RATIO[key] = svgRatio(r.data.svg);
-          const img = new Image();
-          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(r.data.svg);
-          ASSET_IMAGES[key] = img;
+          if (cache) cache.put(key, r.data.svg);
+          useAssetSvg(key, r.data.svg);
         }
       }, function () {});
     } catch (e) {}
@@ -1097,6 +1156,14 @@ del _pyrun_install_game
   const GAME_IO = {
     jspiOk: function () { return jspiSupported(); },
     sound: function (which) { playGameSound(which); },
+    // Warm the asset cache from game.preload(). Accepts a JSON array string (how
+    // Python and the worker send it) or a plain array. Runs on the main thread
+    // for both runtimes, where the asset cache lives.
+    preloadAssets: function (ids) {
+      var list;
+      try { list = typeof ids === "string" ? JSON.parse(ids) : ids; } catch (e) { return; }
+      (list || []).forEach(function (id) { ensureAsset(id); });
+    },
     fullscreen: function (on) { setGameFullscreen(null, on !== false); },
     playing: function () { return gamePlaying; },
     stop: function () { gamePlaying = false; },

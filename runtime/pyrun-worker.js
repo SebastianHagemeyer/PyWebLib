@@ -64,6 +64,7 @@ const GAME_IO = {
   fullscreen: function (on) { post("g", "fullscreen", [!!on]); },
   submitScore: function (points) { post("g", "submitScore", [points]); },
   sound: function (name) { post("g", "sound", [name]); },
+  preloadAssets: function (ids) { post("g", "preloadAssets", [String(ids)]); },
   pressed: function (key) { return Atomics.load(mem.ctrl, self.PRProto.keyIndex(key)) === 1; },
   mouseX: function () { return Atomics.load(mem.ctrl, CTRL.MX); },
   mouseY: function () { return Atomics.load(mem.ctrl, CTRL.MY); },
