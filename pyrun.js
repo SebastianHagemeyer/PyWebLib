@@ -955,18 +955,44 @@ del _pyrun_install_game
       cv.style.height = "";
     }
   }
+  // The shared player's markup has no ✕ (the editor does), so add one to whatever
+  // stage is going fullscreen. Without it there's no way out on a phone.
+  function ensureFsExit(stage) {
+    if (!stage) return;
+    let btn = stage.querySelector(".game-fs-exit");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "game-fs-exit";
+      btn.setAttribute("aria-label", "Exit fullscreen");
+      btn.title = "Exit fullscreen (Esc)";
+      btn.innerHTML = "✕";
+      stage.appendChild(btn);
+    }
+    if (!btn.__pwlFsWired) {
+      btn.__pwlFsWired = true;
+      btn.addEventListener("click", function () { setGameFullscreen(null, false); });
+    }
+  }
   function setGameFullscreen(canvas, on) {
-    const cv = canvas || pwlGameCanvasEl();
-    if (!cv) return;
-    const panel = cv.closest ? cv.closest(".game-panel") : null;
+    // Flip the body flag first and unconditionally, so exiting always releases the
+    // scroll lock even when the canvas can't be found (e.g. a run just ended).
     document.body.classList.toggle("pwl-game-fs", !!on);
-    if (panel) panel.classList.toggle("is-fs", !!on);
+    const cv = canvas || pwlGameCanvasEl();
+    // The stage is the element the CSS turns into the overlay; it's present on both
+    // the editor and the community player (unlike .game-panel, which is editor-only).
+    const stage = cv && cv.closest ? cv.closest(".game-stage") : null;
+    const host = (cv && cv.closest && (cv.closest(".game-panel") || cv.closest(".pwl-player"))) || stage;
+    if (host) host.classList.toggle("is-fs", !!on);
     if (on) {
-      const el = panel || cv;
-      try {
-        if (el.requestFullscreen) { const p = el.requestFullscreen(); if (p && p.catch) p.catch(function () {}); }
-        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-      } catch (e) {}
+      ensureFsExit(stage);
+      const el = stage || cv;
+      if (el) {
+        try {
+          if (el.requestFullscreen) { const p = el.requestFullscreen(); if (p && p.catch) p.catch(function () {}); }
+          else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        } catch (e) {}
+      }
     } else {
       try {
         if (document.exitFullscreen && document.fullscreenElement) { const p = document.exitFullscreen(); if (p && p.catch) p.catch(function () {}); }
@@ -979,13 +1005,9 @@ del _pyrun_install_game
   window.addEventListener("resize", fitGameCanvas);
   window.addEventListener("orientationchange", function () { setTimeout(fitGameCanvas, 120); });
   document.addEventListener("fullscreenchange", function () {
-    // Real fullscreen exited (Esc / system gesture): keep the CSS overlay in sync.
+    // Real fullscreen exited (Esc / system gesture): drop the CSS overlay too.
     if (!document.fullscreenElement && document.body.classList.contains("pwl-game-fs")) {
-      document.body.classList.remove("pwl-game-fs");
-      const cv = pwlGameCanvasEl();
-      const panel = cv && cv.closest ? cv.closest(".game-panel") : null;
-      if (panel) panel.classList.remove("is-fs");
-      fitGameCanvas();
+      setGameFullscreen(null, false);
     }
   });
   window.addEventListener("keydown", function (e) {
@@ -1927,6 +1949,9 @@ del _pyrun_install_game
         running = false;
         stopRequested = false;
         pendingReject = null;
+        // A game that ended or was stopped leaves fullscreen, so the page scrolls
+        // again (a restart loop stays inside this run(), so it keeps fullscreen).
+        try { setGameFullscreen(null, false); } catch (e) {}
         // Snapshot the finished turtle drawing for a community thumbnail.
         try { captureTurtleScene(runner); } catch (e) {}
         setRunMode("idle");
@@ -1954,6 +1979,7 @@ del _pyrun_install_game
       if (opts.onRunStart) opts.onRunStart();
       workerFinalize = function () {
         running = false; stopRequested = false;
+        try { setGameFullscreen(null, false); } catch (e) {}
         try { captureTurtleScene(runner); } catch (e) {}
         setRunMode("idle");
         if (opts.onRunEnd) opts.onRunEnd();
