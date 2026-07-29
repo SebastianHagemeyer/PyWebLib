@@ -234,9 +234,8 @@
     }
   }
 
-  // Fold Community, Assets and Leaderboard into one "Community" dropdown. The
-  // trigger is a button (not a link) so a tap opens the menu on touch, where
-  // hover does nothing; the community page is the first item inside.
+  // Turn Community into a dropdown just like Docs: the trigger stays a link to
+  // the gallery, and the menu adds Assets and Leaderboard (opens on hover/focus).
   function enhanceCommunityNav(nav, root) {
     let community = null, assets = null, leaderboard = null;
     nav.querySelectorAll("a.header-link").forEach(function (a) {
@@ -246,14 +245,14 @@
       else if (t === "Leaderboard") leaderboard = a;
     });
     if (!community) return;
+    const wasActive = community.classList.contains("active");
     const dd = document.createElement("div");
     dd.className = "nav-dd";
     dd.innerHTML =
-      '<button type="button" class="header-link nav-dd-trigger" aria-haspopup="true" aria-expanded="false">Community' +
+      '<a class="header-link' + (wasActive ? " active" : "") + '" href="' + root + 'community/">Community' +
         caret +
-      "</button>" +
+      "</a>" +
       '<div class="nav-dd-menu">' +
-        '<a href="' + root + 'community/">Community</a>' +
         '<a href="' + root + 'assets/">Assets</a>' +
         '<a href="' + root + 'leaderboard/">Leaderboard</a>' +
       "</div>";
