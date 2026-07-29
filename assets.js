@@ -431,19 +431,36 @@
     });
     return el;
   }
+  // Our own saved sprites use viewBox "0 0 64 64" and only the simple shapes the
+  // editor can round-trip. Anything else (imported art drawn on a different
+  // canvas, or using groups, transforms or curves) can't be turned back into
+  // editable shapes without mangling it, so we show it exactly as saved instead.
+  function isStudioNative(svg) {
+    if (!/viewBox\s*=\s*["']\s*0\s+0\s+64\s+64\s*["']/.test(svg)) return false;
+    if (/<g[\s>]|transform\s*=|<image|<text|<use|<defs/i.test(svg)) return false;
+    if (/\sd\s*=\s*["'][^"']*[CcSsQqTtAa]/.test(svg)) return false;   // path curves
+    return true;
+  }
   function loadIntoEditor(a, asTemplate) {
-    const parsed = parseSvg(a.svg);
-    if (!parsed) { showMsg("Couldn't open that sprite.", false); return; }
     snapshot();
-    shapes = parsed;
-    selected = -1;
+    selected = -1; pathPts = [];
     editingId = asTemplate ? null : a.id;   // a remix publishes as a NEW asset
+    let imported = false;
+    if (isStudioNative(a.svg)) {
+      const parsed = parseSvg(a.svg);
+      if (parsed && parsed.length) { shapes = parsed; importedSvg = null; }
+      else { shapes = []; importedSvg = a.svg; imported = true; }
+    } else {
+      // Show it as-is (letterboxed, keeps its aspect), ready to rename + republish.
+      shapes = []; importedSvg = a.svg; imported = true;
+    }
     nameInput.value = asTemplate ? ((a.name || "sprite") + " remix") : (a.name || "");
     setPublishLabel();
     render();
+    const extra = imported ? " It was imported, so you can rename and republish it, but not edit its shapes here." : "";
     showMsg(asTemplate
-      ? "Opened a copy of #" + a.id + " to remix. Publish it to save your own."
-      : "Editing your asset #" + a.id + ".", true);
+      ? ("Opened a copy of #" + a.id + " to remix." + extra + (imported ? "" : " Publish it to save your own."))
+      : ("Editing your asset #" + a.id + "." + extra), true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
