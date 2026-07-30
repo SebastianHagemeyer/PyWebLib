@@ -155,11 +155,11 @@
         "\n" +
         "# The game loop: read the keys, move, draw one frame, repeat.\n" +
         "while game.playing():\n" +
-        '    if game.pressed("left"):  chicken.x = chicken.x - 6\n' +
-        '    if game.pressed("right"): chicken.x = chicken.x + 6\n' +
-        '    if game.pressed("up"):    chicken.y = chicken.y - 6\n' +
-        '    if game.pressed("down"):  chicken.y = chicken.y + 6\n' +
-        "    game.frame()\n"
+        '    if game.pressed("left"):  chicken.x = chicken.x - 3\n' +
+        '    if game.pressed("right"): chicken.x = chicken.x + 3\n' +
+        '    if game.pressed("up"):    chicken.y = chicken.y - 3\n' +
+        '    if game.pressed("down"):  chicken.y = chicken.y + 3\n' +
+        "    game.frame(60)\n"
     },
     {
       title: "Game: bouncing ball (vs pygame)",
@@ -195,14 +195,14 @@
         "\n" +
         'game.window(600, 400, background="#141828")\n' +
         'ball = game.sprite("🔴", 300, 200, size=48)\n' +
-        "dx, dy = 4, 3\n" +
+        "dx, dy = 2, 1.5\n" +
         "\n" +
         "while game.playing():\n" +
         "    ball.x = ball.x + dx\n" +
         "    ball.y = ball.y + dy\n" +
         "    if ball.x < 24 or ball.x > 576: dx = -dx\n" +
         "    if ball.y < 24 or ball.y > 376: dy = -dy\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: catch the eggs",
@@ -220,10 +220,10 @@
         'board = game.label("Score: 0", 60, 24, size=22)\n' +
         "\n" +
         "while game.playing():\n" +
-        '    if game.pressed("left"):  basket.x = basket.x - 8\n' +
-        '    if game.pressed("right"): basket.x = basket.x + 8\n' +
+        '    if game.pressed("left"):  basket.x = basket.x - 4\n' +
+        '    if game.pressed("right"): basket.x = basket.x + 4\n' +
         "\n" +
-        "    egg.y = egg.y + 5          # the egg falls\n" +
+        "    egg.y = egg.y + 2.5        # the egg falls\n" +
         "\n" +
         "    if basket.touches(egg):    # caught it!\n" +
         "        game.score(1)\n" +
@@ -239,7 +239,7 @@
         "        if misses >= 3:\n" +
         '            game.game_over("Game Over! Score: " + str(game.score()))\n' +
         "\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: 2-player shout-off",
@@ -270,7 +270,7 @@
         "p2 = 0\n" +
         "TOP = 240        # a full bar\n" +
         "GAIN = 16        # how much one tap adds\n" +
-        "DRAIN = 0.8      # how fast the bar leaks back down\n" +
+        "DRAIN = 0.4      # how fast the bar leaks back down\n" +
         "\n" +
         "# Remember last frame's keys, so a HELD key counts as one tap, not loads.\n" +
         "p1_was = False\n" +
@@ -305,7 +305,7 @@
         "    if p2 >= TOP:\n" +
         '        game.game_over("Player 2 wins!")\n' +
         "\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: walk and turn around",
@@ -322,12 +322,12 @@
         "# right to start, so we flip it when walking left.\n" +
         "while game.playing():\n" +
         '    if game.pressed("left"):\n' +
-        "        runner.x = runner.x - 5\n" +
+        "        runner.x = runner.x - 2.5\n" +
         "        runner.scale_x = -1    # mirror it to face left\n" +
         '    if game.pressed("right"):\n' +
-        "        runner.x = runner.x + 5\n" +
+        "        runner.x = runner.x + 2.5\n" +
         "        runner.scale_x = 1     # face right (the chicken's default)\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: flappy bird",
@@ -339,10 +339,10 @@
         "\n" +
         'game.window(480, 360, background="#4ec0ca")\n' +
         "\n" +
-        "GRAVITY = 0.4      # pulls the bird down every frame\n" +
-        "FLAP = -6.5        # a tap of space gives this much lift (up is negative)\n" +
+        "GRAVITY = 0.1      # pulls the bird down every frame\n" +
+        "FLAP = -3.25       # a tap of space gives this much lift (up is negative)\n" +
         "GAP = 130          # the gap the bird flies through\n" +
-        "SPEED = 2.2        # how fast the pipes slide left\n" +
+        "SPEED = 1.1        # how fast the pipes slide left\n" +
         "FLOOR = 330        # the top of the ground\n" +
         "\n" +
         'game.box(240, 348, 480, 36, "#ded895")   # the ground\n' +
@@ -375,7 +375,7 @@
         "    # Gravity: speed up downwards, then move, then tilt to match.\n" +
         "    vel = vel + GRAVITY\n" +
         "    bird.y = bird.y + vel\n" +
-        "    bird.angle = max(-25, min(70, vel * 5))\n" +
+        "    bird.angle = max(-25, min(70, vel * 10))\n" +
         "\n" +
         "    for p in pipes:\n" +
         '        p["x"] = p["x"] - SPEED\n' +
@@ -408,7 +408,7 @@
         "    if bird.y > FLOOR - 12 or bird.y < 0:\n" +
         '        game.game_over("Score: " + str(score))\n' +
         "\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: drive a car",
@@ -421,9 +421,9 @@
         'car = game.sprite("car", 240, 180, size=64)\n' +
         "\n" +
         "speed = 0\n" +
-        "TURN = 4          # degrees per press\n" +
-        "POWER = 0.4       # how hard the pedal pushes\n" +
-        "GRIP = 0.96       # below 1 means it slows down on its own\n" +
+        "TURN = 2          # degrees per press\n" +
+        "POWER = 0.1       # how hard the pedal pushes\n" +
+        "GRIP = 0.98       # below 1 means it slows down on its own\n" +
         "\n" +
         "while game.playing():\n" +
         '    if game.pressed("left"):  car.angle = car.angle - TURN\n' +
@@ -444,7 +444,7 @@
         "    if car.y < 0:   car.y = 360\n" +
         "    if car.y > 360: car.y = 0\n" +
         "\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: grow a garden",
@@ -513,7 +513,7 @@ def sell_pop(plant):
     # little one, growing a touch at the top of each hop.
     base_y = plant.y
     base_size = plant.size
-    for hop, frames in [(34, 6), (13, 4)]:
+    for hop, frames in [(34, 12), (13, 8)]:
         for step in range(frames):
             t = step / float(frames - 1) if frames > 1 else 0.0
             arc = 4 * t * (1 - t)             # 0 -> 1 -> 0, a smooth arc
@@ -521,7 +521,7 @@ def sell_pop(plant):
             plant.size = base_size + arc * hop * 0.4
             can.x = game.mouse_x()           # keep the cursor with the mouse:
             can.y = game.mouse_y() - 12       # this bounce runs its own frames
-            game.frame()
+            game.frame(60)
     plant.y = base_y
     plant.size = base_size
 
@@ -532,10 +532,10 @@ while game.playing():
     # Plots dry out slowly; a plant only grows while its plot is still wet.
     for plot in plots:
         if plot["wet"] > 0:
-            plot["wet"] = max(0.0, plot["wet"] - 0.5)
+            plot["wet"] = max(0.0, plot["wet"] - 0.25)
         plot["soil"].color = soil_color(plot["wet"])
         if plot["planted"] and plot["wet"] > 0 and plot["growth"] < 100:
-            plot["growth"] = min(100.0, plot["growth"] + 0.4)
+            plot["growth"] = min(100.0, plot["growth"] + 0.2)
             look(plot)
 
     # Drag a seed from the tray onto a plot (uses one seed).
@@ -605,7 +605,7 @@ while game.playing():
         if seed.at_mouse(): can.content = "🖐️"
         if shop.at_mouse(): can.content = "👉"
 
-    game.frame()`
+    game.frame(60)`
     },
     {
       title: "Game: asteroids",
@@ -663,8 +663,8 @@ def spawn_wave():
             if math.dist((x, y), (ship.x, ship.y)) > 120:
                 break
         r = game.sprite("asteroid", x, y, size=44)
-        r.vx = random.uniform(-1.6, 1.6)
-        r.vy = random.uniform(-1.6, 1.6)
+        r.vx = random.uniform(-0.8, 0.8)
+        r.vy = random.uniform(-0.8, 0.8)
         r.big = True
         rocks.append(r)
 
@@ -672,8 +672,8 @@ def split(rock):
     # A big rock breaks into two fast little ones.
     for i in range(2):
         s = game.sprite("asteroid", rock.x, rock.y, size=26)
-        s.vx = random.uniform(-2.4, 2.4)
-        s.vy = random.uniform(-2.4, 2.4)
+        s.vx = random.uniform(-1.2, 1.2)
+        s.vy = random.uniform(-1.2, 1.2)
         s.big = False
         rocks.append(s)
 
@@ -681,14 +681,14 @@ spawn_wave()
 
 while game.playing():
     # ---- steer and thrust ----
-    if game.pressed("left"):  heading = heading - 5
-    if game.pressed("right"): heading = heading + 5
+    if game.pressed("left"):  heading = heading - 2.5
+    if game.pressed("right"): heading = heading + 2.5
     a = heading * math.pi / 180
     if game.pressed("up"):
-        vx = vx + math.cos(a) * 0.25
-        vy = vy + math.sin(a) * 0.25
-    vx = vx * 0.985             # a whisper of drag so it stays flyable
-    vy = vy * 0.985
+        vx = vx + math.cos(a) * 0.0625
+        vy = vy + math.sin(a) * 0.0625
+    vx = vx * 0.9925           # a whisper of drag so it stays flyable
+    vy = vy * 0.9925
     ship.x = ship.x + vx
     ship.y = ship.y + vy
     # The rocket sprite points right at angle 0, so the heading IS the angle.
@@ -707,10 +707,10 @@ while game.playing():
         b = game.sprite("laser", ship.x + math.cos(a) * 22,
                         ship.y + math.sin(a) * 22, size=22)
         b.angle = heading          # the bolt points the way it flies
-        b.vx = math.cos(a) * 9 + vx
-        b.vy = math.sin(a) * 9 + vy
+        b.vx = math.cos(a) * 4.5 + vx
+        b.vy = math.sin(a) * 4.5 + vy
         bullets.append(b)
-        cooldown = 7
+        cooldown = 14
 
     for b in bullets[:]:
         b.x = b.x + b.vx
@@ -747,7 +747,7 @@ while game.playing():
     # ---- rocks hit the ship ----
     if safe > 0:
         safe = safe - 1
-        ship.visible = (safe % 10) < 6   # blink while invincible
+        ship.visible = (safe % 20) < 12   # blink while invincible
         if safe == 0:
             ship.visible = True
     else:
@@ -762,14 +762,14 @@ while game.playing():
                 ship.y = H // 2
                 vx = 0.0
                 vy = 0.0
-                safe = 90
+                safe = 180
                 break
 
     # ---- wave cleared? a bigger one arrives ----
     if len(rocks) == 0:
         spawn_wave()
 
-    game.frame()`
+    game.frame(60)`
     },
     {
       title: "Game: whack a mouse",
@@ -796,7 +796,7 @@ while game.playing():
         "while game.playing():\n" +
         "    timer = timer + 1\n" +
         "    # Time to scurry! The higher your score, the faster it moves.\n" +
-        "    if timer >= max(10, 30 - score):\n" +
+        "    if timer >= max(20, 60 - score * 2):\n" +
         "        hole = random.choice(holes)\n" +
         "        mole.x = hole.x\n" +
         "        mole.y = hole.y - 14\n" +
@@ -807,7 +807,7 @@ while game.playing():
         '        sign.content = "Whack the mouse!  Score: " + str(score)\n' +
         "        timer = 99        # whacked! it pops up somewhere else\n" +
         "\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: drag and drop",
@@ -849,7 +849,7 @@ while game.playing():
         "    if inside == len(animals):\n" +
         '        game.game_over("All the animals are safe!")\n' +
         "\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Game: 3D maze",
@@ -900,11 +900,11 @@ while game.playing():
         "    return MAP[int(y)][int(x)]\n" +
         "\n" +
         "while game.playing():\n" +
-        '    if game.pressed("left"):  pa = pa - 0.07\n' +
-        '    if game.pressed("right"): pa = pa + 0.07\n' +
+        '    if game.pressed("left"):  pa = pa - 0.035\n' +
+        '    if game.pressed("right"): pa = pa + 0.035\n' +
         "    step = 0\n" +
-        '    if game.pressed("up"):    step = 0.12\n' +
-        '    if game.pressed("down"):  step = -0.12\n' +
+        '    if game.pressed("up"):    step = 0.06\n' +
+        '    if game.pressed("down"):  step = -0.06\n' +
         "    if step != 0:\n" +
         "        nx = px + math.cos(pa) * step\n" +
         "        ny = py + math.sin(pa) * step\n" +
@@ -936,7 +936,7 @@ while game.playing():
         "        else:\n" +
         '            s.color = "#%02x%02x%02x" % (shade, shade // 3, shade // 4)\n' +
         "\n" +
-        "    game.frame()\n"
+        "    game.frame(60)\n"
     },
     {
       title: "Roll a dice",
