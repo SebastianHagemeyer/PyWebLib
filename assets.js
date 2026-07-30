@@ -208,6 +208,7 @@
   let resizing = null;  // { h, orig } while dragging a resize handle
 
   stage.addEventListener("pointerdown", function (e) {
+    if (e.button === 2) return;   // right-click opens the context menu, not drawing
     e.preventDefault();
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
     if (tool === "eyedrop") { sampleColorAt(toStage(e)); return; }   // pick, works on imports too
@@ -446,14 +447,106 @@
     snapshot(); shapes = []; selected = -1; editingId = null; importedSvg = null; pathPts = []; setPublishLabel(); render();
   });
 
+  // ---- copy / duplicate / paste + right-click menu ----------------------------
+  let clipboard = null;   // a deep-cloned shape, or null
+  let idBump = 0;
+  // Deep-clone a shape; for a raw piece, re-suffix its internal ids so its <defs>
+  // (clip/use targets) stay unique and self-contained after copying (otherwise two
+  // copies would share an id and the later one would resolve to the wrong def).
+  function cloneShape(s) {
+    const c = JSON.parse(JSON.stringify(s));
+    if (c.type === "raw" && typeof c.markup === "string") {
+      const suf = "_d" + (idBump++);
+      c.markup = c.markup.replace(/(\sid="|url\(#|(?:xlink:)?href="#)([\w.-]+)/g, function (m, pre, id) { return pre + id + suf; });
+    }
+    return c;
+  }
+  function useSelectTool() {
+    tool = "select";
+    document.querySelectorAll(".asset-tool").forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-tool") === "select"); });
+  }
+  function addShape(c) { shapes.push(c); selected = shapes.length - 1; useSelectTool(); render(); }
+  function duplicateSel() {
+    if (selected < 0 || !shapes[selected]) return;
+    snapshot();
+    const c = cloneShape(shapes[selected]);
+    moveShape(c, 3, 3);   // nudge so the copy is visibly offset
+    addShape(c);
+  }
+  function copySel() { if (selected >= 0 && shapes[selected]) clipboard = cloneShape(shapes[selected]); }
+  function pasteShape(atPoint) {
+    if (!clipboard) return;
+    snapshot();
+    const c = cloneShape(clipboard);   // re-clone each paste so repeats get fresh ids
+    if (atPoint) { const b = bbox(c); moveShape(c, atPoint.x - (b.x + b.w / 2), atPoint.y - (b.y + b.h / 2)); }
+    else moveShape(c, 3, 3);
+    addShape(c);
+  }
+  const dupBtn = document.getElementById("asset-dup");
+  if (dupBtn) dupBtn.addEventListener("click", duplicateSel);
+
+  function closeCtx() {
+    const m = document.getElementById("asset-ctx");
+    if (m) m.remove();
+    document.removeEventListener("pointerdown", ctxDocDown, true);
+    document.removeEventListener("keydown", ctxKey, true);
+    window.removeEventListener("blur", closeCtx);
+  }
+  function ctxDocDown(e) { const m = document.getElementById("asset-ctx"); if (m && !m.contains(e.target)) closeCtx(); }
+  function ctxKey(e) { if (e.key === "Escape") closeCtx(); }
+  function showCtx(clientX, clientY, atPoint) {
+    closeCtx();
+    const has = selected >= 0 && !!shapes[selected];
+    const items = [
+      { label: "Duplicate", on: has, run: duplicateSel },
+      { label: "Copy", on: has, run: copySel },
+      { label: "Paste here", on: !!clipboard, run: function () { pasteShape(atPoint); } },
+      { label: "Delete", on: has, run: deleteSel },
+      { sep: true },
+      { label: "Bring forward", on: has, run: function () { reorder(1); } },
+      { label: "Send back", on: has, run: function () { reorder(-1); } }
+    ];
+    const menu = document.createElement("div");
+    menu.className = "asset-ctx"; menu.id = "asset-ctx";
+    items.forEach(function (it) {
+      if (it.sep) { const hr = document.createElement("div"); hr.className = "asset-ctx-sep"; menu.appendChild(hr); return; }
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "asset-ctx-item"; b.textContent = it.label; b.disabled = !it.on;
+      b.addEventListener("click", function () { it.run(); closeCtx(); });
+      menu.appendChild(b);
+    });
+    document.body.appendChild(menu);
+    const r = menu.getBoundingClientRect();
+    menu.style.left = Math.max(4, Math.min(clientX, window.innerWidth - r.width - 6)) + "px";
+    menu.style.top = Math.max(4, Math.min(clientY, window.innerHeight - r.height - 6)) + "px";
+    document.addEventListener("pointerdown", ctxDocDown, true);
+    document.addEventListener("keydown", ctxKey, true);
+    window.addEventListener("blur", closeCtx);
+  }
+  stage.addEventListener("contextmenu", function (e) {
+    if (importedSvg) return;   // nothing to edit until it's broken into shapes
+    e.preventDefault();
+    const p = toStage(e);
+    for (let i = shapes.length - 1; i >= 0; i--) { if (hit(shapes[i], p.x, p.y)) { selected = i; useSelectTool(); render(); break; } }
+    showCtx(e.clientX, e.clientY, p);
+  });
+
   document.addEventListener("keydown", function (e) {
     if (/input|textarea/i.test((e.target && e.target.tagName) || "")) return;
     if (e.key === "Enter" && tool === "path") { e.preventDefault(); finishPath(); return; }
     if (e.key === "Escape" && pathPts.length) { e.preventDefault(); pathPts = []; render(); return; }
-    if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); }
-    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
-    else { const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path", i: "eyedrop" }[e.key.toLowerCase()];
-      if (k) { const btn = document.querySelector('[data-tool="' + k + '"]'); if (btn) btn.click(); } }
+    if (e.ctrlKey || e.metaKey) {
+      const k = e.key.toLowerCase();
+      if (k === "z") { e.preventDefault(); undo(); }
+      else if (k === "c") { e.preventDefault(); copySel(); }
+      else if (k === "x") { e.preventDefault(); copySel(); deleteSel(); }
+      else if (k === "v") { e.preventDefault(); pasteShape(null); }
+      else if (k === "d") { e.preventDefault(); duplicateSel(); }
+      return;
+    }
+    if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); return; }
+    const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path", i: "eyedrop" }[e.key.toLowerCase()];
+    if (k) { const btn = document.querySelector('[data-tool="' + k + '"]'); if (btn) btn.click(); }
   });
 
   // ---- publish + library ----

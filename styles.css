@@ -1165,6 +1165,20 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-msg { margin: 0; font-size: 0.84rem; overflow-wrap: anywhere; }
 .asset-msg.is-ok { color: #1f7a4a; }
 .asset-msg.is-err { color: #c0392b; }
+/* Right-click menu on the drawing canvas (copy / duplicate / paste). */
+.asset-ctx {
+  position: fixed; z-index: 1000; min-width: 156px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(15, 18, 38, 0.18); font-size: 0.88rem;
+}
+.asset-ctx-item {
+  display: block; width: 100%; text-align: left; padding: 7px 10px;
+  background: none; border: 0; border-radius: 5px; cursor: pointer;
+  font: inherit; color: var(--text);
+}
+.asset-ctx-item:hover:not(:disabled) { background: var(--bg); }
+.asset-ctx-item:disabled { color: var(--muted); opacity: 0.5; cursor: default; }
+.asset-ctx-sep { height: 1px; background: var(--border); margin: 4px 2px; }
 .asset-library { margin-top: 26px; }
 .asset-library h2 { margin: 18px 0 10px; }
 .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 12px; }
