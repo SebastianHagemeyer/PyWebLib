@@ -163,9 +163,9 @@
     },
     {
       title: "Game: bouncing ball (vs pygame)",
-      desc: "The classic pygame bouncing ball, but web-native and smooth. The real pygame version is commented above: in a browser it crawls at about 1 frame a second.",
+      desc: "The classic pygame bouncing ball, but web-native. The real pygame version is commented above; running it in a browser needs extra tooling like pygbag.",
       code:
-        "# --- The real pygame version (works, but about 1 fps in a browser). ---\n" +
+        "# --- The real pygame version (works, but needs pygbag to run in a browser). ---\n" +
         "# import pygame\n" +
         "#\n" +
         "# pygame.init()\n" +
