@@ -72,7 +72,7 @@ while game.playing():
     if game.pressed("down"):  chicken.y = chicken.y + 6
     game.frame()</pre>
           <p><button type="button" class="btn btn-primary" data-load="ex-first">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
-          <p class="callout"><strong>The golden rule of the loop:</strong> every game loop ends with <code>game.frame()</code>. Forget it and the loop spins invisibly forever without ever drawing. Press <strong>Stop</strong> (or <kbd>Ctrl</kbd>+<kbd>C</kbd> is not needed, just the Stop button) any time to end a game.</p>
+          <p class="callout"><strong>The golden rule of the loop:</strong> every game loop ends with <code>game.frame()</code>. Forget it and the loop spins invisibly forever without ever drawing. Press <strong>Stop</strong> (or <kbd>Ctrl</kbd>+<kbd>C</kbd> is not needed, just the Stop button) any time to end a game. Want it extra smooth? <code>game.frame(60)</code> runs at 60 frames a second (things move twice as fast then, so take smaller steps to keep the same speed).</p>
           <p class="callout"><strong>Chrome or Edge.</strong> The trick that keeps the game moving without freezing the tab needs those browsers, the same as <code>input()</code> and <code>time.sleep()</code> here. In other browsers the window shows a friendly message instead.</p>
         </section>
 
