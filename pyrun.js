@@ -933,8 +933,10 @@ del _pyrun_install_game
     const cv = c.canvas;
     const r = cv.getBoundingClientRect();
     if (!r.width || !r.height) return;
-    gameMouse.x = (e.clientX - r.left) * (cv.width / r.width);
-    gameMouse.y = (e.clientY - r.top) * (cv.height / r.height);
+    // Screen pixels to LOGICAL game units (not buffer pixels: the buffer is sized
+    // to the display, so only the logical size means anything to the game).
+    gameMouse.x = (e.clientX - r.left) * (gameLogicalW / r.width);
+    gameMouse.y = (e.clientY - r.top) * (gameLogicalH / r.height);
     gameMouse.inside = e.clientX >= r.left && e.clientX < r.right &&
                        e.clientY >= r.top && e.clientY < r.bottom;
     if (workerMem) {
@@ -971,23 +973,96 @@ del _pyrun_install_game
     if (c) return c.canvas;
     return document.getElementById("game-canvas");
   }
+  // ---- Crisp rendering ------------------------------------------------------
+  // The game's own resolution (game.window's width/height) is a COORDINATE
+  // SPACE, not a pixel count. The canvas's pixel buffer is sized to the real
+  // device pixels it occupies on screen, and the 2D context is scaled so Python
+  // still draws in logical units. Nothing is ever a small buffer stretched by
+  // CSS, so a fullscreen game is as sharp as the display allows: sprite art is
+  // SVG and the browser re-rasterizes it at whatever size we draw it, and text
+  // and shapes are resolution-independent too.
+  let gameLogicalW = 480, gameLogicalH = 360;   // matches the Python module's default W
+  const MAX_DPR = 3;                // past this the gain is invisible, the cost isn't
+  const MAX_BUFFER_PX = 5e6;        // ~5 MP ceiling so a 4K fullscreen still holds 60fps
+  let lastGameSceneJson = null;     // replayed after a resize (the buffer change clears it)
+  let fitRetries = 0;               // bounds the "panel not laid out yet" retry loop
+
+  // Map logical units onto the buffer. Re-applied every frame because assigning
+  // canvas.width/height resets the context state, transform included.
+  function applyGameTransform(ctx) {
+    const c = ctx || gameCtx();
+    if (!c || !c.canvas || !(gameLogicalW > 0) || !(gameLogicalH > 0)) return;
+    c.setTransform(c.canvas.width / gameLogicalW, 0, 0, c.canvas.height / gameLogicalH, 0, 0);
+  }
   function fitGameCanvas() {
     const cv = pwlGameCanvasEl();
     if (!cv) return;
+    const lw = gameLogicalW, lh = gameLogicalH;
+    if (!(lw > 0) || !(lh > 0)) return;
+
+    // 1. The CSS box. Ask for a size, then MEASURE what the layout actually gave
+    //    (`max-width:100%` may have shrunk it) and lock the height to that, so the
+    //    buffer below always matches what is really on screen.
+    let cssW, cssH;
     if (document.body.classList.contains("pwl-game-fs")) {
       const stage = cv.parentElement;
       if (!stage) return;
       const availW = stage.clientWidth || window.innerWidth;
       const availH = stage.clientHeight || window.innerHeight;
-      const scale = Math.min(availW / cv.width, availH / cv.height);
-      if (scale > 0 && isFinite(scale)) {
-        cv.style.width = Math.round(cv.width * scale) + "px";
-        cv.style.height = Math.round(cv.height * scale) + "px";
-      }
+      const fit = Math.min(availW / lw, availH / lh);
+      if (!(fit > 0) || !isFinite(fit)) return;
+      cssW = Math.round(lw * fit);
+      cssH = Math.round(lh * fit);
     } else {
-      cv.style.width = "";
-      cv.style.height = "";
+      // Natural size, letting the stylesheet shrink it on a narrow screen.
+      cv.style.width = lw + "px";
+      cv.style.height = "auto";
+      const r = cv.getBoundingClientRect();
+      cssW = Math.round(r.width);
+      // Panel still hidden (or mid-layout): measuring now would build a 1x1
+      // buffer, so leave the canvas alone and retry once the layout settles.
+      // Bounded, or a permanently hidden panel would spin every frame.
+      if (!(cssW >= 40)) {
+        if (fitRetries++ < 20) requestAnimationFrame(fitGameCanvas);
+        return;
+      }
+      fitRetries = 0;
+      cssH = Math.round(cssW * lh / lw);
     }
+    if (!(cssW > 0) || !(cssH > 0)) return;
+    cv.style.width = cssW + "px";
+    cv.style.height = cssH + "px";
+    // Trust the screen over the arithmetic: if the stylesheet still clamped the
+    // width (narrow panel, or a real-fullscreen exit that hasn't reflowed yet),
+    // take the measured width so the buffer can't drift from the display.
+    const shown = cv.getBoundingClientRect();
+    if (shown.width >= 40 && Math.abs(Math.round(shown.width) - cssW) > 1) {
+      cssW = Math.round(shown.width);
+      cssH = Math.round(cssW * lh / lw);
+      cv.style.width = cssW + "px";
+      cv.style.height = cssH + "px";
+    }
+
+    // 2. One buffer pixel per device pixel.
+    const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_DPR);
+    let bw = Math.max(1, Math.round(cssW * dpr));
+    let bh = Math.max(1, Math.round(cssH * dpr));
+    if (bw * bh > MAX_BUFFER_PX) {
+      const k = Math.sqrt(MAX_BUFFER_PX / (bw * bh));
+      bw = Math.max(1, Math.round(bw * k));
+      bh = Math.max(1, Math.round(bh * k));
+    }
+    if (cv.width !== bw || cv.height !== bh) {
+      cv.width = bw; cv.height = bh;    // this clears the canvas
+      applyGameTransform();
+      // A running game repaints next frame, but a finished/paused one would be
+      // left blank, so put the last frame back.
+      if (lastGameSceneJson != null && GAME_IO && GAME_IO.draw) {
+        try { GAME_IO.draw(lastGameSceneJson); } catch (e) {}
+      }
+      return;
+    }
+    applyGameTransform();
   }
   // The shared player's markup has no ✕ (the editor does), so add one to whatever
   // stage is going fullscreen. Without it there's no way out on a phone.
@@ -1035,6 +1110,10 @@ del _pyrun_install_game
     }
     fitGameCanvas();
     requestAnimationFrame(fitGameCanvas);
+    // Entering/leaving the real Fullscreen API is asynchronous, so the layout we
+    // measured above can still be the old one. Refit once it has settled.
+    setTimeout(fitGameCanvas, 120);
+    setTimeout(fitGameCanvas, 400);
   }
   window.addEventListener("resize", fitGameCanvas);
   window.addEventListener("orientationchange", function () { setTimeout(fitGameCanvas, 120); });
@@ -1042,7 +1121,10 @@ del _pyrun_install_game
     // Real fullscreen exited (Esc / system gesture): drop the CSS overlay too.
     if (!document.fullscreenElement && document.body.classList.contains("pwl-game-fs")) {
       setGameFullscreen(null, false);
+      return;
     }
+    // Otherwise the viewport just changed under us, so resize the buffer to match.
+    fitGameCanvas();
   });
   window.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && document.body.classList.contains("pwl-game-fs")) setGameFullscreen(null, false);
@@ -1285,10 +1367,18 @@ del _pyrun_install_game
       gameKeys = {};
       gamePlaying = true;
       gameMouse.down = false; gameMouse.clicks = 0;
+      // Back to the Python module's default window (_reset_all does the same to
+      // W), so a game that never calls game.window() can't inherit the last
+      // game's coordinate space.
+      gameLogicalW = 480; gameLogicalH = 360;
+      lastGameSceneJson = null;
+      fitRetries = 0;
       const c = gameCtx();
       if (c) {
         c.canvas.style.cursor = "";
-        c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+        fitGameCanvas();
+        applyGameTransform(c);
+        c.clearRect(0, 0, gameLogicalW, gameLogicalH);
       }
     },
     setup: function (w, h, bg) {
@@ -1297,11 +1387,14 @@ del _pyrun_install_game
       gameMouse.down = false; gameMouse.clicks = 0;
       const c = gameCtx();
       if (!c) return;
-      c.canvas.width = Number(w) || 480;
-      c.canvas.height = Number(h) || 360;
+      // The requested size is the game's coordinate space; fitGameCanvas turns it
+      // into a display-resolution pixel buffer.
+      gameLogicalW = Number(w) || 480;
+      gameLogicalH = Number(h) || 360;
+      lastGameSceneJson = null;
+      fitRetries = 0;
       c.canvas.style.background = String(bg || "#0b1020");
       c.canvas.style.cursor = "";
-      // If we are already fullscreen, refit to the new game resolution.
       fitGameCanvas();
     },
     setCursor: function (hidden) {
@@ -1328,19 +1421,24 @@ del _pyrun_install_game
       const c = gameCtx();
       if (!c) return;
       const cv = c.canvas;
+      // Draw in logical units: the buffer is display-sized, so this transform is
+      // what makes the same code crisp at any resolution.
+      applyGameTransform(c);
+      lastGameSceneJson = json;
       // Remember the last drawn frame so publish.js can save it as a preview
       // "scene" (real sprite positions + the window size), tagged with the code
       // that produced it. The size lets the previewer scale sprites correctly
-      // even when the game used a non-default window.
+      // even when the game used a non-default window. It must be the LOGICAL
+      // size, which is what the sprite coordinates are in.
       try {
         window.PWL = window.PWL || {};
-        scene.w = cv.width; scene.h = cv.height;
+        scene.w = gameLogicalW; scene.h = gameLogicalH;
         window.PWL.lastGameScene = scene;
         window.PWL.lastGameSceneCode = window.PWL.runningCode;
       } catch (e) {}
-      c.clearRect(0, 0, cv.width, cv.height);
+      c.clearRect(0, 0, gameLogicalW, gameLogicalH);
       c.fillStyle = scene.bg || "#0b1020";
-      c.fillRect(0, 0, cv.width, cv.height);
+      c.fillRect(0, 0, gameLogicalW, gameLogicalH);
       (scene.sprites || []).forEach(function (s) {
         // Angle (degrees) spins the sprite and scale_x / scale_y stretch or
         // mirror it, all about its own centre: move the canvas origin to the
@@ -1438,14 +1536,14 @@ del _pyrun_install_game
       }
       if (scene.banner) {
         c.fillStyle = "rgba(0,0,0,0.55)";
-        c.fillRect(0, 0, cv.width, cv.height);
+        c.fillRect(0, 0, gameLogicalW, gameLogicalH);
         c.fillStyle = "#ffffff";
         c.textAlign = "center";
         c.textBaseline = "middle";
         // Wrap the banner onto as many lines as it needs, and if a single word
         // is still too wide, shrink the text, so long messages never run off
         // the edges of the game window.
-        var maxW = cv.width - 40;
+        var maxW = gameLogicalW - 40;
         var size = 30;
         c.font = "bold " + size + "px system-ui, sans-serif";
         // Split on newlines first (so "\n" in a message is a real line break),
@@ -1475,9 +1573,9 @@ del _pyrun_install_game
           c.font = "bold " + size + "px system-ui, sans-serif";
         }
         var lineH = size * 1.25;
-        var startY = cv.height / 2 - (lines.length - 1) * lineH / 2;
+        var startY = gameLogicalH / 2 - (lines.length - 1) * lineH / 2;
         for (var k = 0; k < lines.length; k++) {
-          c.fillText(lines[k], cv.width / 2, startY + k * lineH);
+          c.fillText(lines[k], gameLogicalW / 2, startY + k * lineH);
         }
       }
     }
