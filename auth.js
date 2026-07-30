@@ -262,27 +262,28 @@
     markActive(dd);
   }
 
-  // Turn the "Docs" header link into a dropdown (Docs stays a link to the
-  // reference; the menu adds the guides).
-  function enhanceDocsNav(nav, root) {
-    let docsLink = null;
+  // Turn the "About" header link into a dropdown: the trigger goes to the About
+  // page, and the menu holds all the docs (the reference plus the guides).
+  function enhanceAboutNav(nav, root) {
+    let aboutLink = null;
     nav.querySelectorAll("a.header-link").forEach(function (a) {
-      if (a.textContent.trim() === "Docs") docsLink = a;
+      if (a.textContent.trim() === "About") aboutLink = a;
     });
-    if (!docsLink) return;
-    const wasActive = docsLink.classList.contains("active");
+    if (!aboutLink) return;
+    const wasActive = aboutLink.classList.contains("active");
     const dd = document.createElement("div");
     dd.className = "nav-dd";
     dd.innerHTML =
-      '<a class="header-link' + (wasActive ? " active" : "") + '" href="' + root + 'docs/">Docs' +
+      '<a class="header-link' + (wasActive ? " active" : "") + '" href="' + root + 'about/">About' +
         caret +
       "</a>" +
       '<div class="nav-dd-menu">' +
+        '<a href="' + root + 'docs/">Docs</a>' +
         '<a href="' + root + 'docs/guide/">Guide</a>' +
         '<a href="' + root + 'docs/turtle/">Turtle guide</a>' +
         '<a href="' + root + 'docs/game/">Game guide</a>' +
       "</div>";
-    docsLink.replaceWith(dd);
+    aboutLink.replaceWith(dd);
     markActive(dd);
   }
 
@@ -294,7 +295,7 @@
     const acct = document.querySelector("#pwl-account, .pwl-account");
     const root = (acct && acct.getAttribute("data-root")) || "";
     enhanceCommunityNav(nav, root);
-    enhanceDocsNav(nav, root);
+    enhanceAboutNav(nav, root);
   }
 
   async function init() {

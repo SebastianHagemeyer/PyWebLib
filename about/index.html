@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About | PyWebLib</title>
+  <meta name="description" content="PyWebLib is a free place to write real Python in your browser (games, turtle drawings and more) and share it. No install, nothing to download." />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    .about { max-width: 760px; }
+    .about h2 { margin: 1.7em 0 0.5em; font-size: 1.2rem; }
+    .about p, .about li { color: var(--text); line-height: 1.65; }
+    .about ul { margin: 0.4em 0 0.6em 1.2em; }
+    .about li { margin: 0.35em 0; }
+    .about a:not(.btn) { color: var(--primary); }
+    .about-cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 1.4em 0 0.4em; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../" class="logo">
+        <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="../">Playground</a>
+        <a class="header-link" href="../community/">Community</a>
+        <a class="header-link" href="/assets/">Assets</a>
+        <a class="header-link" href="../leaderboard/">Leaderboard</a>
+        <a class="header-link active" href="/about/">About</a>
+        <span id="pwl-account" class="pwl-account" data-root="../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">About</p>
+        <h1>About PyWebLib</h1>
+        <p class="lead">PyWebLib is a free place to write real Python in your browser and share it: games, turtle drawings, whatever you dream up. No install, nothing to download. Open a tab and code.</p>
+      </div>
+    </section>
+
+    <div class="container section about">
+      <h2>What it is</h2>
+      <p>Everything runs on <strong>real CPython</strong>, right in your browser. That means actual <code>print()</code>, <code>input()</code>, loops, functions and imports, not a toy imitation. On top of that, PyWebLib adds a few things that make it fun:</p>
+      <ul>
+        <li><strong>Games</strong> with <code>import game</code>: sprites, the keyboard and mouse, collisions, sound and a score, all on a smooth canvas.</li>
+        <li><strong>Turtle drawings</strong> with the classic <code>import turtle</code>.</li>
+        <li>Coloured output, a working <code>input()</code>, and an <strong>Asset studio</strong> for designing your own sprites.</li>
+        <li>A <strong>community</strong> to publish what you make, play everyone else's, upvote, comment and climb the leaderboards.</li>
+      </ul>
+
+      <h2>Why</h2>
+      <p>Getting started with Python usually means installing things, wrestling a terminal, and giving up before the fun part. PyWebLib skips all of that. It works on a school Chromebook, a library computer, or a phone. Just open the page and you are writing Python in seconds.</p>
+
+      <h2>How it works</h2>
+      <p>The Python engine is <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>, real CPython compiled to WebAssembly. Your code runs <strong>on your own device</strong>, in the browser tab, never on a server. The editor uses CodeJar with Prism highlighting, and the community side (accounts, sharing, comments) is powered by Supabase. Games and turtle keep animating smoothly without freezing the tab, a trick that works best in Chrome and Edge.</p>
+
+      <h2>Free and open source</h2>
+      <p>PyWebLib is a hobby project, free to use, and released under the MIT license. There are no ads and no tracking. See the <a href="/privacy/">Privacy Policy</a> for exactly what little is collected.</p>
+
+      <h2>Learn more</h2>
+      <p>New here? The docs walk you through everything, from your first loop to a full game.</p>
+      <div class="about-cta">
+        <a class="btn btn-primary" href="../">Open the Playground</a>
+        <a class="btn btn-ghost" href="/docs/">Docs</a>
+        <a class="btn btn-ghost" href="/docs/game/">Game guide</a>
+        <a class="btn btn-ghost" href="/docs/turtle/">Turtle guide</a>
+      </div>
+
+      <h2>Contact</h2>
+      <p>Questions, ideas or bugs: <a href="mailto:hello@qmarkapp.com">hello@qmarkapp.com</a></p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.
+        &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script src="../auth.js"></script>
+</body>
+</html>
