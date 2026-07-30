@@ -901,6 +901,7 @@ body.sandbox-maxed { overflow: hidden; }
 .cc-kind-python { background: #3b82f6; }
 .cc-kind-turtle { background: #22b45e; }
 .cc-kind-game { background: #a855f7; }
+.cc-kind-game3d { background: var(--primary); }   /* 3D wears the app's indigo */
 .cc-kind.cc-draft { background: #b45309; }   /* amber chip = private draft, only the author sees it */
 /* Draft cards read as clearly unpublished: warm tint + amber dashed frame, so a
    private draft never looks the same as a live, published card. */

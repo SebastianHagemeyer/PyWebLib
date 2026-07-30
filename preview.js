@@ -109,7 +109,10 @@
   }
 
   function detectKind(code) {
-    if (/(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code)) return "game";
+    // game3d first, and \b on the 2D test, because "import game" is a prefix of
+    // "import game3d".
+    if (/(^|\n)\s*(import\s+game3d|from\s+game3d\s+import)/.test(code)) return "game3d";
+    if (/(^|\n)\s*(import\s+game\b|from\s+game\s+import)/.test(code)) return "game";
     if (/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return "turtle";
     return "python";
   }
@@ -212,6 +215,54 @@
     ctx.font = "bold 14px system-ui, sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(kind === "turtle" ? "turtle drawing" : "Python program", CW / 2, CH / 2);
+  }
+
+  // A 3D program has no saved scene to replay (the renderer is WebGL, not an op
+  // list), so its card gets a themed placeholder instead of an empty black box:
+  // the app's indigo, a wireframe cube and a "3D" wordmark.
+  function draw3dPlaceholder(canvas) {
+    const ctx = canvas.getContext("2d");
+    const CW = canvas.width, CH = canvas.height;
+    const g = ctx.createLinearGradient(0, 0, CW, CH);
+    g.addColorStop(0, "#312e81");   // indigo-900
+    g.addColorStop(1, "#0f1226");   // the app's code background
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, CW, CH);
+
+    // Wireframe cube: a square, the same square pushed back, and the joins.
+    const s = Math.min(CW, CH) * 0.27;
+    const cx = CW / 2, cy = CH / 2 - CH * 0.03;
+    const d = s * 0.5;
+    const front = [[cx - s, cy - s], [cx + s, cy - s], [cx + s, cy + s], [cx - s, cy + s]];
+    const back = front.map(function (p) { return [p[0] + d, p[1] - d]; });
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(1.2, CW / 260);
+    ctx.strokeStyle = "rgba(129,140,248,0.45)";       // back edges, faded
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      ctx.moveTo(back[i][0], back[i][1]);
+      ctx.lineTo(back[(i + 1) % 4][0], back[(i + 1) % 4][1]);
+      ctx.moveTo(front[i][0], front[i][1]);
+      ctx.lineTo(back[i][0], back[i][1]);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = "#818cf8";                       // front face, indigo-400
+    ctx.lineWidth = Math.max(1.6, CW / 200);
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      ctx.moveTo(front[i][0], front[i][1]);
+      ctx.lineTo(front[(i + 1) % 4][0], front[(i + 1) % 4][1]);
+    }
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold " + Math.round(CH * 0.21) + "px system-ui, sans-serif";
+    ctx.fillText("3D", cx, cy);
+    ctx.fillStyle = "rgba(226,232,255,0.72)";
+    ctx.font = "bold " + Math.round(CH * 0.075) + "px system-ui, sans-serif";
+    ctx.fillText("3D program", CW / 2, CH - CH * 0.11);
   }
 
   // ---- Code thumbnail: the first lines of a program, syntax-highlighted onto
@@ -485,7 +536,9 @@
       } catch (e) {}
     }
     const kind = detectKind(code);
-    if (kind === "game") {
+    if (kind === "game3d") {
+      draw3dPlaceholder(canvas);
+    } else if (kind === "game") {
       const drew = drawGame(code, canvas);
       // A game we couldn't parse a scene from falls back to its code, not a
       // blank placeholder.
@@ -498,5 +551,5 @@
     return kind;
   }
 
-  PWL.preview = { renderInto: renderInto, renderScene: renderScene, renderTurtle: renderTurtle, drawCode: drawCode, detectKind: detectKind };
+  PWL.preview = { renderInto: renderInto, renderScene: renderScene, renderTurtle: renderTurtle, drawCode: drawCode, detectKind: detectKind, draw3dPlaceholder: draw3dPlaceholder };
 })();

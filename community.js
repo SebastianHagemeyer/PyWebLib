@@ -185,9 +185,9 @@
           '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
           (isDraft ? '<span class="cc-kind cc-draft" title="Only you can see this">Draft</span>' : "") +
           '<h3 class="cc-title"></h3>' +
-          '<button type="button" class="cc-play" data-act="play" title="' + (p.kind === "game" ? "Play" : "Run") + '">' +
+          '<button type="button" class="cc-play" data-act="play" title="' + (p.kind === "game" ? "Play" : p.kind === "game3d" ? "Open in the Playground" : "Run") + '">' +
             '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3l9 5-9 5z" fill="currentColor"/></svg> ' +
-            (p.kind === "game" ? "Play" : "Run") +
+            (p.kind === "game" ? "Play" : p.kind === "game3d" ? "Open" : "Run") +
           "</button>" +
         "</div>" +
         '<p class="cc-desc"></p>' +
@@ -209,9 +209,17 @@
         // Games deserve the full page: leaderboard, comments, big stage. Turtle
         // and plain-Python programs run inline in a quick popup.
         if (p.kind === "game") { window.location.href = "../game/?id=" + encodeURIComponent(p.id); return; }
+        // 3D needs the Playground's WebGL stage: neither the popup player nor the
+        // game page has one, so they would just show an empty box.
+        if (p.kind === "game3d") { openInPlayground(p); return; }
         countView(p, card);
         if (window.PWL.player) window.PWL.player.openModal({ code: p.code, kind: p.kind, title: p.title });
       });
+      // The thumbnail is a link to the game page, which has no 3D stage either.
+      if (p.kind === "game3d") {
+        const thumbLink = card.querySelector(".cc-thumb-wrap");
+        if (thumbLink) thumbLink.addEventListener("click", function (e) { e.preventDefault(); openInPlayground(p); });
+      }
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
       if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });
@@ -381,7 +389,10 @@
   }
 
   function detectKind(code) {
-    if (/(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code)) return "game";
+    // game3d first, and \b on the 2D test: "import game" is a prefix of
+    // "import game3d".
+    if (/(^|\n)\s*(import\s+game3d|from\s+game3d\s+import)/.test(code)) return "game3d";
+    if (/(^|\n)\s*(import\s+game\b|from\s+game\s+import)/.test(code)) return "game";
     if (/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return "turtle";
     return "python";
   }

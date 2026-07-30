@@ -162,8 +162,32 @@
         "    game.frame(60)\n"
     },
     {
+      title: "3D: your first 3D scene",
+      desc: "import game3d. A spinning cube on a green field. Change a number, hit Run, see what happens.",
+      cat: "3D",
+      code:
+        "import game3d\n" +
+        "\n" +
+        "# A 3D world: x is right, y is up, z is towards you.\n" +
+        'game3d.background("#8ec5f0")      # the sky\n' +
+        'game3d.ground(40, color="#3f8f4f")  # the floor\n' +
+        "\n" +
+        "# Make a cube, half its height above the ground so it sits on top.\n" +
+        'cube = game3d.box(0, 0.5, 0, color="#e2483d")\n' +
+        'ball = game3d.sphere(3, 1, -2, size=1.4, color="#f6c945")\n' +
+        "\n" +
+        "# Where the camera stands, and what it looks at.\n" +
+        "game3d.camera(0, 5, 10, look_at=(0, 0, 0))\n" +
+        "\n" +
+        "while True:\n" +
+        "    cube.spin(ry=2)      # turn 2 degrees around the up axis\n" +
+        "    ball.spin(rx=3)\n" +
+        "    game3d.frame(60)\n"
+    },
+    {
       title: "3D: collect the coins",
-      desc: "import game3d. Drive the red cube with the arrow keys and grab the gold spheres. Real 3D, same loop you already know.",
+      desc: "Drive the red cube with the arrow keys and grab the gold spheres. Real 3D, same game loop you already know.",
+      cat: "3D",
       code:
         "import game3d\n" +
         "\n" +
@@ -1489,7 +1513,7 @@ while game.playing():
   })();
 
   // The category order shown in the snippet dropdowns, and which one starts open.
-  const EXAMPLE_CATEGORIES = ["Basic", "Intermediate", "Coloured Text", "Turtle", "Basic Games", "Advanced Games"];
+  const EXAMPLE_CATEGORIES = ["Basic", "Intermediate", "Coloured Text", "Turtle", "Basic Games", "Advanced Games", "3D"];
   const EXAMPLE_OPEN = "Basic";
 
   // Work out which category a snippet belongs in. An explicit ex.cat wins;

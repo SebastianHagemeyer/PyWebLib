@@ -39,7 +39,11 @@
   const MAX_CODE_CHARS = 50000;
   function codeChars(s) { return Array.from(String(s)).length; }
   function detectKind(code) {
-    if (/(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code)) return "game";
+    // game3d first, and \b on the 2D test, because "import game" is a prefix of
+    // "import game3d". Getting this wrong would demand a 2D thumbnail a 3D
+    // program can never produce.
+    if (/(^|\n)\s*(import\s+game3d|from\s+game3d\s+import)/.test(code)) return "game3d";
+    if (/(^|\n)\s*(import\s+game\b|from\s+game\s+import)/.test(code)) return "game";
     if (/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return "turtle";
     return "python";
   }
