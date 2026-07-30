@@ -2107,6 +2107,10 @@ del _pyrun_install_game
 
     function enableHighlighting(CodeJar) {
       jar = CodeJar(editor, function (el) {
+        // Prism re-tokenises the WHOLE program on every keystroke; past ~30k chars
+        // that makes a big file grind while typing, so drop to fast (uncoloured)
+        // plain text instead of freezing.
+        if ((el.textContent || "").length > 30000) { el.textContent = el.textContent; return; }
         window.Prism.highlightElement(el);
       }, {
         tab: "    ",

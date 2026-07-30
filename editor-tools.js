@@ -402,6 +402,10 @@
     const seen = {};
     const re = /[A-Za-z_]\w*/g;
     let m;
+    // Track line/column incrementally as we scan (matches arrive in order), so
+    // this stays O(n) instead of a slice + split for every identifier - the old
+    // way went quadratic and ground to a halt on large programs.
+    let scanPos = 0, lineNo = 1, lineStart = 0;
     while ((m = re.exec(stripped))) {
       const name = m[0];
       const start = m.index;
@@ -413,10 +417,10 @@
       const after = code[start + name.length];
       if ((after === '"' || after === "'") && /^[frbuFRBU]{1,2}$/.test(name)) continue;
 
-      // Which line/column?
-      const before = stripped.slice(0, start);
-      const line = before.split("\n").length;      // 1-based
-      const col = start - (before.lastIndexOf("\n") + 1); // 0-based
+      // Which line/column? Advance the counter to this match (see note above).
+      while (scanPos < start) { if (stripped.charCodeAt(scanPos) === 10) { lineNo++; lineStart = scanPos + 1; } scanPos++; }
+      const line = lineNo;                 // 1-based
+      const col = start - lineStart;       // 0-based
       if (skipLine[line - 1]) continue;
 
       // Attribute access (foo.BAR): skip.
@@ -439,6 +443,10 @@
   // the line the caret is on (or the one just above a fresh blank line),
   // so kids aren't nagged about code they're mid-way through writing.
   const LINT_DELAY_MS = 1400;
+  const MAX_LINT_CHARS = 60000;   // above this, skip hints so a huge file never lags
+  const HINTS_KEY = "pwl-editor-hints";
+  function hintsOn() { try { return localStorage.getItem(HINTS_KEY) !== "off"; } catch (e) { return true; } }
+  const lintRefreshers = [];      // re-run / clear every editor when hints are toggled
 
   function attachLint(editor) {
     const host = editor.closest(".sandbox-editor") || editor.parentNode;
@@ -554,6 +562,8 @@
 
     function run() {
       timer = null;
+      // Off by choice, or too big to be worth it: say nothing.
+      if (!hintsOn() || (editor.textContent || "").length > MAX_LINT_CHARS) { clear(); return; }
       const at = caretLine();
 
       // Indentation problems come first: they stop the whole program running.
@@ -591,6 +601,25 @@
     editor.addEventListener("input", schedule);
     editor.addEventListener("keyup", schedule);
     editor.addEventListener("scroll", positionFlag);
+    lintRefreshers.push(function () { clear(); if (hintsOn()) schedule(); });
+  }
+
+  // A "Hints: on/off" button (in the editor toolbar) toggles the linter for good,
+  // persisted across sessions. Off clears any hint immediately.
+  function setupHintsToggle() {
+    const btns = document.querySelectorAll(".sandbox-hints");
+    function paint() {
+      const on = hintsOn();
+      btns.forEach(function (b) { b.textContent = "Hints: " + (on ? "on" : "off"); b.setAttribute("aria-pressed", on ? "true" : "false"); });
+    }
+    btns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        try { localStorage.setItem(HINTS_KEY, hintsOn() ? "off" : "on"); } catch (e) {}
+        paint();
+        lintRefreshers.forEach(function (fn) { fn(); });
+      });
+    });
+    paint();
   }
 
   function boot() {
@@ -599,6 +628,7 @@
       editor.addEventListener("keydown", onBackspaceKey);
       attachLint(editor);
     });
+    setupHintsToggle();
   }
 
   if (document.readyState === "loading") {
