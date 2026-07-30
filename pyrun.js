@@ -720,6 +720,39 @@ def _pyrun_install_game():
         # browser only allows audio after a click on the game.
         _io.sound(name)
 
+    _tone_ids = [0]
+
+    class _Tone:
+        # A sustained tone you can steer live. Created by game.tone() (below).
+        def __init__(self, freq=440, wave="sine", volume=0.15):
+            _tone_ids[0] += 1
+            self._id = _tone_ids[0]
+            self._on = True
+            _io.toneStart(self._id, float(freq), str(wave), float(volume))
+        def pitch(self, hz):
+            if self._on:
+                _io.tonePitch(self._id, float(hz))
+            return self
+        def volume(self, v):
+            if self._on:
+                _io.toneVolume(self._id, float(v))
+            return self
+        def stop(self):
+            if self._on:
+                self._on = False
+                _io.toneStop(self._id)
+
+    def tone(freq=440, wave="sine", volume=0.15):
+        # Start a sustained tone and get a handle to steer it live: engines,
+        # sirens, drones. Unlike game.sound() (a one-shot), it keeps playing until
+        # you .stop() it (or the game ends). Change it every frame:
+        #   eng = game.tone(60, "sawtooth", 0.12)   # idle hum
+        #   eng.pitch(55 + speed * 12)               # ramps with acceleration
+        #   eng.volume(0.1)
+        #   eng.stop()
+        # wave is "sine", "square", "sawtooth" or "triangle".
+        return _Tone(freq, wave, volume)
+
     def hide_cursor(hidden=True):
         # Hide the real mouse pointer while it is over the game window, so a
         # sprite can play the pointer instead (a watering can, a crosshair).
@@ -841,6 +874,7 @@ def _pyrun_install_game():
     mod.game_over = game_over
     mod.submit_score = submit_score
     mod.sound = sound
+    mod.tone = tone
     mod.debug = debug
     mod.fullscreen = fullscreen
     mod.preload = preload
@@ -1175,9 +1209,65 @@ del _pyrun_install_game
     try { fn(c, c.currentTime + 0.01); } catch (e) {}
   }
 
+  // ---- Held tones: a sustained oscillator you can re-pitch / re-volume live
+  // (engines, sirens, drones). Unlike game.sound()'s one-shots, these keep
+  // playing until stopped, and are all killed when the game resets or ends.
+  // The game picks each tone's id (a counter on the Python side), so starting
+  // and updating are plain fire-and-forget calls that also work from the worker.
+  const heldTones = {};   // id -> { osc, gain }
+  const TONE_WAVES = { sine: 1, square: 1, sawtooth: 1, triangle: 1 };
+  function startTone(id, freq, wave, vol) {
+    const c = gameAudio();
+    if (!c) return;
+    if (c.state === "suspended") { try { c.resume(); } catch (e) {} }
+    stopTone(id);   // replace any tone already using this id
+    try {
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = TONE_WAVES[wave] ? wave : "sine";
+      osc.frequency.setValueAtTime(Math.max(1, Number(freq) || 440), c.currentTime);
+      const v = Math.max(0, Math.min(1, vol == null ? 0.15 : Number(vol)));
+      g.gain.setValueAtTime(0.0001, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0001, v), c.currentTime + 0.03);
+      osc.connect(g); g.connect(c.destination);
+      osc.start();
+      heldTones[id] = { osc: osc, gain: g };
+    } catch (e) {}
+  }
+  function pitchTone(id, hz) {
+    const c = gameAudio(), t = heldTones[id];
+    if (!c || !t) return;
+    // setTargetAtTime glides smoothly, so per-frame updates don't click.
+    try { t.osc.frequency.setTargetAtTime(Math.max(1, Number(hz) || 1), c.currentTime, 0.03); } catch (e) {}
+  }
+  function volumeTone(id, v) {
+    const c = gameAudio(), t = heldTones[id];
+    if (!c || !t) return;
+    try { t.gain.gain.setTargetAtTime(Math.max(0, Math.min(1, Number(v) || 0)), c.currentTime, 0.03); } catch (e) {}
+  }
+  function stopTone(id) {
+    const t = heldTones[id];
+    if (!t) return;
+    delete heldTones[id];
+    const c = audioCtx;
+    try {
+      if (c) {
+        t.gain.gain.cancelScheduledValues(c.currentTime);
+        t.gain.gain.setTargetAtTime(0.0001, c.currentTime, 0.03);   // brief fade, no click
+        t.osc.stop(c.currentTime + 0.15);
+      } else { t.osc.stop(); }
+    } catch (e) {}
+  }
+  function stopAllTones() {
+    Object.keys(heldTones).forEach(function (id) { stopTone(id); });
+  }
+
   const GAME_IO = {
     jspiOk: function () { return jspiSupported(); },
     sound: function (which) { playGameSound(which); },
+    toneStart: function (id, freq, wave, vol) { startTone(id, freq, wave, vol); },
+    tonePitch: function (id, hz) { pitchTone(id, hz); },
+    toneVolume: function (id, v) { volumeTone(id, v); },
+    toneStop: function (id) { stopTone(id); },
     // Warm the asset cache from game.preload(). Accepts a JSON array string (how
     // Python and the worker send it) or a plain array. Runs on the main thread
     // for both runtimes, where the asset cache lives.
@@ -1191,6 +1281,7 @@ del _pyrun_install_game
     stop: function () { gamePlaying = false; },
     restart: function () { gameRestart = true; },
     reset: function () {
+      stopAllTones();   // a fresh run (or a restart) starts silent
       gameKeys = {};
       gamePlaying = true;
       gameMouse.down = false; gameMouse.clicks = 0;
@@ -1952,6 +2043,7 @@ del _pyrun_install_game
         // A game that ended or was stopped leaves fullscreen, so the page scrolls
         // again (a restart loop stays inside this run(), so it keeps fullscreen).
         try { setGameFullscreen(null, false); } catch (e) {}
+        try { stopAllTones(); } catch (e) {}   // silence any held engine/drone tone
         // Snapshot the finished turtle drawing for a community thumbnail.
         try { captureTurtleScene(runner); } catch (e) {}
         setRunMode("idle");
@@ -1980,6 +2072,7 @@ del _pyrun_install_game
       workerFinalize = function () {
         running = false; stopRequested = false;
         try { setGameFullscreen(null, false); } catch (e) {}
+        try { stopAllTones(); } catch (e) {}
         try { captureTurtleScene(runner); } catch (e) {}
         setRunMode("idle");
         if (opts.onRunEnd) opts.onRunEnd();
