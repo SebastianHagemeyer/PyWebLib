@@ -79,6 +79,16 @@ const GAME_IO = {
   draw: function (json) { post("g", "draw", [String(json)]); }
 };
 
+// 3D (import game3d). Only the rendering has to reach the main thread; the
+// blocking and the live input work exactly like the 2D game's.
+const GAME3D_IO = {
+  jspiOk: function () { return true; },   // run_sync is a passthrough here
+  nextFrame: function (seconds) { blockSleep(seconds * 1000); },
+  pressed: function (key) { return Atomics.load(mem.ctrl, self.PRProto.keyIndex(key)) === 1; },
+  reset: function () { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("d", "reset", []); },
+  draw: function (json) { post("d", "draw", [String(json)]); }
+};
+
 const SANDBOX_IO = {
   readLine: function (prompt) { return blockInput(prompt); },
   sleepMs: function (seconds) { blockSleep(seconds * 1000); },
@@ -90,7 +100,8 @@ const SANDBOX_IO = {
 const RESET_PY =
   "import sys\n" +
   "if 'turtle' in sys.modules: sys.modules['turtle']._reset_all()\n" +
-  "if 'game' in sys.modules: sys.modules['game']._reset_all()\n";
+  "if 'game' in sys.modules: sys.modules['game']._reset_all()\n" +
+  "if 'game3d' in sys.modules: sys.modules['game3d']._reset_all()\n";
 
 self.onmessage = async function (e) {
   const msg = e.data;
@@ -104,6 +115,7 @@ self.onmessage = async function (e) {
       pyodide.registerJsModule("_sandbox_io", SANDBOX_IO);
       pyodide.registerJsModule("_turtle_io", TURTLE_IO);
       pyodide.registerJsModule("_game_io", GAME_IO);
+      pyodide.registerJsModule("_game3d_io", GAME3D_IO);
       // The swap that removes the JSPI requirement: run_sync just returns its
       // argument, because the blocking already happened inside the _io call.
       pyodide.runPython("import pyodide.ffi as _f\n_f.run_sync = lambda x: x\n");

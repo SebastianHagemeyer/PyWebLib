@@ -2220,7 +2220,7 @@ del _pyrun_install_game3d
         workerReadyResolve = resolve;
         w.postMessage({
           type: "init", sab: workerMem.sab, interrupt: workerMem.interrupt,
-          installs: [PY_INSTALL_INPUT, PY_PATCH_SLEEP, PY_INSTALL_INTERRUPT, PY_INSTALL_CLEAR, PY_INSTALL_COLOR_PRINT, PY_INSTALL_TURTLE, PY_INSTALL_GAME]
+          installs: [PY_INSTALL_INPUT, PY_PATCH_SLEEP, PY_INSTALL_INTERRUPT, PY_INSTALL_CLEAR, PY_INSTALL_COLOR_PRINT, PY_INSTALL_TURTLE, PY_INSTALL_GAME, PY_INSTALL_GAME3D]
         });
         sharedWorker = w;
       } catch (e) { reject(e); }
@@ -2247,6 +2247,9 @@ del _pyrun_install_game3d
       else if (m.io === "g") {
         if (m.op === "reset") { GAME_IO.reset(); zeroInputState(); }
         else if (GAME_IO[m.op]) GAME_IO[m.op].apply(null, a);
+      } else if (m.io === "d") {          // 3D (import game3d)
+        if (m.op === "reset") { GAME3D_IO.reset(); zeroInputState(); }
+        else if (GAME3D_IO[m.op]) GAME3D_IO[m.op].apply(null, a);
       } else if (m.io === "s") {
         if (m.op === "stdout") appendToActive(a[0], "stdout");
         else if (m.op === "stderr") appendToActive(a[0], "stderr");
