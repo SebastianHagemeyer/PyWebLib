@@ -59,12 +59,16 @@
     const editing = (window.PWL && window.PWL.editing) || null;
     const owned = editing && editing.author_id === user.id;
     if (editing && owned) {
+      const isDraftEdit = editing.published === false;
       host.innerHTML =
-        '<div class="share-cta">' +
-          "<div><h2>Editing: " + esc(editing.title) + "</h2>" +
-          "<p>What you publish will update this program. Or share it as a brand new one.</p></div>" +
+        '<div class="share-cta' + (isDraftEdit ? " share-cta-draft" : "") + '">' +
+          "<div><h2>Editing" + (isDraftEdit ? " draft" : "") + ": " + esc(editing.title) + "</h2>" +
+          "<p>" + (isDraftEdit
+            ? "This is a private draft. Updating keeps it private, you can publish it from the next screen when you're ready."
+            : "What you publish will update this program. Or share it as a brand new one.") +
+          "</p></div>" +
           '<div class="share-cta-btns">' +
-            '<button type="button" class="btn btn-primary" id="pwl-update-btn">Update this program</button>' +
+            '<button type="button" class="btn btn-primary" id="pwl-update-btn">' + (isDraftEdit ? "Update draft" : "Update this program") + "</button>" +
             '<button type="button" class="btn btn-ghost" id="pwl-new-btn">Share as new</button>' +
           "</div>" +
         "</div>";
@@ -129,14 +133,18 @@
     // always publishing a fresh copy.
     let mine = [];
     if (user) {
-      const r = await sb.from("projects").select("id,title,description,scene")
+      let r = await sb.from("projects").select("id,title,description,scene,published")
         .eq("author_id", user.id).order("updated_at", { ascending: false });
+      if (r.error && /published/i.test(r.error.message || "")) {   // DB without the column yet
+        r = await sb.from("projects").select("id,title,description,scene")
+          .eq("author_id", user.id).order("updated_at", { ascending: false });
+      }
       if (!r.error && r.data) mine = r.data;
     }
     const targetField = mine.length
       ? '<label>Publish to<select name="target">' +
           '<option value="">A new program</option>' +
-          mine.map(function (m) { return '<option value="' + esc(m.id) + '">Update: ' + esc(m.title) + "</option>"; }).join("") +
+          mine.map(function (m) { return '<option value="' + esc(m.id) + '">Update: ' + esc(m.title) + (m.published === false ? " (draft)" : "") + "</option>"; }).join("") +
         "</select></label>"
       : "";
     const atCap = mine.length >= PROGRAM_CAP;
@@ -224,6 +232,15 @@
       const m = mine.filter(function (x) { return x.id === targetEl.value; })[0];
       return (m && m.scene) ? m.scene : null;
     }
+    // True when we're updating a program that is currently a private draft. In
+    // that case the safe action (keep it a draft) is the default/Enter action and
+    // "Publish" is a separate, deliberate button, so a draft can't be published by
+    // reflex the way "Update this program" used to.
+    function targetIsDraft() {
+      if (!targetEl || !targetEl.value) return false;
+      const m = mine.filter(function (x) { return x.id === targetEl.value; })[0];
+      return !!m && m.published === false;
+    }
     function needsThumbNow() {
       if (scene) return false;                       // captured one this run
       if (kind !== "turtle" && kind !== "game") return false;
@@ -240,29 +257,38 @@
       const isNew = !targetEl || !targetEl.value;
       const capBlocked = atCap && isNew;
       const needs = needsThumbNow();
+      const draftTarget = targetIsDraft();
       if (capNote) capNote.hidden = !capBlocked;
       // Hide the "run first / no thumbnail" prompts when the old one is kept.
       if (runfirstBox) runfirstBox.style.display = needs ? "" : "none";
       if (anywayBtn) anywayBtn.style.display = (needs && !allowNoScene) ? "" : "none";
       if (keepNote) keepNote.hidden = !(!scene && !!targetSceneJson());
-      submitBtn.disabled = capBlocked || (needs && !allowNoScene);
-      // A private draft doesn't need a thumbnail, so only the cap can block it.
-      if (draftBtn) draftBtn.disabled = capBlocked;
+      // Label the buttons by what they do. The submit button (also triggered by
+      // Enter) is the safe default: it PUBLISHES a new/public target, but only
+      // SAVES a draft target, so a draft can never be published by reflex.
+      if (draftTarget) {
+        submitBtn.textContent = "Save draft";
+        submitBtn.title = "Keep this a private draft";
+        if (draftBtn) { draftBtn.textContent = "Publish"; draftBtn.title = "Make this draft public"; draftBtn.classList.add("pwl-publish-alt"); }
+      } else {
+        submitBtn.textContent = isNew ? "Publish" : "Update program";
+        submitBtn.title = "";
+        if (draftBtn) { draftBtn.textContent = "Save as draft"; draftBtn.title = "Save to your account privately, without sharing it"; draftBtn.classList.remove("pwl-publish-alt"); }
+      }
+      // Only the button that publishes needs a thumbnail; saving a draft never does.
+      const publishBtn = draftTarget ? draftBtn : submitBtn;
+      const privateBtn = draftTarget ? submitBtn : draftBtn;
+      if (publishBtn) publishBtn.disabled = capBlocked || (needs && !allowNoScene);
+      if (privateBtn) privateBtn.disabled = capBlocked;
     }
     // Choosing an existing program fills in its title and description and turns
     // the button into an update; "A new program" resets to a fresh post.
     if (targetEl) {
       targetEl.addEventListener("change", function () {
         const m = mine.filter(function (x) { return x.id === targetEl.value; })[0];
-        if (m) {
-          titleEl.value = m.title || "";
-          descEl.value = m.description || "";
-          submitBtn.textContent = "Update program";
-        } else {
-          submitBtn.textContent = "Publish";
-        }
+        if (m) { titleEl.value = m.title || ""; descEl.value = m.description || ""; }
         renderPreview();
-        refreshSubmit();
+        refreshSubmit();   // relabels the buttons for this target (draft vs public)
       });
     }
     // Pre-target a program (from "Update this program" on the Playground).
@@ -273,10 +299,9 @@
     refreshSubmit();
     titleEl.focus();
 
-    function resetButtons(targetId) {
+    function resetButtons() {
       submitBtn.disabled = false; if (draftBtn) draftBtn.disabled = false;
-      submitBtn.textContent = targetId ? "Update program" : "Publish";
-      if (draftBtn) draftBtn.textContent = "Save as draft";
+      refreshSubmit();   // restores the right labels + gate-based disabled state
     }
 
     // makePublic true = Publish (goes to the community); false = Save as draft
@@ -295,7 +320,11 @@
             : trimScene(scene))
         : null;
       submitBtn.disabled = true; if (draftBtn) draftBtn.disabled = true;
-      (makePublic ? submitBtn : draftBtn).textContent = makePublic ? (targetId ? "Updating…" : "Publishing…") : "Saving…";
+      // The submit button carries the "publish for a public target / save for a
+      // draft" action; the other button is its opposite. Put the busy text on
+      // whichever one the user actually triggered.
+      const actingBtn = (makePublic !== targetIsDraft()) ? submitBtn : (draftBtn || submitBtn);
+      actingBtn.textContent = makePublic ? (targetId ? "Updating…" : "Publishing…") : "Saving…";
 
       // withPublished false is the pre-migration fallback (no `published` column).
       function run(withPublished) {
@@ -319,12 +348,12 @@
         // The database doesn't have the `published` column yet.
         if (makePublic) res = await run(false);   // publish the old way (everything is public)
         else {
-          resetButtons(targetId);
+          resetButtons();
           toast("Drafts need the latest supabase-schema.sql (a 'published' column). Run it, then try again.");
           return;
         }
       }
-      if (res.error) { resetButtons(targetId); toast("Couldn't save: " + res.error.message); return; }
+      if (res.error) { resetButtons(); toast("Couldn't save: " + res.error.message); return; }
       close();
       if (makePublic) {
         toast(targetId ? "Updated! Taking you to the community…" : "Shared! Taking you to the community…");
@@ -334,15 +363,22 @@
       }
     }
 
-    form.addEventListener("submit", function (e) { e.preventDefault(); doSave(true); });
-    if (draftBtn) draftBtn.addEventListener("click", function () { doSave(false); });
+    // Submit (primary button, and Enter in a field) publishes only when the target
+    // isn't a draft; for a draft it just saves, keeping it private. The secondary
+    // button always does the opposite, so publishing a draft is a deliberate click.
+    form.addEventListener("submit", function (e) { e.preventDefault(); doSave(!targetIsDraft()); });
+    if (draftBtn) draftBtn.addEventListener("click", function () { doSave(targetIsDraft()); });
   }
 
   async function loadMine() {
     const user = PWL.auth && PWL.auth.user();
     if (!user) { myPrograms = []; renderMine(); return; }
-    const r = await sb.from("projects").select("id,title,code,author_id")
+    let r = await sb.from("projects").select("id,title,code,author_id,published")
       .eq("author_id", user.id).order("updated_at", { ascending: false });
+    if (r.error && /published/i.test(r.error.message || "")) {   // DB without the column yet
+      r = await sb.from("projects").select("id,title,code,author_id")
+        .eq("author_id", user.id).order("updated_at", { ascending: false });
+    }
     myPrograms = (!r.error && r.data) ? r.data : [];
     renderMine();
   }
@@ -352,8 +388,8 @@
       '<div class="pwl-mine">' +
         '<span class="pwl-mine-title">Your programs</span>' +
         '<select id="pwl-mine-select" aria-label="Open one of your programs">' +
-          '<option value="">Open one of your published programs…</option>' +
-          myPrograms.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.title) + "</option>"; }).join("") +
+          '<option value="">Open one of your programs…</option>' +
+          myPrograms.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.title) + (p.published === false ? " (draft)" : "") + "</option>"; }).join("") +
         "</select>" +
       "</div>";
     const sel = document.getElementById("pwl-mine-select");
@@ -361,7 +397,7 @@
       const p = myPrograms.filter(function (x) { return x.id === sel.value; })[0];
       sel.value = "";
       if (p && window.PWL.loadProgram) {
-        window.PWL.loadProgram(p.code, { id: p.id, title: p.title, author_id: p.author_id });
+        window.PWL.loadProgram(p.code, { id: p.id, title: p.title, author_id: p.author_id, published: p.published });
       }
     });
   }

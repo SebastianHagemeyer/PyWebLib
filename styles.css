@@ -881,9 +881,17 @@ body.sandbox-maxed { overflow: hidden; }
 .cc-kind-turtle { background: #22b45e; }
 .cc-kind-game { background: #a855f7; }
 .cc-kind.cc-draft { background: #b45309; }   /* amber chip = private draft, only the author sees it */
-.community-card.is-draft { border-style: dashed; }
-.cc-btn.cc-publish { border-color: #a855f7; color: #a855f7; font-weight: 700; }
-.cc-btn.cc-publish:hover { background: #a855f7; color: #fff; }
+/* Draft cards read as clearly unpublished: warm tint + amber dashed frame, so a
+   private draft never looks the same as a live, published card. */
+.community-card.is-draft { border: 1.5px dashed #d9861f; background: #fff8ee; box-shadow: 0 1px 0 #f1ddbf, var(--shadow-sm); }
+.community-card.is-draft .cc-thumb { opacity: 0.92; }
+/* The go-public buttons (draft card + share dialog) share one deliberate look
+   that stands apart from the neutral "Save"/"Edit" buttons. */
+.cc-btn.cc-publish, .btn.pwl-publish-alt { border-color: #a855f7; color: #a855f7; font-weight: 700; }
+.cc-btn.cc-publish:hover, .btn.pwl-publish-alt:hover { background: #a855f7; color: #fff; }
+.cc-btn.cc-publish.armed { background: #a855f7; border-color: #a855f7; color: #fff; }
+/* Playground share panel while editing a draft: a subtle amber cue. */
+.share-cta.share-cta-draft { border-left: 3px solid #d9861f; padding-left: 15px; }
 .cc-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; flex-wrap: wrap; }
 .cc-vote { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 12px; cursor: pointer; font: inherit; font-weight: 700; color: var(--muted); }
 .cc-vote:hover { border-color: var(--primary); color: var(--primary); }

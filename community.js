@@ -215,7 +215,22 @@
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
       if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });
-      if (mine && isDraft) card.querySelector('[data-act="publish"]').addEventListener("click", function () { publishDraft(p); });
+      if (mine && isDraft) {
+        // Two-click, like delete: publishing is public and one-way, so a single
+        // stray click shouldn't do it.
+        const pubBtn = card.querySelector('[data-act="publish"]');
+        let armed = false, armTimer;
+        pubBtn.addEventListener("click", function () {
+          if (!armed) {
+            armed = true; pubBtn.textContent = "Click again to publish"; pubBtn.classList.add("armed");
+            clearTimeout(armTimer);
+            armTimer = setTimeout(function () { armed = false; pubBtn.textContent = "Publish"; pubBtn.classList.remove("armed"); }, 3500);
+            return;
+          }
+          clearTimeout(armTimer);
+          publishDraft(p);
+        });
+      }
       if (window.PWL.preview) { try { window.PWL.preview.renderInto(card.querySelector(".cc-thumb"), p.code, p.scene); } catch (e) {} }
       grid.appendChild(card);
     });
@@ -265,7 +280,7 @@
     try {
       localStorage.setItem("pyweblib-load", p.code);
       // Bind the editor to this program so a re-share updates it (if it's yours).
-      localStorage.setItem("pyweblib-bind", JSON.stringify({ id: p.id, title: p.title, author_id: p.author_id }));
+      localStorage.setItem("pyweblib-bind", JSON.stringify({ id: p.id, title: p.title, author_id: p.author_id, published: p.published }));
     } catch (e) {}
     // Community lives at /community/, the Playground one level up.
     window.location.href = "../";

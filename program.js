@@ -209,7 +209,7 @@
     view.querySelector("#pg-open").addEventListener("click", function () {
       try {
         localStorage.setItem("pyweblib-load", p.code);
-        localStorage.setItem("pyweblib-bind", JSON.stringify({ id: p.id, title: p.title, author_id: p.author_id }));
+        localStorage.setItem("pyweblib-bind", JSON.stringify({ id: p.id, title: p.title, author_id: p.author_id, published: p.published }));
       } catch (e) {}
       window.location.href = "../";
     });
