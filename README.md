@@ -15,14 +15,14 @@ Run real Python in your browser, with nothing to install. **PyWebLib** brings tu
 ## Games in the browser (`import game`)
 
 Sprites, the keyboard, the mouse, collisions and a score, all running smoothly on
-a canvas. No install, and none of the ~1 fps lag that real pygame suffers when
-it is squeezed into a browser. Full walkthrough and a sprite table are in the
-[game guide](https://pyweb.qmarkapp.com/docs/game/).
+a canvas. No install, and none of the extra build steps or tooling (like pygbag)
+that pygame needs before it runs in a browser at all. Full walkthrough and a
+sprite table are in the [game guide](https://pyweb.qmarkapp.com/docs/game/).
 
 <p>
   <img src="assets/game-chicken.gif" width="250" alt="Walk the chicken" />
   <img src="assets/game-eggs.gif" width="250" alt="Catch the falling eggs" />
-  <img src="assets/game-ball.gif" width="250" alt="A bouncing ball, smooth (pygame in a browser crawls at about 1 fps)" />
+  <img src="assets/game-ball.gif" width="250" alt="A bouncing ball, smooth (getting pygame into a browser takes extra steps and tooling like pygbag)" />
 </p>
 
 ## Turtle drawing (`import turtle`)
