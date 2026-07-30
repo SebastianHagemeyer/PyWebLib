@@ -342,7 +342,7 @@
         "GRAVITY = 0.1      # pulls the bird down every frame\n" +
         "FLAP = -3.25       # a tap of space gives this much lift (up is negative)\n" +
         "GAP = 130          # the gap the bird flies through\n" +
-        "SPEED = 1.1        # how fast the pipes slide left\n" +
+        "SPEED = 2.4        # how fast the pipes slide left\n" +
         "FLOOR = 330        # the top of the ground\n" +
         "\n" +
         'game.box(240, 348, 480, 36, "#ded895")   # the ground\n' +
@@ -711,6 +711,7 @@ while game.playing():
         b.vy = math.sin(a) * 4.5 + vy
         bullets.append(b)
         cooldown = 14
+        game.sound("laser")
 
     for b in bullets[:]:
         b.x = b.x + b.vx
@@ -742,6 +743,7 @@ while game.playing():
                 b.remove()
                 bullets.remove(b)
                 update_board()
+                game.sound("explosion")
                 break
 
     # ---- rocks hit the ship ----
@@ -754,6 +756,7 @@ while game.playing():
         for r in rocks:
             if ship.touches(r):
                 lives = lives - 1
+                game.sound("hit")
                 update_board()
                 if lives == 0:
                     game.submit_score(score)   # leaderboard, if you publish it!
@@ -1235,13 +1238,16 @@ for i in range(3):
 tip = game.label("Tap to flap", W // 2, H // 2 + 90, size=22,
                  color="#ffffff", background="#00000055")
 
+space_was = False                       # so HOLDING space is one flap, not a spam
 while game.playing():
-    if game.clicked() or game.pressed("space"):
+    space_now = game.pressed("space")
+    if game.clicked() or (space_now and not space_was):
         vy = FLAP
         if not started:
             started = True
             tip.hide()
         game.sound("jump")
+    space_was = space_now
 
     if started:
         vy += GRAVITY
@@ -1404,15 +1410,10 @@ while game.playing():
     }
     function refresh() { measureCap(); refreshOverflow(); onScroll(); }
 
+    // The expand pill now runs Maximise (same as the Maximise button). The old
+    // vertical grow shoved the whole page height around; maximise is cleaner.
     expandBtn.addEventListener("click", function () {
-      const on = !editorPanel.classList.contains("is-expanded");
-      editorPanel.classList.toggle("is-expanded", on);
-      shell.classList.toggle("editor-expanded", on);
-      expandBtn.setAttribute("aria-expanded", on ? "true" : "false");
-      const lbl = expandBtn.querySelector(".sandbox-expand-label");
-      if (lbl) lbl.textContent = on ? "Collapse" : "Expand";
-      if (!on) { editor.scrollTop = 0; editor.focus(); }
-      requestAnimationFrame(refreshOverflow);
+      setMaximised(!editorPanel.classList.contains("is-max"));
     });
     editor.addEventListener("scroll", onScroll);
     editor.addEventListener("input", refresh);
