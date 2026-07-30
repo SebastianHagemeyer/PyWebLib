@@ -347,7 +347,24 @@
     color = c;
     pushRecent(c);
     if (colorInput) colorInput.value = /^#[0-9a-f]{6}$/i.test(c) ? c : colorInput.value;
-    if (selected >= 0 && shapes[selected]) { snapshot(); shapes[selected].fill = c; render(); }
+    if (selected >= 0 && shapes[selected]) {
+      snapshot();
+      const s = shapes[selected];
+      if (s.type === "raw") recolorRaw(s, c);   // imported piece: colours live in its markup
+      else s.fill = c;
+      render();
+    }
+  }
+  // An imported (raw) piece keeps its colours inside its own markup, so a colour
+  // pick has to repaint every solid fill/stroke there. none/transparent and dropped
+  // gradients (url(...)) are left alone, so see-through parts stay see-through.
+  function recolorRaw(s, c) {
+    if (!s.markup) return;
+    s.markup = s.markup.replace(/\b(fill|stroke)\s*=\s*"([^"]*)"/gi, function (m, prop, val) {
+      const v = val.trim().toLowerCase();
+      if (!v || v === "none" || v === "transparent" || v.indexOf("url(") === 0) return m;
+      return prop + '="' + c + '"';
+    });
   }
   if (colorInput) colorInput.addEventListener("input", function () { setColor(colorInput.value); });
 
