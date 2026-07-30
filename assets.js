@@ -739,8 +739,10 @@
           const clone = el.cloneNode(true);
           clone.removeAttribute("transform");
           bakePaint(clone, el);
-          let markup = new XMLSerializer().serializeToString(clone);
-          if (/url\(#/.test(markup)) markup = inlineDefs(markup, root, i);   // carry clip/mask
+          // Carry any referenced defs into the piece: url(#) (clip/mask) AND
+          // href="#" (a <use>'s template). A plain <use href> has no url(), so this
+          // must run unconditionally or its target dangles and the piece vanishes.
+          let markup = inlineDefs(new XMLSerializer().serializeToString(clone), root, i);
           out.push({ type: "raw", markup: markup, m: [M.a, M.b, M.c, M.d, M.e, M.f], bx: bb.x, by: bb.y, bw: bb.width, bh: bb.height });
         }
       }
