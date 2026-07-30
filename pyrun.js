@@ -1591,9 +1591,50 @@ del _pyrun_install_game
     if (!active || !active.opts.turtle) return null;
     return active.spriteCtx;
   }
-  // Turtle coords (origin centre, y up) to canvas pixels.
-  function tx(c, x) { return c.canvas.width / 2 + x; }
-  function ty(c, y) { return c.canvas.height / 2 - y; }
+  // ---- Crisp turtle -------------------------------------------------------
+  // Same idea as the game: draw in logical units into a buffer sized to real
+  // device pixels. The difference is that a turtle drawing ACCUMULATES strokes,
+  // so resizing the buffer mid-drawing would erase it (and the op recorder is
+  // capped, so a replay could not always rebuild it). Instead the buffer is
+  // sized once per run, generously enough that any later layout change
+  // (maximising the editor, rotating a phone) only ever scales it DOWN, which
+  // stays sharp. The stage can never be wider than the viewport, so that bounds
+  // how big it ever needs to be.
+  const MAX_TURTLE_PX = 4e6;   // per canvas, so two stacked buffers stay reasonable
+  // The turtle's coordinate space: the canvas's ORIGINAL attribute size, kept on
+  // the element because the buffer no longer reports it.
+  function turtleLogical(cv) {
+    if (!cv.__pwlLogicalW) {
+      cv.__pwlLogicalW = cv.width || 560;
+      cv.__pwlLogicalH = cv.height || 380;
+    }
+    return { w: cv.__pwlLogicalW, h: cv.__pwlLogicalH };
+  }
+  function turtleScaleFor(lw, lh) {
+    const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_DPR);
+    const maxCssW = Math.max(lw, window.innerWidth || lw);
+    let k = (maxCssW / lw) * dpr;
+    const px = (lw * k) * (lh * k);
+    if (px > MAX_TURTLE_PX) k *= Math.sqrt(MAX_TURTLE_PX / px);
+    return Math.max(1, k);
+  }
+  // Size one turtle canvas for this run and scale its context. Returns the
+  // logical size to draw against.
+  function sizeTurtleCanvas(cv) {
+    if (!cv) return null;
+    const L = turtleLogical(cv);
+    const k = turtleScaleFor(L.w, L.h);
+    const bw = Math.max(1, Math.round(L.w * k));
+    const bh = Math.max(1, Math.round(L.h * k));
+    if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+    const ctx = cv.getContext("2d");
+    if (ctx) ctx.setTransform(bw / L.w, 0, 0, bh / L.h, 0, 0);
+    return L;
+  }
+
+  // Turtle coords (origin centre, y up) to canvas pixels (logical, pre-transform).
+  function tx(c, x) { return turtleLogical(c.canvas).w / 2 + x; }
+  function ty(c, y) { return turtleLogical(c.canvas).h / 2 - y; }
 
   // The turtle sprite: custom SVG art (top-down, facing right = heading 0),
   // rendered onto the overlay canvas via an Image. Same drawing as the
@@ -1685,13 +1726,15 @@ del _pyrun_install_game
     wipe: function () {
       const c = turtleCtx();
       if (!c) return;
-      c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      const L = turtleLogical(c.canvas);
+      c.clearRect(0, 0, L.w, L.h);
       if (active && active.turtleRec) active.turtleRec.ops = [];   // clear() wipes the recording too
     },
     sprite: function (x, y, heading, visible) {
       const c = spriteCtx();
       if (!c) return;
-      c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      const LS = turtleLogical(c.canvas);
+      c.clearRect(0, 0, LS.w, LS.h);
       if (!visible) return;
       c.save();
       c.translate(tx(c, x), ty(c, y));
@@ -1727,9 +1770,12 @@ del _pyrun_install_game
     // The turtle's background (from bgcolor()) or the default dark stage, so a
     // light-penned drawing still reads against it.
     const bg = (drawing.bg || runner.opts.turtle.canvas.style.background || "").trim() || "#0f1226";
+    // The LOGICAL size: the recorded ops are in turtle coordinates, which is what
+    // the thumbnail replayer scales against (not the device-sized buffer).
+    const L = turtleLogical(cv);
     window.PWL = window.PWL || {};
     window.PWL.lastTurtleScene = {
-      kind: "turtle", w: cv.width, h: cv.height, bg: bg, ops: drawing.ops.slice()
+      kind: "turtle", w: L.w, h: L.h, bg: bg, ops: drawing.ops.slice()
     };
     window.PWL.lastTurtleSceneCode = code;
   }
@@ -2079,10 +2125,14 @@ del _pyrun_install_game
       runner.turtleRec = { ops: [], bg: "" };   // fresh op recording for the thumbnail
       if (!runner.turtleCtx) return;
       const c = runner.turtleCtx;
-      c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      // Size this run's buffers up front, so nothing has to be resized (and
+      // erased) once the drawing is under way.
+      const L = sizeTurtleCanvas(c.canvas);
+      c.clearRect(0, 0, L.w, L.h);
       opts.turtle.canvas.style.background = "";
       if (runner.spriteCtx) {
-        runner.spriteCtx.clearRect(0, 0, runner.spriteCtx.canvas.width, runner.spriteCtx.canvas.height);
+        const LS = sizeTurtleCanvas(runner.spriteCtx.canvas);
+        runner.spriteCtx.clearRect(0, 0, LS.w, LS.h);
       }
     }
 
