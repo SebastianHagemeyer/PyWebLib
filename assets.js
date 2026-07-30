@@ -567,7 +567,7 @@
   // editable shape (a bonus); everything else is kept as a verbatim "raw" piece.
   const FLAT_MAX_SHAPES = 120;   // safety cap on total pieces
   const SKIP_TAGS = { defs: 1, style: 1, title: 1, desc: 1, metadata: 1, clippath: 1, mask: 1, symbol: 1, marker: 1, lineargradient: 1, radialgradient: 1, filter: 1, pattern: 1 };
-  const DRAW_TAGS = { path: 1, rect: 1, circle: 1, ellipse: 1, line: 1, polygon: 1, polyline: 1, text: 1 };
+  const DRAW_TAGS = { path: 1, rect: 1, circle: 1, ellipse: 1, line: 1, polygon: 1, polyline: 1, text: 1, use: 1 };
   const PAINT_PROPS = ["fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-dasharray", "fill-rule", "opacity", "fill-opacity", "stroke-opacity"];
   function matMul(m, n) {      // m * n, each { a,b,c,d,e,f }
     return {
@@ -630,15 +630,31 @@
   // ids so two pieces sharing a clip never cross-talk after one is moved.
   function inlineDefs(markup, root, uid) {
     const seen = {};
-    const rewritten = markup.replace(/url\(#([^)\s]+)\)/g, function (_, id) {
-      seen[id] = id + "__p" + uid; return "url(#" + seen[id] + ")";
-    });
-    let defs = "";
-    Object.keys(seen).forEach(function (id) {
-      const def = root.querySelector('[id="' + id.replace(/["\\]/g, "") + '"]');
-      if (def) { const c = def.cloneNode(true); c.setAttribute("id", seen[id]); defs += new XMLSerializer().serializeToString(c); }
-    });
-    return defs ? ("<defs>" + defs + "</defs>" + rewritten) : rewritten;
+    function suffix(id) { if (!(id in seen)) seen[id] = id + "__p" + uid; return seen[id]; }
+    // Rewrite BOTH paint refs (url(#id): clip/mask/fill) and template refs
+    // (href="#id": <use>) so nothing points at an id we didn't carry along.
+    function rewrite(str) {
+      return str
+        .replace(/url\(#([^)\s"']+)\)/g, function (_, id) { return "url(#" + suffix(id) + ")"; })
+        .replace(/((?:xlink:)?href)\s*=\s*"#([^"]+)"/g, function (_, attr, id) { return attr + '="#' + suffix(id) + '"'; });
+    }
+    const out = rewrite(markup);
+    // Inline every referenced def, then follow refs THOSE defs contain in turn
+    // (e.g. a <use> pointing at a <g>), each with a per-piece-unique id.
+    let defs = "", done = {}, pending = Object.keys(seen);
+    while (pending.length) {
+      pending.forEach(function (id) {
+        if (done[id]) return;
+        done[id] = true;
+        const def = root.querySelector('[id="' + id.replace(/["\\]/g, "") + '"]');
+        if (!def) return;
+        const c = def.cloneNode(true);
+        c.setAttribute("id", seen[id]);
+        defs += rewrite(new XMLSerializer().serializeToString(c));   // may register more ids
+      });
+      pending = Object.keys(seen).filter(function (id) { return !done[id]; });
+    }
+    return defs ? ("<defs>" + defs + "</defs>" + out) : out;
   }
   function flattenSvg(svgText) {
     const clean = sanitizeSvg(svgText);
