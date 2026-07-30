@@ -163,27 +163,27 @@
     },
     {
       title: "3D: collect the coins",
-      desc: "import space. Drive the red cube with the arrow keys and grab the gold spheres. Real 3D, same loop you already know.",
+      desc: "import game3d. Drive the red cube with the arrow keys and grab the gold spheres. Real 3D, same loop you already know.",
       code:
-        "import space\n" +
+        "import game3d\n" +
         "\n" +
-        "space.background(\"#8ec5f0\")\n" +
-        "space.ground(60, color=\"#3f8f4f\")\n" +
+        "game3d.background(\"#8ec5f0\")\n" +
+        "game3d.ground(60, color=\"#3f8f4f\")\n" +
         "\n" +
-        "player = space.box(0, 0.5, 0, color=\"#e2483d\")\n" +
-        "space.camera(follow=player, distance=11, height=7)\n" +
+        "player = game3d.box(0, 0.5, 0, color=\"#e2483d\")\n" +
+        "game3d.camera(follow=player, distance=11, height=7)\n" +
         "\n" +
         "# Scatter some coins to collect.\n" +
         "coins = []\n" +
         "for i in range(8):\n" +
-        "    coins.append(space.sphere(i * 5 - 17, 0.7, -6 - (i % 3) * 5, size=1.1))\n" +
+        "    coins.append(game3d.sphere(i * 5 - 17, 0.7, -6 - (i % 3) * 5, size=1.1))\n" +
         "\n" +
         "score = 0\n" +
         "while True:\n" +
-        '    if space.pressed("left"):  player.x = player.x - 0.25\n' +
-        '    if space.pressed("right"): player.x = player.x + 0.25\n' +
-        '    if space.pressed("up"):    player.z = player.z - 0.25\n' +
-        '    if space.pressed("down"):  player.z = player.z + 0.25\n' +
+        '    if game3d.pressed("left"):  player.x = player.x - 0.25\n' +
+        '    if game3d.pressed("right"): player.x = player.x + 0.25\n' +
+        '    if game3d.pressed("up"):    player.z = player.z - 0.25\n' +
+        '    if game3d.pressed("down"):  player.z = player.z + 0.25\n' +
         "    player.spin(ry=3)\n" +
         "\n" +
         "    for c in list(coins):\n" +
@@ -194,7 +194,7 @@
         "            score = score + 1\n" +
         '            print("Coins:", score)\n' +
         "\n" +
-        "    space.frame(60)\n"
+        "    game3d.frame(60)\n"
     },
     {
       title: "Game: bouncing ball (vs pygame)",
@@ -1327,10 +1327,11 @@ while game.playing():
     return /(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code || "");
   }
   function usesGame(code) {
-    return /(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code || "");
+    // \b so "import game3d" doesn't also open the 2D game window.
+    return /(^|\n)\s*(import\s+game\b|from\s+game\s+import)/.test(code || "");
   }
-  function usesSpace(code) {
-    return /(^|\n)\s*(import\s+space|from\s+space\s+import)/.test(code || "");
+  function usesGame3d(code) {
+    return /(^|\n)\s*(import\s+game3d|from\s+game3d\s+import)/.test(code || "");
   }
   function updatePanels(code) {
     const src = code == null ? runner.getCode() : code;
@@ -1338,8 +1339,8 @@ while game.playing():
     if (tp) tp.hidden = !usesTurtle(src);
     const gp = document.getElementById("game-panel");
     if (gp) gp.hidden = !usesGame(src);
-    const sp = document.getElementById("space-panel");
-    if (sp) sp.hidden = !usesSpace(src);
+    const sp = document.getElementById("game3d-panel");
+    if (sp) sp.hidden = !usesGame3d(src);
   }
 
   const runner = window.PyRun.create({
@@ -1371,8 +1372,8 @@ while game.playing():
     game: {
       canvas: document.getElementById("game-canvas")
     },
-    space: {
-      canvas: document.getElementById("space-canvas")
+    game3d: {
+      canvas: document.getElementById("game3d-canvas")
     }
   });
 

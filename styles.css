@@ -515,15 +515,15 @@ img { max-width: 100%; display: block; }
   pointer-events: none;
 }
 
-/* 3D window (import space). SPIKE. */
-.space-panel[hidden] { display: none; }
-.space-stage {
+/* 3D window (import game3d). SPIKE. */
+.game3d-panel[hidden] { display: none; }
+.game3d-stage {
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 8px;
 }
-.space-stage canvas {
+.game3d-stage canvas {
   display: block;
   max-width: 100%;
   height: auto;
@@ -534,7 +534,7 @@ img { max-width: 100%; display: block; }
   -webkit-user-select: none;
   user-select: none;
 }
-.space-stage canvas:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.55); }
+.game3d-stage canvas:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.55); }
 
 /* Game window (import game). */
 .game-hint {

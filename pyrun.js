@@ -886,16 +886,16 @@ _pyrun_install_game()
 del _pyrun_install_game
 `;
 
-  // ---- SPIKE: `import space`, a tiny 3D scene API ---------------------------
+  // ---- SPIKE: `import game3d`, a tiny 3D scene API ---------------------------
   // Deliberately the same shape as the game module: you make objects, mutate
   // their attributes, and call frame(). Python owns the objects and posts the
-  // whole scene as JSON each frame; the JS side (SPACE_IO) diffs that against a
+  // whole scene as JSON each frame; the JS side (GAME3D_IO) diffs that against a
   // pool of three.js meshes. Coordinates are the usual 3D ones: x right, y up,
   // z toward the camera, in "metres" rather than pixels.
-  const PY_INSTALL_SPACE = `
-def _pyrun_install_space():
+  const PY_INSTALL_GAME3D = `
+def _pyrun_install_game3d():
     import sys, json, types, math
-    import _space_io as _io
+    import _game3d_io as _io
     _jspi = bool(_io.jspiOk())
     if _jspi:
         from pyodide.ffi import run_sync
@@ -1013,7 +1013,7 @@ def _pyrun_install_space():
                     follow=None, dist=12.0, height=6.0)
         _io.reset()
 
-    mod = types.ModuleType("space")
+    mod = types.ModuleType("game3d")
     mod.box = box
     mod.sphere = sphere
     mod.cylinder = cylinder
@@ -1025,10 +1025,10 @@ def _pyrun_install_space():
     mod.tick = tick
     mod.Thing = Thing
     mod._reset_all = _reset_all
-    sys.modules["space"] = mod
+    sys.modules["game3d"] = mod
 
-_pyrun_install_space()
-del _pyrun_install_space
+_pyrun_install_game3d()
+del _pyrun_install_game3d
 `;
 
   // ---- JS side of the game: canvas drawing + keyboard, dispatched to active -
@@ -1053,14 +1053,14 @@ del _pyrun_install_space
   }
   const GAME_KEYS_TO_EAT = { left: 1, right: 1, up: 1, down: 1, space: 1 };
   window.addEventListener("keydown", function (e) {
-    if (!gameActive() && !spaceActive()) return;   // 3D programs read the same keys
+    if (!gameActive() && !game3dActive()) return;   // 3D programs read the same keys
     const n = gameKeyName(e);
     gameKeys[n] = true;
     if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.keyIndex(n), 1);
     if (GAME_KEYS_TO_EAT[n]) e.preventDefault();
   });
   window.addEventListener("keyup", function (e) {
-    if (!gameActive() && !spaceActive()) return;
+    if (!gameActive() && !game3dActive()) return;
     const n = gameKeyName(e);
     gameKeys[n] = false;
     if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.keyIndex(n), 0);
@@ -1726,7 +1726,7 @@ del _pyrun_install_space
     }
   };
 
-  // ---- SPIKE: JS side of `import space`, a thin bridge onto three.js -------
+  // ---- SPIKE: JS side of `import game3d`, a thin bridge onto three.js -------
   // Python posts the whole scene as JSON each frame (same retained-mode shape
   // the 2D game uses). Here we diff it against a pool of meshes keyed by the id
   // Python assigns, so nothing is rebuilt per frame and geometry/materials are
@@ -1734,16 +1734,16 @@ del _pyrun_install_space
   // for the download.
   const THREE_URL = "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
   let THREE = null, threeLoading = null, threeFailed = false;
-  let spaceRenderer = null, spaceScene = null, spaceCam = null, spaceSun = null;
-  let spaceMeshes = new Map();     // Python object id -> THREE.Mesh
-  const spaceGeoCache = {};        // kind -> shared unit geometry
-  const spaceMatCache = new Map(); // colour -> shared material
-  let lastSpaceScene = null;
+  let g3dRenderer = null, g3dScene = null, g3dCam = null, g3dSun = null;
+  let g3dMeshes = new Map();     // Python object id -> THREE.Mesh
+  const g3dGeoCache = {};        // kind -> shared unit geometry
+  const g3dMatCache = new Map(); // colour -> shared material
+  let lastG3dScene = null;
 
-  function spaceActive() { return running && active && active.opts.space; }
-  function spaceCanvasEl() {
-    if (active && active.opts.space && active.opts.space.canvas) return active.opts.space.canvas;
-    return document.getElementById("space-canvas");
+  function game3dActive() { return running && active && active.opts.game3d; }
+  function game3dCanvasEl() {
+    if (active && active.opts.game3d && active.opts.game3d.canvas) return active.opts.game3d.canvas;
+    return document.getElementById("game3d-canvas");
   }
   function ensureThree() {
     if (THREE) return Promise.resolve(THREE);
@@ -1753,48 +1753,48 @@ del _pyrun_install_space
     }
     return threeLoading;
   }
-  function spaceGeometry(kind) {
-    if (!spaceGeoCache[kind]) {
-      if (kind === "sphere") spaceGeoCache[kind] = new THREE.SphereGeometry(0.5, 32, 24);
-      else if (kind === "cylinder") spaceGeoCache[kind] = new THREE.CylinderGeometry(0.5, 0.5, 1, 28);
+  function g3dGeometry(kind) {
+    if (!g3dGeoCache[kind]) {
+      if (kind === "sphere") g3dGeoCache[kind] = new THREE.SphereGeometry(0.5, 32, 24);
+      else if (kind === "cylinder") g3dGeoCache[kind] = new THREE.CylinderGeometry(0.5, 0.5, 1, 28);
       else if (kind === "plane") {
         const g = new THREE.PlaneGeometry(1, 1);
         g.rotateX(-Math.PI / 2);      // lie flat, so y is up as Python expects
-        spaceGeoCache[kind] = g;
-      } else spaceGeoCache[kind] = new THREE.BoxGeometry(1, 1, 1);
+        g3dGeoCache[kind] = g;
+      } else g3dGeoCache[kind] = new THREE.BoxGeometry(1, 1, 1);
     }
-    return spaceGeoCache[kind];
+    return g3dGeoCache[kind];
   }
-  function spaceMaterial(color) {
+  function g3dMaterial(color) {
     const key = String(color || "#cdd6e4");
-    if (!spaceMatCache.has(key)) {
+    if (!g3dMatCache.has(key)) {
       let c;
       try { c = new THREE.Color(key); } catch (e) { c = new THREE.Color("#cdd6e4"); }
-      spaceMatCache.set(key, new THREE.MeshLambertMaterial({ color: c }));
+      g3dMatCache.set(key, new THREE.MeshLambertMaterial({ color: c }));
     }
-    return spaceMatCache.get(key);
+    return g3dMatCache.get(key);
   }
-  function ensureSpaceRenderer() {
-    const cv = spaceCanvasEl();
+  function ensureG3dRenderer() {
+    const cv = game3dCanvasEl();
     if (!cv || !THREE) return null;
-    if (spaceRenderer && spaceRenderer.domElement === cv) return spaceRenderer;
-    spaceRenderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
-    spaceRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_DPR));
-    spaceScene = new THREE.Scene();
-    spaceCam = new THREE.PerspectiveCamera(60, 4 / 3, 0.1, 4000);
+    if (g3dRenderer && g3dRenderer.domElement === cv) return g3dRenderer;
+    g3dRenderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+    g3dRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_DPR));
+    g3dScene = new THREE.Scene();
+    g3dCam = new THREE.PerspectiveCamera(60, 4 / 3, 0.1, 4000);
     // Friendly default lighting: soft sky/ground fill plus one sun.
-    spaceScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.1));
-    spaceSun = new THREE.DirectionalLight(0xffffff, 1.15);
-    spaceSun.position.set(8, 16, 10);
-    spaceScene.add(spaceSun);
-    spaceMeshes = new Map();
-    return spaceRenderer;
+    g3dScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.1));
+    g3dSun = new THREE.DirectionalLight(0xffffff, 1.15);
+    g3dSun.position.set(8, 16, 10);
+    g3dScene.add(g3dSun);
+    g3dMeshes = new Map();
+    return g3dRenderer;
   }
   // Same crispness rule as the 2D canvas: the drawing buffer matches the real
   // device pixels, three.js just does the arithmetic for us via setPixelRatio.
-  function fitSpaceCanvas() {
-    const cv = spaceCanvasEl();
-    if (!cv || !spaceRenderer) return;
+  function fitG3dCanvas() {
+    const cv = game3dCanvasEl();
+    if (!cv || !g3dRenderer) return;
     const lw = cv.__pwlLogicalW || 480, lh = cv.__pwlLogicalH || 360;
     const host = cv.parentElement;
     let avail = lw;
@@ -1808,82 +1808,82 @@ del _pyrun_install_space
     }
     const cssW = Math.max(40, Math.round(Math.min(lw, avail)));
     const cssH = Math.round(cssW * lh / lw);
-    const cur = spaceRenderer.getSize(new THREE.Vector2());
+    const cur = g3dRenderer.getSize(new THREE.Vector2());
     if (Math.round(cur.x) !== cssW || Math.round(cur.y) !== cssH) {
-      spaceRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_DPR));
-      spaceRenderer.setSize(cssW, cssH, true);   // true: also set the CSS size
-      spaceCam.aspect = cssW / cssH;
-      spaceCam.updateProjectionMatrix();
+      g3dRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_DPR));
+      g3dRenderer.setSize(cssW, cssH, true);   // true: also set the CSS size
+      g3dCam.aspect = cssW / cssH;
+      g3dCam.updateProjectionMatrix();
     }
   }
   function num(v, dflt) { const n = Number(v); return isFinite(n) ? n : dflt; }
   const D2R = Math.PI / 180;
-  function renderSpace(sc) {
-    if (!ensureSpaceRenderer()) return;
-    fitSpaceCanvas();
-    if (!spaceScene.background || spaceScene.__bg !== sc.bg) {
-      try { spaceScene.background = new THREE.Color(sc.bg || "#8ec5f0"); spaceScene.__bg = sc.bg; } catch (e) {}
+  function renderG3d(sc) {
+    if (!ensureG3dRenderer()) return;
+    fitG3dCanvas();
+    if (!g3dScene.background || g3dScene.__bg !== sc.bg) {
+      try { g3dScene.background = new THREE.Color(sc.bg || "#8ec5f0"); g3dScene.__bg = sc.bg; } catch (e) {}
     }
     const c = sc.cam || {};
-    spaceCam.position.set(num(c.x, 0), num(c.y, 6), num(c.z, 14));
-    spaceCam.lookAt(num(c.tx, 0), num(c.ty, 0), num(c.tz, 0));
+    g3dCam.position.set(num(c.x, 0), num(c.y, 6), num(c.z, 14));
+    g3dCam.lookAt(num(c.tx, 0), num(c.ty, 0), num(c.tz, 0));
     const fov = num(c.fov, 60);
-    if (spaceCam.fov !== fov) { spaceCam.fov = fov; spaceCam.updateProjectionMatrix(); }
+    if (g3dCam.fov !== fov) { g3dCam.fov = fov; g3dCam.updateProjectionMatrix(); }
 
     const seen = new Set();
     (sc.objs || []).forEach(function (o) {
       seen.add(o.i);
-      let m = spaceMeshes.get(o.i);
+      let m = g3dMeshes.get(o.i);
       if (!m || m.__kind !== o.k) {                 // new object, or it changed shape
-        if (m) spaceScene.remove(m);
-        m = new THREE.Mesh(spaceGeometry(o.k), spaceMaterial(o.c));
+        if (m) g3dScene.remove(m);
+        m = new THREE.Mesh(g3dGeometry(o.k), g3dMaterial(o.c));
         m.__kind = o.k; m.__color = o.c;
-        spaceScene.add(m);
-        spaceMeshes.set(o.i, m);
+        g3dScene.add(m);
+        g3dMeshes.set(o.i, m);
       }
-      if (m.__color !== o.c) { m.material = spaceMaterial(o.c); m.__color = o.c; }
+      if (m.__color !== o.c) { m.material = g3dMaterial(o.c); m.__color = o.c; }
       m.visible = o.vis !== false;
       m.position.set(num(o.x, 0), num(o.y, 0), num(o.z, 0));
       m.scale.set(num(o.w, 1) || 1, num(o.h, 1) || 1, num(o.d, 1) || 1);
       m.rotation.set(num(o.rx, 0) * D2R, num(o.ry, 0) * D2R, num(o.rz, 0) * D2R);
     });
     // Anything Python removed goes too.
-    spaceMeshes.forEach(function (m, id) {
-      if (!seen.has(id)) { spaceScene.remove(m); spaceMeshes.delete(id); }
+    g3dMeshes.forEach(function (m, id) {
+      if (!seen.has(id)) { g3dScene.remove(m); g3dMeshes.delete(id); }
     });
-    spaceRenderer.render(spaceScene, spaceCam);
+    g3dRenderer.render(g3dScene, g3dCam);
   }
-  function paintSpace(sc) {
-    if (THREE) { renderSpace(sc); return; }
+  function paintG3d(sc) {
+    if (THREE) { renderG3d(sc); return; }
     if (threeFailed) return;
     ensureThree().then(function () {
-      if (lastSpaceScene) renderSpace(lastSpaceScene);
+      if (lastG3dScene) renderG3d(lastG3dScene);
     }, function () {
       if (active && active.appendOut) {
         active.appendOut("Could not load the 3D library (three.js). Check your connection and run again.", "err");
       }
     });
   }
-  const SPACE_IO = {
+  const GAME3D_IO = {
     jspiOk: function () { return jspiSupported(); },
     nextFrame: function (seconds) { return interruptibleSleep(seconds); },
     pressed: function (key) { return Boolean(gameKeys[String(key).toLowerCase()]); },
     reset: function () {
-      lastSpaceScene = null;
-      if (spaceScene) {
-        spaceMeshes.forEach(function (m) { spaceScene.remove(m); });
-        spaceMeshes.clear();
+      lastG3dScene = null;
+      if (g3dScene) {
+        g3dMeshes.forEach(function (m) { g3dScene.remove(m); });
+        g3dMeshes.clear();
       }
       ensureThree().then(function () {}, function () {});   // warm it up early
     },
     draw: function (json) {
       let sc;
       try { sc = JSON.parse(json); } catch (e) { return; }
-      lastSpaceScene = sc;
-      paintSpace(sc);
+      lastG3dScene = sc;
+      paintG3d(sc);
     }
   };
-  window.addEventListener("resize", function () { if (lastSpaceScene && THREE && spaceRenderer) renderSpace(lastSpaceScene); });
+  window.addEventListener("resize", function () { if (lastG3dScene && THREE && g3dRenderer) renderG3d(lastG3dScene); });
 
   // ---- JS side of the turtle: canvas drawing, dispatched to `active` ------
 
@@ -2318,7 +2318,7 @@ del _pyrun_install_space
       py.registerJsModule("_sandbox_io", SANDBOX_IO);
       py.registerJsModule("_turtle_io", TURTLE_IO);
       py.registerJsModule("_game_io", GAME_IO);
-      py.registerJsModule("_space_io", SPACE_IO);
+      py.registerJsModule("_game3d_io", GAME3D_IO);
       const useJspi = jspiSupported();
       await py.runPythonAsync(useJspi ? PY_INSTALL_INPUT : PY_DISABLE_INPUT);
       if (useJspi) await py.runPythonAsync(PY_PATCH_SLEEP);
@@ -2327,7 +2327,7 @@ del _pyrun_install_space
       await py.runPythonAsync(PY_INSTALL_COLOR_PRINT);
       await py.runPythonAsync(PY_INSTALL_TURTLE);
       await py.runPythonAsync(PY_INSTALL_GAME);
-      await py.runPythonAsync(PY_INSTALL_SPACE);
+      await py.runPythonAsync(PY_INSTALL_GAME3D);
       appendToActive("Python ready. Running your code…", "info");
       pyodide = py;
       return py;
@@ -2367,10 +2367,10 @@ del _pyrun_install_space
     if (opts.game && opts.game.canvas) {
       runner.gameCtx = opts.game.canvas.getContext("2d");
     }
-    if (opts.space && opts.space.canvas) {
+    if (opts.game3d && opts.game3d.canvas) {
       // Remember the 3D stage's aspect: the WebGL buffer is device-sized, so the
       // attributes stop reporting it (same rule as the turtle canvases).
-      const sv = opts.space.canvas;
+      const sv = opts.game3d.canvas;
       if (!sv.__pwlLogicalW) { sv.__pwlLogicalW = sv.width || 480; sv.__pwlLogicalH = sv.height || 360; }
     }
 
@@ -2476,8 +2476,8 @@ del _pyrun_install_space
             "    sys.modules['turtle']._reset_all()\n" +
             "if 'game' in sys.modules:\n" +
             "    sys.modules['game']._reset_all()\n" +
-            "if 'space' in sys.modules:\n" +
-            "    sys.modules['space']._reset_all()\n"
+            "if 'game3d' in sys.modules:\n" +
+            "    sys.modules['game3d']._reset_all()\n"
           );
           resetTurtle();
           // Run in a FRESH namespace each time, so variables from a previous
