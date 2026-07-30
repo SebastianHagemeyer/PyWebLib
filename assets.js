@@ -210,6 +210,7 @@
   stage.addEventListener("pointerdown", function (e) {
     e.preventDefault();
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    if (tool === "eyedrop") { sampleColorAt(toStage(e)); return; }   // pick, works on imports too
     if (importedSvg) return;   // an imported SVG is published as-is, not edited
     const p = toStage(e);
     if (tool === "path") {
@@ -349,6 +350,36 @@
   }
   if (colorInput) colorInput.addEventListener("input", function () { setColor(colorInput.value); });
 
+  // Eyedropper: rasterise the current drawing and read the pixel under the click,
+  // so you can pull an exact colour out of the scene (great for matching imported art).
+  function sampleColorAt(p) {
+    const R = 300;
+    const img = new Image();
+    img.onload = function () {
+      try {
+        const cv = document.createElement("canvas"); cv.width = R; cv.height = R;
+        const c = cv.getContext("2d");
+        let dx = 0, dy = 0, dw = R, dh = R;
+        if (importedSvg && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          // Match the stage's letterbox (preserveAspectRatio meet into the 64 box).
+          const s = Math.min(R / img.naturalWidth, R / img.naturalHeight);
+          dw = img.naturalWidth * s; dh = img.naturalHeight * s;
+          dx = (R - dw) / 2; dy = (R - dh) / 2;
+        }
+        c.drawImage(img, dx, dy, dw, dh);
+        const px = Math.max(0, Math.min(R - 1, Math.round(p.x / 64 * R)));
+        const py = Math.max(0, Math.min(R - 1, Math.round(p.y / 64 * R)));
+        const d = c.getImageData(px, py, 1, 1).data;
+        if (d[3] < 8) { showMsg("That spot is empty. Aim at part of the drawing.", false); return; }
+        const hex = "#" + [d[0], d[1], d[2]].map(function (n) { return ("0" + n.toString(16)).slice(-2); }).join("");
+        setColor(hex);
+        showMsg("Picked " + hex, true);
+      } catch (err) { showMsg("Couldn't read a colour there.", false); }
+    };
+    img.onerror = function () { showMsg("Couldn't read a colour there.", false); };
+    img.src = dataUri(importedSvg || toSvg(shapes));
+  }
+
   // Import an SVG file: sanitised and published as-is (not turned into shapes).
   const importBtn = document.getElementById("asset-import-btn");
   const importInput = document.getElementById("asset-import");
@@ -421,7 +452,7 @@
     if (e.key === "Escape" && pathPts.length) { e.preventDefault(); pathPts = []; render(); return; }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
-    else { const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path" }[e.key.toLowerCase()];
+    else { const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path", i: "eyedrop" }[e.key.toLowerCase()];
       if (k) { const btn = document.querySelector('[data-tool="' + k + '"]'); if (btn) btn.click(); } }
   });
 
