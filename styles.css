@@ -515,6 +515,27 @@ img { max-width: 100%; display: block; }
   pointer-events: none;
 }
 
+/* 3D window (import space). SPIKE. */
+.space-panel[hidden] { display: none; }
+.space-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+}
+.space-stage canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #8ec5f0;
+  outline: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.space-stage canvas:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.55); }
+
 /* Game window (import game). */
 .game-hint {
   margin-left: auto;

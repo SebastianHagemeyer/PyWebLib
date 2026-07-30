@@ -162,6 +162,41 @@
         "    game.frame(60)\n"
     },
     {
+      title: "3D: collect the coins",
+      desc: "import space. Drive the red cube with the arrow keys and grab the gold spheres. Real 3D, same loop you already know.",
+      code:
+        "import space\n" +
+        "\n" +
+        "space.background(\"#8ec5f0\")\n" +
+        "space.ground(60, color=\"#3f8f4f\")\n" +
+        "\n" +
+        "player = space.box(0, 0.5, 0, color=\"#e2483d\")\n" +
+        "space.camera(follow=player, distance=11, height=7)\n" +
+        "\n" +
+        "# Scatter some coins to collect.\n" +
+        "coins = []\n" +
+        "for i in range(8):\n" +
+        "    coins.append(space.sphere(i * 5 - 17, 0.7, -6 - (i % 3) * 5, size=1.1))\n" +
+        "\n" +
+        "score = 0\n" +
+        "while True:\n" +
+        '    if space.pressed("left"):  player.x = player.x - 0.25\n' +
+        '    if space.pressed("right"): player.x = player.x + 0.25\n' +
+        '    if space.pressed("up"):    player.z = player.z - 0.25\n' +
+        '    if space.pressed("down"):  player.z = player.z + 0.25\n' +
+        "    player.spin(ry=3)\n" +
+        "\n" +
+        "    for c in list(coins):\n" +
+        "        c.spin(ry=2)\n" +
+        "        if player.touches(c):\n" +
+        "            c.remove()\n" +
+        "            coins.remove(c)\n" +
+        "            score = score + 1\n" +
+        '            print("Coins:", score)\n' +
+        "\n" +
+        "    space.frame(60)\n"
+    },
+    {
       title: "Game: bouncing ball (vs pygame)",
       desc: "The classic pygame bouncing ball, but web-native. The real pygame version is commented above; running it in a browser needs extra tooling like pygbag.",
       code:
@@ -1294,12 +1329,17 @@ while game.playing():
   function usesGame(code) {
     return /(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code || "");
   }
+  function usesSpace(code) {
+    return /(^|\n)\s*(import\s+space|from\s+space\s+import)/.test(code || "");
+  }
   function updatePanels(code) {
     const src = code == null ? runner.getCode() : code;
     const tp = document.getElementById("turtle-panel");
     if (tp) tp.hidden = !usesTurtle(src);
     const gp = document.getElementById("game-panel");
     if (gp) gp.hidden = !usesGame(src);
+    const sp = document.getElementById("space-panel");
+    if (sp) sp.hidden = !usesSpace(src);
   }
 
   const runner = window.PyRun.create({
@@ -1330,6 +1370,9 @@ while game.playing():
     },
     game: {
       canvas: document.getElementById("game-canvas")
+    },
+    space: {
+      canvas: document.getElementById("space-canvas")
     }
   });
 
