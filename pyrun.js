@@ -2105,12 +2105,15 @@ del _pyrun_install_game
     function runDispatch() { return useWorker ? runWorker() : run(); }
     function stopDispatch() { return useWorker ? stopWorker() : stop(); }
 
+    // Prism wraps every token in a <span>, so a big program becomes thousands of
+    // DOM nodes; re-tokenising the whole thing on each change (and the browser
+    // mutating that many nodes on a big paste or Ctrl+A-delete) is what stalls.
+    // Past this size we keep the editor as one plain-text node: no colour, but
+    // instant to type in, paste into and clear.
+    const HIGHLIGHT_LIMIT = 20000;
     function enableHighlighting(CodeJar) {
       jar = CodeJar(editor, function (el) {
-        // Prism re-tokenises the WHOLE program on every keystroke; past ~30k chars
-        // that makes a big file grind while typing, so drop to fast (uncoloured)
-        // plain text instead of freezing.
-        if ((el.textContent || "").length > 30000) { el.textContent = el.textContent; return; }
+        if ((el.textContent || "").length > HIGHLIGHT_LIMIT) { el.textContent = el.textContent; return; }
         window.Prism.highlightElement(el);
       }, {
         tab: "    ",
