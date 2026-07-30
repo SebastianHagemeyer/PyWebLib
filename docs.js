@@ -285,6 +285,31 @@
         { sig: 'sprite.hitbox', desc: "The collision box size as (width, height). Defaults to roughly fit the art (car wide, egg tall); set your own for a tighter fit, or None for automatic.", ex: 'car.hitbox = (46, 26)\ncar.hitbox = None   # back to auto' },
         { sig: 'sprite.remove()', desc: "Delete a sprite for good (once it is collected or destroyed). Keep many in a list and loop over a copy to remove them safely.", ex: 'for egg in eggs[:]:\n    if car.touches(egg):\n        egg.remove()\n        eggs.remove(egg)' },
       ]
+    },
+    {
+      name: "game3d library", id: "game3d",
+      blurb: 'Start with "import game3d" for games in real 3D: shapes in space, a camera you can move, and the same game loop you already know. It is new and deliberately small, so expect shapes and colours rather than models and textures. Coordinates are x right, y up, z towards you, measured in steps rather than pixels, so a box of size 1 is one step wide. Keyboard only for now, so it suits a computer rather than a phone. Try the 3D snippets on the Playground.',
+      items: [
+        { sig: 'game3d.background(color)', desc: "The colour behind everything: your sky.", ex: 'import game3d\ngame3d.background("#8ec5f0")' },
+        { sig: 'game3d.ground(size=60, y=0, color)', desc: "A big flat floor to stand things on, centred on (0, 0). Nothing stops you walking off the edge, so make it big enough or keep your player inside it yourself.", ex: 'game3d.ground(40, color="#3f8f4f")' },
+        { sig: 'game3d.box(x, y, z, size=1, color)', desc: "A cube at a point in space. y is how high off the ground it sits, so a size 1 box wants y=0.5 to rest on the floor. Use width, height and depth instead of size to make it a slab or a post.", ex: 'cube = game3d.box(0, 0.5, 0, color="#e2483d")\nwall = game3d.box(0, 1, -5, width=8, height=2, depth=0.4)' },
+        { sig: 'game3d.sphere(x, y, z, size=1, color)', desc: "A ball. size is its width, so it rests on the floor at y = size / 2.", ex: 'ball = game3d.sphere(3, 0.7, -2, size=1.4, color="#f6c945")' },
+        { sig: 'game3d.cylinder(x, y, z, size=1, color)', desc: "A round post or barrel, standing up. Make it a tall pillar with height, or a thin disc.", ex: 'post = game3d.cylinder(-2, 1, 0, size=0.6, height=2)' },
+        { sig: 'game3d.camera(x, y, z, look_at=(x, y, z))', desc: "Where you are watching from, and the point you are looking at. Higher y looks down on the scene; bigger z stands further back. fov=80 gives a wider view.", ex: 'game3d.camera(0, 5, 10, look_at=(0, 0, 0))' },
+        { sig: 'game3d.camera(follow=thing, distance, height)', desc: "Chase a thing instead: the camera sits behind and above it and keeps looking at it, so it follows your player around. Change distance and height to sit closer or higher.", ex: 'game3d.camera(follow=player, distance=11, height=7)' },
+        { sig: 'game3d.pressed(key)', desc: 'True while a key is held, exactly like the 2D game: "left", "right", "up", "down", "space", or a letter.', ex: 'if game3d.pressed("left"):\n    player.x = player.x - 0.25' },
+        { sig: 'game3d.frame(fps=60)', desc: "Draw one frame and wait. Put it at the end of your loop, the same as game.frame().", ex: 'while True:\n    player.spin(ry=2)\n    game3d.frame(60)' },
+        { sig: 'thing.x / thing.y / thing.z', desc: "Where a thing is. Change these to move it: x right, y up, z towards the camera (so smaller z is further away).", ex: 'player.z = player.z - 0.25   # walk away from the camera' },
+        { sig: 'thing.rx / thing.ry / thing.rz', desc: "How far a thing is turned around each axis, in degrees. ry is the usual one: spinning on the spot.", ex: 'cube.ry = 45' },
+        { sig: 'thing.spin(rx=0, ry=0, rz=0)', desc: "Turn by this much more, every frame, without doing the addition yourself.", ex: 'coin.spin(ry=3)   # slowly rotates' },
+        { sig: 'thing.move(dx=0, dy=0, dz=0)', desc: "Shift a thing by an amount, instead of setting x, y and z one at a time.", ex: 'player.move(dx=0.2, dz=-0.1)' },
+        { sig: 'thing.color', desc: "The colour of a thing. Change it whenever you like.", ex: 'if hurt:\n    player.color = "#ffffff"' },
+        { sig: 'thing.visible', desc: "Set it to False to hide a thing without deleting it, and True to bring it back.", ex: 'ghost.visible = False' },
+        { sig: 'a.touches(b)', desc: "True when two things overlap, checked as boxes around them. Good enough for collecting coins and bumping into walls.", ex: 'if player.touches(coin):\n    coin.remove()' },
+        { sig: 'a.distance_to(b)', desc: "How far apart two things are, in steps. Handy for a proximity check, or for deciding what is closest.", ex: 'if player.distance_to(enemy) < 3:\n    game3d.background("#803030")' },
+        { sig: 'thing.remove()', desc: "Delete a thing for good. Keep them in a list and loop over a copy to remove them safely, exactly like 2D sprites.", ex: 'for c in coins[:]:\n    if player.touches(c):\n        c.remove()\n        coins.remove(c)' },
+        { sig: 'game3d.tick()', desc: "How many frames have been drawn so far. Useful for timing things without a counter of your own.", ex: 'if game3d.tick() % 60 == 0:\n    print("another second")' },
+      ]
     }
   ];
 
