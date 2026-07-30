@@ -9,6 +9,7 @@
   const PWL = window.PWL || {};
   const sb = PWL.supabase;
   const grid = document.getElementById("community-grid");
+  const pager = document.getElementById("cc-pager");
   const notice = document.getElementById("community-notice");
   const toolbar = document.getElementById("community-toolbar");
   if (!grid) return;
@@ -23,6 +24,9 @@
   const params = new URLSearchParams(location.search);
   const mineOnly = params.get("mine") === "1";
   let sort = "top";
+  const PAGE_SIZE = 6;
+  let page = 0;          // 0-based current page
+  let totalCount = 0;    // total projects matching the current filter
   let projects = [];
   let votedSet = new Set();
   let currentUserId = null;
@@ -99,24 +103,35 @@
         "created_at,updated_at,author_id,profiles!author_id(display_name,avatar_url),comments(count)";
     }
     function build(withViews, withPub) {
-      let q = sb.from("projects").select(cols(withViews, withPub));
+      let q = sb.from("projects").select(cols(withViews, withPub), { count: "exact" });
       if (mineOnly && user) q = q.eq("author_id", user.id);      // your own, drafts included
       else if (withPub) q = q.eq("published", true);             // public feed: published only
-      q = sort === "new"
-        ? q.order("created_at", { ascending: false })
-        : q.order("vote_count", { ascending: false }).order("created_at", { ascending: false });
-      return q.limit(100);
+      if (sort === "new") {
+        q = q.order("created_at", { ascending: false });
+      } else {
+        // Top: most upvotes first; ties broken by most views, then newest.
+        q = q.order("vote_count", { ascending: false });
+        if (withViews) q = q.order("view_count", { ascending: false });
+        q = q.order("created_at", { ascending: false });
+      }
+      const from = page * PAGE_SIZE;
+      return q.range(from, from + PAGE_SIZE - 1);
     }
     // Ask for view_count and published, but tolerate a database that hasn't added
     // them yet (schema not re-run): fall back so the gallery still loads.
     let res = await build(true, pubSupported);
     if (res.error && /published/i.test(res.error.message || "")) { pubSupported = false; res = await build(true, false); }
     if (res.error && /view_count/i.test(res.error.message || "")) res = await build(false, pubSupported);
-    const { data, error } = res;
+    const { data, error, count } = res;
     if (error) {
       grid.innerHTML = '<p class="community-empty">Could not load programs: ' + esc(error.message) + "</p>";
+      if (pager) pager.hidden = true;
       return;
     }
+    totalCount = (typeof count === "number") ? count : (data ? data.length : 0);
+    // Paged past the end (e.g. after a delete)? Step back to the last page and refetch.
+    const lastPage = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
+    if (page > lastPage) { page = lastPage; return refresh(); }
     projects = data || [];
 
     votedSet = new Set();
@@ -125,6 +140,25 @@
       votedSet = new Set((res.data || []).map(function (r) { return r.project_id; }));
     }
     renderGrid();
+    renderPager();
+  }
+
+  function renderPager() {
+    if (!pager) return;
+    const pages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    if (pages <= 1) { pager.hidden = true; pager.innerHTML = ""; return; }
+    pager.hidden = false;
+    pager.innerHTML =
+      '<button type="button" class="cc-page-btn" data-page="prev"' + (page <= 0 ? " disabled" : "") + ">‹ Prev</button>" +
+      '<span class="cc-page-info">Page ' + (page + 1) + " of " + pages + "  ·  " + totalCount + " project" + (totalCount === 1 ? "" : "s") + "</span>" +
+      '<button type="button" class="cc-page-btn" data-page="next"' + (page >= pages - 1 ? " disabled" : "") + ">Next ›</button>";
+    function go(delta) {
+      page = Math.min(pages - 1, Math.max(0, page + delta));
+      refresh();
+      if (grid && grid.scrollIntoView) grid.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    pager.querySelector('[data-page="prev"]').addEventListener("click", function () { go(-1); });
+    pager.querySelector('[data-page="next"]').addEventListener("click", function () { go(1); });
   }
 
   function renderGrid() {
@@ -408,6 +442,7 @@
       document.querySelectorAll(".community-tab").forEach(function (t) { t.classList.remove("active"); });
       tab.classList.add("active");
       sort = tab.getAttribute("data-sort") || "top";
+      page = 0;
       refresh();
     });
   });

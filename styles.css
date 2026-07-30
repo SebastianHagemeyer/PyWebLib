@@ -862,6 +862,12 @@ body.sandbox-maxed { overflow: hidden; }
 .community-notice { background: #fff3cd; color: #6b5200; border: 1px solid #e6d9a8; border-radius: var(--radius); padding: 14px 16px; }
 .community-empty { color: var(--muted); padding: 24px 2px; }
 .community-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+/* Community pager: Prev / page count / Next */
+.cc-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 24px 0 4px; flex-wrap: wrap; }
+.cc-page-btn { padding: 8px 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.cc-page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.cc-page-btn:disabled { opacity: 0.45; cursor: default; }
+.cc-page-info { font-size: 0.9rem; color: var(--muted); }
 .community-card { display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 16px 18px; }
 .cc-head { display: flex; align-items: center; gap: 10px; }
 .cc-title { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
