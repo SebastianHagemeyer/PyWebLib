@@ -66,7 +66,7 @@ create table if not exists public.projects (
   author_id   uuid not null references public.profiles(id) on delete cascade,
   title       text not null check (char_length(title) between 1 and 80),
   description text check (char_length(description) <= 280),
-  code        text not null check (char_length(code) <= 20000),
+  code        text not null check (char_length(code) <= 50000),
   kind        text not null default 'python',   -- python | turtle | game
   vote_count  integer not null default 0,
   published   boolean not null default true,     -- false = a private draft (author only)

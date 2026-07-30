@@ -34,6 +34,10 @@
     clearTimeout(t._timer); t._timer = setTimeout(function () { t.classList.remove("show"); }, 3400);
   }
   function currentCode() { return (PWL.getCode ? PWL.getCode() : "") || ""; }
+  // Must match the projects.code CHECK in supabase-schema.sql. Count code points
+  // (Array.from), the way Postgres char_length does, so emoji aren't over-counted.
+  const MAX_CODE_CHARS = 50000;
+  function codeChars(s) { return Array.from(String(s)).length; }
   function detectKind(code) {
     if (/(^|\n)\s*(import\s+game|from\s+game\s+import)/.test(code)) return "game";
     if (/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return "turtle";
@@ -102,6 +106,11 @@
   async function openShareModal(preselectId) {
     const code = currentCode();
     if (!code.trim()) { toast("Write some code first, then share it."); return; }
+    const nChars = codeChars(code);
+    if (nChars > MAX_CODE_CHARS) {
+      toast("Your program is too long to save (" + nChars.toLocaleString() + " characters, the limit is " + MAX_CODE_CHARS.toLocaleString() + "). Trim it a bit and try again.");
+      return;
+    }
     // Force-stop a still-running program the moment we start the upload flow.
     // This ends the run so a turtle's drawing is captured and a game freezes on
     // its last frame (both become the thumbnail), and it releases the game's
