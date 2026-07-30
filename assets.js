@@ -20,6 +20,7 @@
 
   const stage = document.getElementById("asset-stage");
   const colorInput = document.getElementById("asset-color");
+  const lineWidthInput = document.getElementById("asset-line-width");
   const swatchWrap = document.getElementById("asset-swatches");
   const recentWrap = document.getElementById("asset-recent");
   const recentRow = document.getElementById("asset-recent-row");
@@ -38,6 +39,7 @@
   let selected = -1;      // index of the selected shape, or -1
   let tool = "select";
   let color = "#4f46e5";
+  let lineWidth = 4;      // thickness for the line tool + the selected line
   const history = [];     // JSON snapshots for undo
   let editingId = null;   // the asset id we're updating, or null for a new one
   let pathPts = [];        // vertices of the path currently being drawn
@@ -171,6 +173,10 @@
   // ---- render the canvas + previews ----
   function currentSvg() { return importedSvg || toSvg(); }
   function render() {
+    // Keep the slider in step with the selected line (and adopt its width for new lines).
+    if (lineWidthInput && selected >= 0 && shapes[selected] && shapes[selected].type === "line") {
+      lineWidth = shapes[selected].width; lineWidthInput.value = lineWidth;
+    }
     if (importedSvg) {
       stage.innerHTML = '<image href="' + esc(dataUri(importedSvg)) + '" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid meet"/>';
     } else {
@@ -231,7 +237,7 @@
     }
     snapshot();
     const s = { type: tool, fill: color };
-    if (tool === "line") { s.x1 = p.x; s.y1 = p.y; s.x2 = p.x; s.y2 = p.y; s.width = 4; }
+    if (tool === "line") { s.x1 = p.x; s.y1 = p.y; s.x2 = p.x; s.y2 = p.y; s.width = lineWidth; }
     else if (tool === "circle") { s.cx = p.x; s.cy = p.y; s.r = 0; }
     else if (tool === "ellipse") { s.cx = p.x; s.cy = p.y; s.rx = 0; s.ry = 0; }
     else { s.x = p.x; s.y = p.y; s.w = 0; s.h = 0; }
@@ -367,6 +373,14 @@
     });
   }
   if (colorInput) colorInput.addEventListener("input", function () { setColor(colorInput.value); });
+  if (lineWidthInput) {
+    // Snapshot once when the drag starts, then live-update, so undo is one step.
+    lineWidthInput.addEventListener("pointerdown", function () { if (selected >= 0 && shapes[selected] && shapes[selected].type === "line") snapshot(); });
+    lineWidthInput.addEventListener("input", function () {
+      lineWidth = parseFloat(lineWidthInput.value) || lineWidth;
+      if (selected >= 0 && shapes[selected] && shapes[selected].type === "line") { shapes[selected].width = lineWidth; render(); }
+    });
+  }
 
   // Eyedropper: rasterise the current drawing and read the pixel under the click,
   // so you can pull an exact colour out of the scene (great for matching imported art).

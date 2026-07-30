@@ -1145,6 +1145,8 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-swatch { width: 100%; aspect-ratio: 1; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.18); cursor: pointer; padding: 0; }
 .asset-custom-color { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--muted); }
 .asset-custom-color input { width: 42px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
+.asset-line-width { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--muted); }
+.asset-line-width input { flex: 1; min-width: 88px; cursor: pointer; }
 .asset-edit-actions .btn { padding: 6px 10px; font-size: 0.82rem; }
 .asset-stage-wrap { display: flex; justify-content: center; }
 .asset-stage {
