@@ -14,6 +14,7 @@ importScripts(PYODIDE_URL + "pyodide.js", "./pyrun-proto.js");
 
 let pyodide = null;
 let mem = null;                 // { ctrl, str, interruptView, ... } from PRProto.attach
+const assetRatios = {};         // asset id -> width/height, pushed from the main thread
 const CTRL = self.PRProto.CTRL;
 const dec = new TextDecoder();
 
@@ -69,6 +70,14 @@ const GAME_IO = {
   toneVolume: function (id, v) { post("g", "toneVolume", [id, v]); },
   toneStop: function (id) { post("g", "toneStop", [id]); },
   preloadAssets: function (ids) { post("g", "preloadAssets", [String(ids)]); },
+  // The art lives on the main thread, so it pushes each asset's shape over as it
+  // loads (see the "assetRatio" message). 1 until then: a square box, which is
+  // what this did before, and it corrects itself once the art arrives.
+  assetRatio: function (id) {
+    if (id == null || id === "") return 1;
+    post("g", "preloadAssets", [JSON.stringify([id])]);   // make sure it is being fetched
+    return assetRatios[String(id)] || 1;
+  },
   pressed: function (key) { return Atomics.load(mem.ctrl, self.PRProto.keyIndex(key)) === 1; },
   mouseX: function () { return Atomics.load(mem.ctrl, CTRL.MX); },
   mouseY: function () { return Atomics.load(mem.ctrl, CTRL.MY); },
@@ -106,6 +115,7 @@ const RESET_PY =
 self.onmessage = async function (e) {
   const msg = e.data;
   try {
+    if (msg.type === "assetRatio") { assetRatios[String(msg.id)] = Number(msg.ratio) || 1; return; }
     if (msg.type === "init") {
       mem = self.PRProto.attach(msg.sab, msg.interrupt);
       pyodide = await loadPyodide({ indexURL: PYODIDE_URL });

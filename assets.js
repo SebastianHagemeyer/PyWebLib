@@ -191,6 +191,63 @@
   }
   function dataUri(svg) { return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); }
 
+  // ---- framing ---------------------------------------------------------------
+  // The tight box around the actual drawing, in the SVG's own viewBox units.
+  // Rasterised and alpha-scanned rather than measured from the markup, so
+  // strokes, curves and imported art are all judged by what you can SEE.
+  function inkBox(svgText) {
+    return new Promise(function (resolve) {
+      const m = /viewBox\s*=\s*["']([^"']+)["']/.exec(svgText);
+      const v = m ? m[1].trim().split(/[\s,]+/).map(parseFloat) : [0, 0, 64, 64];
+      if (v.length !== 4 || !(v[2] > 0) || !(v[3] > 0)) { resolve(null); return; }
+      const R = 256;
+      const img = new Image();
+      img.onload = function () {
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = R; cv.height = R;
+          const c = cv.getContext("2d", { willReadFrequently: true });
+          c.clearRect(0, 0, R, R);
+          c.drawImage(img, 0, 0, R, R);
+          const d = c.getImageData(0, 0, R, R).data;
+          let x0 = R, y0 = R, x1 = -1, y1 = -1;
+          for (let y = 0; y < R; y++) {
+            for (let x = 0; x < R; x++) {
+              if (d[(y * R + x) * 4 + 3] > 8) {
+                if (x < x0) x0 = x;
+                if (x > x1) x1 = x;
+                if (y < y0) y0 = y;
+                if (y > y1) y1 = y;
+              }
+            }
+          }
+          if (x1 < x0 || y1 < y0) { resolve(null); return; }   // nothing drawn
+          const sx = v[2] / R, sy = v[3] / R;
+          resolve({ x: v[0] + x0 * sx, y: v[1] + y0 * sy,
+                    w: (x1 - x0 + 1) * sx, h: (y1 - y0 + 1) * sy });
+        } catch (e) { resolve(null); }
+      };
+      img.onerror = function () { resolve(null); };
+      img.src = dataUri(svgText);
+    });
+  }
+  // Re-point the viewBox at the drawing itself. Nothing inside the SVG moves, so
+  // the shapes still round-trip back into the editor; what changes is that a
+  // game now measures the sprite by its art instead of by the empty canvas it was
+  // drawn on. That is what makes `size` mean the thing you can see, puts the
+  // sprite's middle where it looks like it is, and lets the collision box take
+  // the shape of the art.
+  async function reframe(svgText) {
+    const b = await inkBox(svgText);
+    if (!b || !(b.w > 0) || !(b.h > 0)) return svgText;
+    const pad = Math.max(b.w, b.h) * 0.01;   // a hair, so soft edges aren't clipped
+    const vb = rnd(b.x - pad) + " " + rnd(b.y - pad) + " " +
+               rnd(b.w + pad * 2) + " " + rnd(b.h + pad * 2);
+    return /viewBox\s*=\s*["'][^"']*["']/.test(svgText)
+      ? svgText.replace(/viewBox\s*=\s*["'][^"']*["']/, 'viewBox="' + vb + '"')
+      : svgText.replace(/<svg\b/, '<svg viewBox="' + vb + '"');
+  }
+
   function bbox(s) {
     if (s.type === "rect" || s.type === "triangle") return { x: s.x, y: s.y, w: s.w, h: s.h };
     if (s.type === "circle") return { x: s.cx - s.r, y: s.cy - s.r, w: s.r * 2, h: s.r * 2 };
@@ -825,7 +882,9 @@
     const user = PWL.auth && PWL.auth.user();
     if (!user) { PWL.auth.signInWithGoogle(); return; }
     if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
-    const svg = currentSvg();
+    // Frame it on the drawing before it goes out, so games get a sprite that is
+    // the size it says it is and sits where it looks like it sits.
+    const svg = await reframe(currentSvg());
     // The cap is a SIZE, not a shape count: it mirrors the assets.svg CHECK in
     // supabase-schema.sql. Say the real numbers, so
     // "too detailed" isn't a mystery you have to guess your way out of.
@@ -857,6 +916,7 @@
       '<img class="asset-card-pic" alt="" title="' + (mine ? "Click to edit" : "Click to remix a copy") + '" src="' + esc(dataUri(a.svg)) + '" />' +
       '<button type="button" class="asset-card-id" title="Copy the game.sprite line">#' + a.id + '</button>' +
       '<span class="asset-card-name"></span>' +
+      (mine ? '<button type="button" class="asset-card-fit" title="Re-frame: point this sprite\'s box at the drawing, so games size and centre it on the art">Re-frame</button>' : "") +
       (mine ? '<button type="button" class="asset-card-del" title="Delete">×</button>' : "");
     el.querySelector(".asset-card-name").textContent = a.name || "untitled";
     // Open the sprite in the editor: yours to edit, someone else's as a fresh
@@ -866,6 +926,20 @@
     el.querySelector(".asset-card-id").addEventListener("click", function () {
       const snippet = "game.sprite(" + a.id + ", 100, 100, asset=True)";
       try { navigator.clipboard.writeText(snippet); showMsg("Copied: " + snippet, true); } catch (e) { showMsg(snippet, true); }
+    });
+    // Re-frame an asset you published before framing existed, without redrawing
+    // it: same art, viewBox moved onto the drawing.
+    if (mine) el.querySelector(".asset-card-fit").addEventListener("click", async function (ev) {
+      ev.stopPropagation();
+      const btn = ev.currentTarget;
+      btn.disabled = true; btn.textContent = "…";
+      const fixed = await reframe(a.svg);
+      if (fixed === a.svg) { btn.disabled = false; btn.textContent = "Re-frame"; showMsg("#" + a.id + " already fits its art.", true); return; }
+      const r = await sb.from("assets").update({ svg: fixed, updated_at: new Date().toISOString() }).eq("id", a.id);
+      if (r.error) { btn.disabled = false; btn.textContent = "Re-frame"; showMsg("Couldn't re-frame: " + r.error.message, false); return; }
+      try { if (window.PWL && window.PWL.assetSvgCache) window.PWL.assetSvgCache.put(String(a.id), fixed); } catch (e) {}
+      showMsg("Re-framed #" + a.id + ". It now measures by its art.", true);
+      loadLibrary();
     });
     if (mine) el.querySelector(".asset-card-del").addEventListener("click", async function (ev) {
       ev.stopPropagation();
@@ -880,7 +954,10 @@
   // canvas, or using groups, transforms or curves) can't be turned back into
   // editable shapes without mangling it, so we show it exactly as saved instead.
   function isStudioNative(svg) {
-    if (!/viewBox\s*=\s*["']\s*0\s+0\s+64\s+64\s*["']/.test(svg)) return false;
+    // The viewBox is deliberately NOT checked: we re-frame it onto the drawing
+    // when publishing, but the shape coordinates stay in the editor's 0..64
+    // space, so our own sprites still round-trip whatever the viewBox says.
+    if (!/<svg\b/i.test(svg)) return false;
     if (/<g[\s>]|transform\s*=|<image|<text|<use|<defs/i.test(svg)) return false;
     if (/\sd\s*=\s*["'][^"']*[CcSsQqTtAa]/.test(svg)) return false;   // path curves
     return true;

@@ -430,6 +430,11 @@ def _pyrun_install_game():
             # Higher layer draws on top. Sprites on the same layer keep the
             # order they were made in. Labels default high so a scoreboard
             # sits above the action.
+            # Which point of the sprite sits on (x, y), as fractions of its art:
+            # (0.5, 0.5) is the middle, (0, 0) the top-left corner. Handy for a
+            # cursor whose tip should be the pointer, or a plant that should
+            # stand on its feet.
+            self.anchor = kw.get("anchor", (0.5, 0.5))
             self.layer = kw.get("layer", 0)
             # A custom collision box (width, height), or None to auto-size it
             # from the art. Set it with sprite.hitbox = (w, h).
@@ -510,6 +515,16 @@ def _pyrun_install_game():
         def z(self, value):
             self.layer = value
 
+        def _draw_wh(self):
+            # How big the art is actually drawn, before scale_x/scale_y.
+            if self.kind == "box":
+                return self.w, self.h
+            if self.kind == "asset":
+                # An asset keeps its own proportions: the long side is size.
+                r = float(_io.assetRatio(self._asset)) or 1.0
+                return (self.size, self.size / r) if r >= 1 else (self.size * r, self.size)
+            return self.size, self.size
+
         def _hit_wh(self):
             # The unrotated width and height of the collision box, before angle.
             if self._hitbox is not None:
@@ -519,15 +534,28 @@ def _pyrun_install_game():
             elif self.kind == "art":
                 wf, hf = _HIT_ASPECT.get(self.art, (0.8, 0.8))
                 w, h = self.size * wf, self.size * hf
+            elif self.kind == "asset":
+                # Match the art exactly: your sprite is the shape you drew, so
+                # game.debug(True) outlines what you can actually see.
+                w, h = self._draw_wh()
             else:
                 # emoji/text: a slightly-smaller-than-size box feels fair.
                 w, h = self.size * 0.8, self.size * 0.8
             return w * abs(self.scale_x), h * abs(self.scale_y)
 
+        def _anchor_shift(self):
+            # anchor (0.5, 0.5) is the middle. Anything else moves the art so
+            # that point sits on (x, y), and the collision box comes with it.
+            ax, ay = self.anchor
+            dw, dh = self._draw_wh()
+            return ((0.5 - ax) * dw * abs(self.scale_x),
+                    (0.5 - ay) * dh * abs(self.scale_y))
+
         def _obb(self):
             # Oriented box for collisions: centre, half-sizes, angle (radians).
             w, h = self._hit_wh()
-            return (self.x, self.y, w / 2.0, h / 2.0,
+            ox, oy = self._anchor_shift()
+            return (self.x + ox, self.y + oy, w / 2.0, h / 2.0,
                     self.angle * math.pi / 180.0)
 
         def touches(self, other):
@@ -791,10 +819,15 @@ def _pyrun_install_game():
             if s._anim:
                 kind, art, disp = s._anim[(W["tick"] // s._anim_every) % len(s._anim)]
             hbw, hbh = s._hit_wh()
+            aox, aoy = s._anchor_shift()
+            ax, ay = s.anchor
             arr.append({"kind": kind, "x": s.x, "y": s.y, "size": s.size,
                         "w": s.w, "h": s.h, "text": str(disp), "color": s.color,
                         "art": art, "asset": s.asset, "angle": s.angle,
                         "sx": s.scale_x, "sy": s.scale_y, "back": s.background,
+                        "ax": ax, "ay": ay,
+                        # where the collision box really sits, anchor included
+                        "hbx": s.x + aox, "hby": s.y + aoy,
                         "hbw": hbw, "hbh": hbh, "hba": s.angle})
         # Once the game is over the banner is sticky: every later redraw (like
         # the frame() at the end of the loop) keeps showing it instead of
@@ -1344,6 +1377,11 @@ del _pyrun_install_game3d
   }
   function useAssetSvg(key, svg) {
     ASSET_RATIO[key] = svgRatio(svg);
+    // Python needs the shape of the art to size its collision box, and in the
+    // worker runtime Python lives on the other side, so push it across.
+    try {
+      if (sharedWorker) sharedWorker.postMessage({ type: "assetRatio", id: String(key), ratio: ASSET_RATIO[key] });
+    } catch (e) {}
     const img = new Image();
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     ASSET_IMAGES[key] = img;
@@ -1503,6 +1541,15 @@ del _pyrun_install_game3d
       try { list = typeof ids === "string" ? JSON.parse(ids) : ids; } catch (e) { return; }
       (list || []).forEach(function (id) { ensureAsset(id); });
     },
+    // The art's width/height, so Python can give an asset a collision box the
+    // same shape as the thing you can see. 1 until the art has loaded, which is
+    // the old square-box behaviour, and it corrects itself on the next frame.
+    assetRatio: function (id) {
+      if (id == null || id === "") return 1;
+      var key = String(id);
+      ensureAsset(key);
+      return ASSET_RATIO[key] || 1;
+    },
     fullscreen: function (on) { setGameFullscreen(null, on !== false); },
     playing: function () { return gamePlaying; },
     stop: function () { gamePlaying = false; },
@@ -1592,13 +1639,31 @@ del _pyrun_install_game3d
         var sx = (s.sx == null || !isFinite(Number(s.sx))) ? 1 : Number(s.sx);
         var sy = (s.sy == null || !isFinite(Number(s.sy))) ? 1 : Number(s.sy);
         var moved = ang !== 0 || sx !== 1 || sy !== 1;
+        // The anchor says which point of the art sits on (x, y). Work out the
+        // shift here, in world units, so it matches the collision box Python
+        // computed the same way (see _anchor_shift).
+        var anX = (s.ax == null || !isFinite(Number(s.ax))) ? 0.5 : Number(s.ax);
+        var anY = (s.ay == null || !isFinite(Number(s.ay))) ? 0.5 : Number(s.ay);
+        var offX = 0, offY = 0;
+        if (anX !== 0.5 || anY !== 0.5) {
+          var dW, dH;
+          if (s.kind === "box") { dW = s.w; dH = s.h; }
+          else if (s.kind === "asset") {
+            var rr = ASSET_RATIO[String(s.asset)] || 1;
+            var ssz = s.size || 40;
+            dW = rr >= 1 ? ssz : ssz * rr;
+            dH = rr >= 1 ? ssz / rr : ssz;
+          } else { dW = s.size || 40; dH = s.size || 40; }
+          offX = (0.5 - anX) * dW * Math.abs(sx);
+          offY = (0.5 - anY) * dH * Math.abs(sy);
+        }
         if (moved) {
           c.save();
-          c.translate(s.x, s.y);
+          c.translate(s.x + offX, s.y + offY);
           if (ang !== 0) c.rotate(ang * Math.PI / 180);
           if (sx !== 1 || sy !== 1) c.scale(sx, sy);
         }
-        var dx = moved ? 0 : s.x, dy = moved ? 0 : s.y;
+        var dx = moved ? 0 : s.x + offX, dy = moved ? 0 : s.y + offY;
         if (s.kind === "box") {
           c.fillStyle = s.color || "#fff";
           c.fillRect(dx - s.w / 2, dy - s.h / 2, s.w, s.h);
@@ -1671,8 +1736,11 @@ del _pyrun_install_game3d
           var bw = Number(s.hbw) || 0, bh = Number(s.hbh) || 0;
           if (bw <= 0 || bh <= 0) return;
           var a = (Number(s.hba) || 0) * Math.PI / 180;
+          // hbx/hby is where the box really is, anchor included.
+          var bx = (s.hbx == null) ? s.x : Number(s.hbx);
+          var by = (s.hby == null) ? s.y : Number(s.hby);
           c.save();
-          c.translate(s.x, s.y);
+          c.translate(bx, by);
           if (a) c.rotate(a);
           c.strokeRect(-bw / 2, -bh / 2, bw, bh);
           c.restore();
