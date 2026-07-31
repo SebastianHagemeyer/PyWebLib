@@ -35,8 +35,13 @@
   // only hides and shows tiles that are already built, so nothing is re-queried
   // and no sprite is re-rendered (no flicker, no reload).
   // Matches the assets.svg CHECK in supabase-schema.sql. An asset is limited by
-  // how much SVG TEXT it is, never by how many shapes.
-  const MAX_ASSET_CHARS = 8000;
+  // how much SVG TEXT it is, never by how many shapes. Roomy enough for a
+  // detailed imported drawing; the ceiling exists because every asset is fetched
+  // and cached per viewer, so a huge one costs everybody who plays with it.
+  const MAX_ASSET_CHARS = 40000;
+  // A little under the cap, so the wrapper markup we add can never tip a
+  // just-fits import over the database's limit.
+  const MAX_IMPORT_CHARS = MAX_ASSET_CHARS - 500;
 
   const ASSETS_PER_PAGE = 20;
   let allCards = [];      // every community tile, in order, page or not
@@ -624,7 +629,7 @@
     }
     svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     const outSvg = new XMLSerializer().serializeToString(svg);
-    return outSvg.length <= 7800 ? outSvg : null;
+    return outSvg.length <= MAX_IMPORT_CHARS ? outSvg : null;
   }
 
   function reorder(dir) {
@@ -822,7 +827,7 @@
     if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
     const svg = currentSvg();
     // The cap is a SIZE, not a shape count: it mirrors the assets.svg CHECK in
-    // supabase-schema.sql (8000 characters of SVG text). Say the real numbers, so
+    // supabase-schema.sql. Say the real numbers, so
     // "too detailed" isn't a mystery you have to guess your way out of.
     if (svg.length > MAX_ASSET_CHARS) {
       showMsg("This sprite is " + svg.length.toLocaleString() + " characters of SVG and the limit is " +

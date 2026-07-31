@@ -1620,8 +1620,10 @@ while game.playing():
   // things that only work here. Stock Python starts collapsed, so what you see
   // first is the browser-only fun (turtle, games, 3D) rather than print().
   const EXAMPLE_SECTIONS = [
+    // Every category starts closed, so the whole menu is a short list you scan
+    // rather than a wall of cards you scroll past.
     { name: "Stock Python", open: false, subOpen: false, cats: ["Basic", "Intermediate"] },
-    { name: "PyWebLib", open: true, subOpen: true,
+    { name: "PyWebLib", open: true, subOpen: false,
       cats: ["Turtle", "Basic Games", "Advanced Games", "3D", "Coloured Text"] }
   ];
 
