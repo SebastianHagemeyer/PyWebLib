@@ -1512,9 +1512,14 @@ while game.playing():
     });
   })();
 
-  // The category order shown in the snippet dropdowns, and which one starts open.
-  const EXAMPLE_CATEGORIES = ["Basic", "Intermediate", "Coloured Text", "Turtle", "Basic Games", "Advanced Games", "3D"];
-  const EXAMPLE_OPEN = "Basic";
+  // Snippets sit two levels deep: plain Python you could run anywhere, then the
+  // things that only work here. Stock Python starts collapsed, so what you see
+  // first is the browser-only fun (turtle, games, 3D) rather than print().
+  const EXAMPLE_SECTIONS = [
+    { name: "Stock Python", open: false, subOpen: false, cats: ["Basic", "Intermediate"] },
+    { name: "PyWebLib", open: true, subOpen: true,
+      cats: ["Turtle", "Basic Games", "Advanced Games", "3D", "Coloured Text"] }
+  ];
 
   // Work out which category a snippet belongs in. An explicit ex.cat wins;
   // otherwise we sort by its title and whether it colours its output.
@@ -1530,36 +1535,56 @@ while game.playing():
     const wrap = document.getElementById("sandbox-examples");
     if (!wrap) return;
     wrap.innerHTML = "";
-    EXAMPLE_CATEGORIES.forEach(function (cat) {
-      const items = EXAMPLES.filter(function (ex) { return categoryOf(ex) === cat; });
-      if (!items.length) return;
-
-      const group = document.createElement("details");
-      group.className = "sandbox-example-group";
-      if (cat === EXAMPLE_OPEN) group.open = true;   // open this category by default
-
-      const summary = document.createElement("summary");
-      summary.innerHTML = escapeHtml(cat) +
-        '<span class="sandbox-example-count">' + items.length + '</span>';
-      group.appendChild(summary);
-
-      const grid = document.createElement("div");
-      grid.className = "sandbox-examples-grid";
-      items.forEach(function (ex) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "sandbox-example-card";
-        btn.innerHTML =
-          '<span class="sandbox-example-title">' + escapeHtml(ex.title) + '</span>' +
-          '<span class="sandbox-example-desc">' + escapeHtml(ex.desc) + '</span>';
-        btn.addEventListener("click", function () {
-          loadInto(ex.code, 'Loaded "' + ex.title + '"');
-          editor.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-        grid.appendChild(btn);
+    EXAMPLE_SECTIONS.forEach(function (sec) {
+      // Only the categories that actually have snippets, so an empty one never
+      // shows up as a dead heading.
+      const cats = sec.cats.filter(function (cat) {
+        return EXAMPLES.some(function (ex) { return categoryOf(ex) === cat; });
       });
-      group.appendChild(grid);
-      wrap.appendChild(group);
+      if (!cats.length) return;
+      const total = EXAMPLES.filter(function (ex) {
+        return cats.indexOf(categoryOf(ex)) >= 0;
+      }).length;
+
+      const section = document.createElement("details");
+      section.className = "sandbox-example-section";
+      section.open = !!sec.open;
+      const secSummary = document.createElement("summary");
+      secSummary.innerHTML = escapeHtml(sec.name) +
+        '<span class="sandbox-example-count">' + total + '</span>';
+      section.appendChild(secSummary);
+
+      cats.forEach(function (cat) {
+        const items = EXAMPLES.filter(function (ex) { return categoryOf(ex) === cat; });
+
+        const group = document.createElement("details");
+        group.className = "sandbox-example-group";
+        group.open = !!sec.subOpen;
+
+        const summary = document.createElement("summary");
+        summary.innerHTML = escapeHtml(cat) +
+          '<span class="sandbox-example-count">' + items.length + '</span>';
+        group.appendChild(summary);
+
+        const grid = document.createElement("div");
+        grid.className = "sandbox-examples-grid";
+        items.forEach(function (ex) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "sandbox-example-card";
+          btn.innerHTML =
+            '<span class="sandbox-example-title">' + escapeHtml(ex.title) + '</span>' +
+            '<span class="sandbox-example-desc">' + escapeHtml(ex.desc) + '</span>';
+          btn.addEventListener("click", function () {
+            loadInto(ex.code, 'Loaded "' + ex.title + '"');
+            editor.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+          grid.appendChild(btn);
+        });
+        group.appendChild(grid);
+        section.appendChild(group);
+      });
+      wrap.appendChild(section);
     });
   }
 

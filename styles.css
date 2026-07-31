@@ -658,6 +658,34 @@ body.pwl-game-fs .game-fs-exit {
 }
 .sandbox-example-group .sandbox-examples-grid { padding: 0 14px 14px; }
 
+/* Outer snippet sections ("Stock Python", "PyWebLib"), each holding categories. */
+.sandbox-example-section > summary {
+  cursor: pointer;
+  padding: 4px 2px 10px;
+  font-weight: 800;
+  font-size: 1.02rem;
+  color: var(--text);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.sandbox-example-section > summary::-webkit-details-marker { display: none; }
+.sandbox-example-section > summary::before {
+  content: "";
+  width: 0; height: 0;
+  border-left: 7px solid currentColor;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  transition: transform 0.15s ease;
+  flex: none;
+}
+.sandbox-example-section[open] > summary::before { transform: rotate(90deg); }
+.sandbox-example-section > summary:hover { color: var(--primary); }
+/* The categories inside a section: indented, and stacked like before. */
+.sandbox-example-section > .sandbox-example-group { margin: 0 0 10px 18px; }
+.sandbox-example-section + .sandbox-example-section { margin-top: 6px; }
+
 /* ===== Documentation page (docs/) ===== */
 .docs-searchbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .docs-search-input {
