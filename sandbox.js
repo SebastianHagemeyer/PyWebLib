@@ -508,7 +508,7 @@
     {
       title: "Game: grow a garden",
       cat: "Advanced Games",
-      desc: "Drag a seed onto a plot, water it with the can, and sell the sunflower for coins. Uses custom Asset-studio sprites for the plants, the can and the cursor.",
+      desc: "Drag a seed onto a plot, water it with the can, then snip the grown sunflower with the scissors for coins. Custom Asset-studio sprites throughout, with a two-frame scissor animation.",
       code:
 `import game
 
@@ -519,7 +519,9 @@ game.window(W, H, background="#8fce6e")
 SPROUT, HERB, FLOWER = 15, 14, 33        # the three growth stages
 SEEDS, CAN, CANWATER = 17, 20, 16        # seed pile, watering can, pouring can
 HAND, GRAB, TROUGH = 21, 22, 30          # open hand, closed hand, planter
-game.preload(SPROUT, HERB, FLOWER, SEEDS, CAN, CANWATER, HAND, GRAB, TROUGH)
+SNIP_OPEN, SNIP_SHUT = 12, 13            # the two halves of the scissor snip
+game.preload(SPROUT, HERB, FLOWER, SEEDS, CAN, CANWATER, HAND, GRAB, TROUGH,
+             SNIP_OPEN, SNIP_SHUT)
 
 seeds = 5
 coins = 0
@@ -573,7 +575,7 @@ TRAY_X, TRAY_Y = 74, 150
 seed = game.sprite(SEEDS, TRAY_X, TRAY_Y, size=51, asset=True)
 seed.layer = SEED_LAYER
 
-game.label("Drag a seed onto soil. Click to water. Click a sunflower to sell it.",
+game.label("Drag a seed onto soil. Click to water. Snip a grown sunflower to sell it.",
            480, H - 26, size=19, color="#ffffff", background="#2f6b2f")
 
 # Three droplets, reused for every pour.
@@ -590,7 +592,8 @@ game.hide_cursor()
 # Where each tool's point sits inside its own box, as a fraction: (0, 0) is the
 # top-left corner, (0.5, 0.5) the middle.
 ORIGIN = {CAN: (0.00, 0.30), CANWATER: (0.00, 0.30),
-          GRAB: (0.50, 0.50), HAND: (0.30, 0.15)}
+          GRAB: (0.50, 0.50), HAND: (0.30, 0.15),
+          SNIP_OPEN: (0.50, 0.45), SNIP_SHUT: (0.50, 0.45)}   # the blade pivot
 SPOUT = (0.12, 0.70)                     # where the water leaves the can
 
 holding = False
@@ -635,6 +638,26 @@ def look(plot):
     else:
         plant.asset = SPROUT
         stand(plant, SPROUT_MIN + (SPROUT_MAX - SPROUT_MIN) * g / 45.0)
+
+
+def ready_under_mouse():
+    # True while the pointer is over a sunflower that has finished growing.
+    for plot in plots:
+        if plot["planted"] and plot["growth"] >= 100 and (
+                plot["plant"].at_mouse() or plot["soil"].at_mouse()):
+            return True
+    return False
+
+
+def snip():
+    # Two quick closes of the blades before the flower comes off, so cutting it
+    # reads as a cut. Swapping between two sprites IS the animation.
+    for _ in range(2):
+        for blade in (SNIP_SHUT, SNIP_OPEN):
+            set_cursor(blade)
+            for _ in range(3):
+                follow_mouse()
+                game.frame()
 
 
 def plant_seed(plot):
@@ -689,6 +712,7 @@ def sell_pop(plant):
 
 def sell(plot):
     global coins
+    snip()                                   # cut it free first
     game.sound(2)
     sell_pop(plot["plant"])
     coins = coins + SELL_PRICE
@@ -765,6 +789,8 @@ while game.playing():
         set_cursor(GRAB)
     elif seed.at_mouse() or buy_btn.at_mouse():
         set_cursor(HAND)
+    elif ready_under_mouse():
+        set_cursor(SNIP_OPEN)                # ready to cut
     else:
         set_cursor(CAN)
 
