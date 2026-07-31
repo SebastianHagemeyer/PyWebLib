@@ -31,6 +31,50 @@
   const allEl = document.getElementById("asset-all");
   const previews = ["asset-prev-a", "asset-prev-b", "asset-prev-c"].map(function (id) { return document.getElementById(id); });
 
+  // Community assets are fetched once and paged in the browser: flipping a page
+  // only hides and shows tiles that are already built, so nothing is re-queried
+  // and no sprite is re-rendered (no flicker, no reload).
+  const ASSETS_PER_PAGE = 20;
+  let allCards = [];      // every community tile, in order, page or not
+  let assetPage = 0;
+  let assetPager = null;
+
+  function assetPageCount() { return Math.max(1, Math.ceil(allCards.length / ASSETS_PER_PAGE)); }
+
+  function showAssetPage(n) {
+    const pages = assetPageCount();
+    assetPage = Math.max(0, Math.min(pages - 1, n == null ? assetPage : n));
+    const from = assetPage * ASSETS_PER_PAGE, to = from + ASSETS_PER_PAGE;
+    for (let i = 0; i < allCards.length; i++) {
+      allCards[i].hidden = (i < from || i >= to);
+    }
+    renderAssetPager();
+  }
+
+  function renderAssetPager() {
+    if (!allEl) return;
+    if (!assetPager) {
+      assetPager = document.createElement("nav");
+      assetPager.className = "cc-pager";
+      assetPager.setAttribute("aria-label", "Community asset pages");
+      allEl.parentNode.insertBefore(assetPager, allEl.nextSibling);
+    }
+    if (allCards.length <= ASSETS_PER_PAGE) {   // one page: no pager at all
+      assetPager.hidden = true;
+      assetPager.innerHTML = "";
+      return;
+    }
+    const pages = assetPageCount();
+    assetPager.hidden = false;
+    assetPager.innerHTML =
+      '<button type="button" class="cc-page-btn" data-page="prev"' + (assetPage === 0 ? " disabled" : "") + ">Previous</button>" +
+      '<span class="cc-page-info">Page ' + (assetPage + 1) + " of " + pages +
+        " &middot; " + allCards.length + " assets</span>" +
+      '<button type="button" class="cc-page-btn" data-page="next"' + (assetPage >= pages - 1 ? " disabled" : "") + ">Next</button>";
+    assetPager.querySelector('[data-page="prev"]').addEventListener("click", function () { showAssetPage(assetPage - 1); });
+    assetPager.querySelector('[data-page="next"]').addEventListener("click", function () { showAssetPage(assetPage + 1); });
+  }
+
   const PALETTE = ["#4f46e5", "#ef4444", "#f59e0b", "#ffd43b", "#22c55e", "#14b8a6",
                    "#3b82f6", "#a855f7", "#ec4899", "#78350f", "#ffffff", "#111827"];
 
@@ -684,8 +728,18 @@
     if (allEl) {
       const r = await sb.from("assets").select("id,name,svg").order("created_at", { ascending: false }).limit(60);
       allEl.innerHTML = "";
-      if (r.error || !r.data || !r.data.length) allEl.innerHTML = '<p class="community-empty">No community assets yet. Be the first!</p>';
-      else r.data.forEach(function (a) { allEl.appendChild(card(a, false)); });
+      allCards = [];
+      if (r.error || !r.data || !r.data.length) {
+        allEl.innerHTML = '<p class="community-empty">No community assets yet. Be the first!</p>';
+      } else {
+        // Build every tile once; showAssetPage decides which are on screen.
+        r.data.forEach(function (a) {
+          const el = card(a, false);
+          allCards.push(el);
+          allEl.appendChild(el);
+        });
+      }
+      showAssetPage(0);
     }
   }
 
