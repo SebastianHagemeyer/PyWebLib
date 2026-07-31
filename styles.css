@@ -1252,6 +1252,28 @@ body.sandbox-maxed { overflow: hidden; }
 /* Paging hides tiles in place: needed because the display:flex above would
    otherwise beat the browser's default [hidden] rule. */
 .asset-card[hidden] { display: none; }
+
+/* Zoom controls under the tool row. */
+.asset-zoom { display: flex; align-items: center; gap: 6px; }
+.asset-zoom .btn { padding: 4px 12px; font-size: 1rem; line-height: 1; font-weight: 700; }
+.asset-zoom .btn:disabled { opacity: 0.4; cursor: default; }
+.asset-zoom-label {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 5px 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.asset-zoom-label:hover { border-color: var(--primary); color: var(--primary); }
+/* The pan tool gets a grab cursor on the canvas. */
+.asset-stage.is-pan { cursor: grab; }
+.asset-stage.is-pan:active { cursor: grabbing; }
 .asset-card-pic { width: 52px; height: 52px; cursor: pointer; }
 .asset-card-id { font-size: 0.72rem; font-weight: 700; color: var(--muted); border: none; background: none; padding: 0; cursor: pointer; }
 .asset-card-id:hover { color: var(--primary); text-decoration: underline; }

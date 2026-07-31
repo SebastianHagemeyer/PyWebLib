@@ -80,7 +80,10 @@
 
   // ---- editor state ----
   let shapes = [];        // array of shape objects, drawn in order (last on top)
-  let selected = -1;      // index of the selected shape, or -1
+  let selected = -1;      // the PRIMARY selection: the resize handles and the line
+                          // slider follow this one. -1 when nothing is selected.
+  let picked = [];        // EVERY selected index. These move, recolour and delete
+                          // together; `selected` is always the last of them.
   let tool = "select";
   let color = "#4f46e5";
   let lineWidth = 4;      // thickness for the line tool + the selected line
@@ -99,6 +102,60 @@
   function rnd(n) { return Math.round(n * 10) / 10; }
   function clamp(n) { return Math.max(0, Math.min(64, n)); }
   function snapshot() { history.push(JSON.stringify(shapes)); if (history.length > 60) history.shift(); }
+
+  // ---- selection -------------------------------------------------------------
+  // One place to change what's selected, so `selected` (the primary) can never
+  // drift out of step with `picked` (the whole group).
+  function setSel(list) {
+    picked = [];
+    (list || []).forEach(function (i) {
+      if (i >= 0 && i < shapes.length && picked.indexOf(i) < 0) picked.push(i);
+    });
+    selected = picked.length ? picked[picked.length - 1] : -1;
+  }
+  function toggleSel(i) {
+    const at = picked.indexOf(i);
+    if (at >= 0) picked.splice(at, 1); else picked.push(i);
+    selected = picked.length ? picked[picked.length - 1] : -1;
+  }
+  function selectAll() { setSel(shapes.map(function (_, i) { return i; })); }
+
+  // ---- zoom / pan ------------------------------------------------------------
+  // A view onto the 0..64 drawing: the art never changes, only the slice of it we
+  // show. Everything that reads pointer coordinates goes through toStage, so the
+  // rest of the editor doesn't need to know the canvas is zoomed.
+  const view = { x: 0, y: 0, size: 64 };
+  const ZOOM_MIN = 8;     // most zoomed in: an 8-unit window (8x)
+  function zoomPct() { return Math.round(64 / view.size * 100); }
+  function clampView() {
+    view.size = Math.max(ZOOM_MIN, Math.min(64, view.size));
+    view.x = Math.max(0, Math.min(64 - view.size, view.x));
+    view.y = Math.max(0, Math.min(64 - view.size, view.y));
+  }
+  function applyView() {
+    clampView();
+    stage.setAttribute("viewBox", rnd(view.x) + " " + rnd(view.y) + " " + rnd(view.size) + " " + rnd(view.size));
+    const lbl = document.getElementById("asset-zoom-label");
+    if (lbl) lbl.textContent = zoomPct() + "%";
+    const zin = document.getElementById("asset-zoom-in"), zout = document.getElementById("asset-zoom-out");
+    if (zin) zin.disabled = view.size <= ZOOM_MIN;
+    if (zout) zout.disabled = view.size >= 64;
+  }
+  // Zoom about a point, so what you were looking at stays put. Defaults to the
+  // middle of the current view (what the +/- buttons want).
+  function zoomBy(factor, fx, fy) {
+    if (fx == null) { fx = view.x + view.size / 2; fy = view.y + view.size / 2; }
+    const before = view.size;
+    view.size = Math.max(ZOOM_MIN, Math.min(64, view.size / factor));
+    const k = view.size / before;
+    view.x = fx - (fx - view.x) * k;
+    view.y = fy - (fy - view.y) * k;
+    applyView();
+    render();   // handles are drawn at a constant screen size, so redraw them
+  }
+  function resetView() { view.x = 0; view.y = 0; view.size = 64; applyView(); render(); }
+  // How many art units a screen pixel covers, so handles keep one screen size.
+  function viewScale() { return view.size / 64; }
 
   // ---- shape -> SVG ----
   function shapeSvg(s) {
@@ -203,12 +260,15 @@
     });
   }
   function handleAt(px, py) {
-    if (selected < 0 || tool !== "select") return null;
+    // Handles belong to a single shape: with a group selected you move it, not
+    // stretch it.
+    if (selected < 0 || picked.length !== 1 || tool !== "select") return null;
     const b = bbox(shapes[selected]);
     const list = handleList(b);
+    const tol = 2.6 * viewScale();   // constant grab area on screen at any zoom
     for (let i = 0; i < list.length; i++) {
       const hp = list[i];
-      if (Math.abs(px - hp.x) <= 2.6 && Math.abs(py - hp.y) <= 2.6)
+      if (Math.abs(px - hp.x) <= tol && Math.abs(py - hp.y) <= tol)
         return { hx: hp.hx, hy: hp.hy, ox: b.x, oy: b.y, ow: b.w, oh: b.h, offX: hp.offX, offY: hp.offY };
     }
     return null;
@@ -225,15 +285,20 @@
       stage.innerHTML = '<image href="' + esc(dataUri(importedSvg)) + '" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid meet"/>';
     } else {
       let svg = shapes.map(shapeSvg).join("");
-      if (selected >= 0 && shapes[selected]) {
-        const b = bbox(shapes[selected]);
+      // Outline everything in the selection, so a group reads as a group.
+      picked.forEach(function (i) {
+        if (!shapes[i]) return;
+        const b = bbox(shapes[i]);
         svg += '<rect x="' + rnd(b.x) + '" y="' + rnd(b.y) + '" width="' + rnd(b.w) + '" height="' + rnd(b.h) +
                '" fill="none" stroke="#4f46e5" stroke-width="0.8" stroke-dasharray="2 1.5" vector-effect="non-scaling-stroke"/>';
-        if (tool === "select") {   // drag these to stretch the shape
-          svg += handleList(b).map(function (hp) {
-            return '<rect x="' + rnd(hp.x - 1.5) + '" y="' + rnd(hp.y - 1.5) + '" width="3" height="3" fill="#ffffff" stroke="#4f46e5" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
-          }).join("");
-        }
+      });
+      // Resize handles only make sense for one shape at a time.
+      if (picked.length === 1 && shapes[selected] && tool === "select") {
+        const hw = 3 * viewScale();   // constant size on screen, whatever the zoom
+        svg += handleList(bbox(shapes[selected])).map(function (hp) {
+          return '<rect x="' + rnd(hp.x - hw / 2) + '" y="' + rnd(hp.y - hw / 2) + '" width="' + rnd(hw) + '" height="' + rnd(hw) +
+                 '" fill="#ffffff" stroke="#4f46e5" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
+        }).join("");
       }
       if (pathPts.length) {   // the path being drawn: open line + dots
         svg += '<polyline points="' + pathPts.map(function (p) { return rnd(p[0]) + "," + rnd(p[1]); }).join(" ") +
@@ -250,17 +315,26 @@
   // ---- pointer coordinates in the 0..64 canvas space ----
   function toStage(e) {
     const r = stage.getBoundingClientRect();
-    return { x: clamp((e.clientX - r.left) / r.width * 64), y: clamp((e.clientY - r.top) / r.height * 64) };
+    // Through the current view, so this keeps working when zoomed in.
+    return {
+      x: clamp(view.x + (e.clientX - r.left) / r.width * view.size),
+      y: clamp(view.y + (e.clientY - r.top) / r.height * view.size)
+    };
   }
 
   let drawing = null;   // { startX, startY, shape } while drawing
   let dragging = null;  // { lastX, lastY } while moving a selection
   let resizing = null;  // { h, orig } while dragging a resize handle
+  let panning = null;   // { sx, sy, vx, vy } while dragging the view around
 
   stage.addEventListener("pointerdown", function (e) {
     if (e.button === 2) return;   // right-click opens the context menu, not drawing
     e.preventDefault();
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    if (tool === "pan") {   // drag the view around; works on imports too
+      panning = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
+      return;
+    }
     if (tool === "eyedrop") { sampleColorAt(toStage(e)); return; }   // pick, works on imports too
     if (importedSvg) return;   // an imported SVG is published as-is, not edited
     const p = toStage(e);
@@ -273,9 +347,19 @@
     if (tool === "select") {
       const h = handleAt(p.x, p.y);   // grabbed a resize handle?
       if (h) { snapshot(); resizing = { h: h, orig: JSON.parse(JSON.stringify(shapes[selected])) }; return; }
-      selected = -1;
-      for (let i = shapes.length - 1; i >= 0; i--) { if (hit(shapes[i], p.x, p.y)) { selected = i; break; } }
-      if (selected >= 0) { snapshot(); dragging = { lastX: p.x, lastY: p.y }; }
+      let hitIdx = -1;
+      for (let i = shapes.length - 1; i >= 0; i--) { if (hit(shapes[i], p.x, p.y)) { hitIdx = i; break; } }
+      // Ctrl (or Cmd, or Shift) adds to the selection instead of replacing it.
+      const add = e.ctrlKey || e.metaKey || e.shiftKey;
+      if (hitIdx < 0) {
+        if (!add) setSel([]);      // a plain click on empty space clears
+        render();
+        return;
+      }
+      if (add) toggleSel(hitIdx);
+      else if (picked.indexOf(hitIdx) < 0) setSel([hitIdx]);
+      // else: it is already in the group, so keep the group and drag it as one
+      if (picked.length) { snapshot(); dragging = { lastX: p.x, lastY: p.y }; }
       render();
       return;
     }
@@ -287,11 +371,19 @@
     else { s.x = p.x; s.y = p.y; s.w = 0; s.h = 0; }
     drawing = { startX: p.x, startY: p.y, shape: s };
     shapes.push(s);
-    selected = shapes.length - 1;
+    setSel([shapes.length - 1]);
     render();
   });
 
   stage.addEventListener("pointermove", function (e) {
+    if (panning) {
+      // Move the view by the drag, in art units, so the art follows the pointer.
+      const r = stage.getBoundingClientRect();
+      view.x = panning.vx - (e.clientX - panning.sx) / r.width * view.size;
+      view.y = panning.vy - (e.clientY - panning.sy) / r.height * view.size;
+      applyView();
+      return;
+    }
     if (!drawing && !dragging && !resizing) return;
     const p = toStage(e);
     if (resizing) {
@@ -310,7 +402,9 @@
       return;
     }
     if (dragging) {
-      moveShape(shapes[selected], p.x - dragging.lastX, p.y - dragging.lastY);
+      // Everything in the selection moves together.
+      const dx = p.x - dragging.lastX, dy = p.y - dragging.lastY;
+      picked.forEach(function (i) { if (shapes[i]) moveShape(shapes[i], dx, dy); });
       dragging.lastX = p.x; dragging.lastY = p.y;
       render();
       return;
@@ -336,7 +430,7 @@
       drawing = null;
       render();
     }
-    dragging = null; resizing = null;
+    dragging = null; resizing = null; panning = null;
     try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
   });
 
@@ -353,7 +447,7 @@
     if (pathPts.length >= 3) {
       snapshot();
       shapes.push({ type: "path", points: pathPts.slice(), fill: color });
-      selected = shapes.length - 1;
+      setSel([shapes.length - 1]);
       pushRecent(color);
     }
     pathPts = [];
@@ -367,9 +461,28 @@
     tool = btn.getAttribute("data-tool");
     if (pathPts.length) pathPts = [];   // abandon a half-drawn path when switching
     document.querySelectorAll(".asset-tool").forEach(function (b) { b.classList.toggle("is-on", b === btn); });
-    if (tool !== "select") selected = -1;
+    stage.classList.toggle("is-pan", tool === "pan");
+    // Panning is a view change, so it keeps the selection; drawing tools drop it.
+    if (tool !== "select" && tool !== "pan") setSel([]);
     render();
   });
+  (function wireZoom() {
+    const zin = document.getElementById("asset-zoom-in");
+    const zout = document.getElementById("asset-zoom-out");
+    const lbl = document.getElementById("asset-zoom-label");
+    if (zin) zin.addEventListener("click", function () { zoomBy(1.5); });
+    if (zout) zout.addEventListener("click", function () { zoomBy(1 / 1.5); });
+    if (lbl) lbl.addEventListener("click", resetView);
+    // Ctrl/Cmd + wheel zooms about the pointer, like every other editor.
+    stage.addEventListener("wheel", function (e) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const p = toStage(e);
+      zoomBy(e.deltaY < 0 ? 1.2 : 1 / 1.2, p.x, p.y);
+    }, { passive: false });
+    applyView();
+  })();
+
   PALETTE.forEach(function (c) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "asset-swatch"; b.style.background = c; b.title = c;
@@ -397,11 +510,14 @@
     color = c;
     pushRecent(c);
     if (colorInput) colorInput.value = /^#[0-9a-f]{6}$/i.test(c) ? c : colorInput.value;
-    if (selected >= 0 && shapes[selected]) {
+    if (picked.length) {
       snapshot();
-      const s = shapes[selected];
-      if (s.type === "raw") recolorRaw(s, c);   // imported piece: colours live in its markup
-      else s.fill = c;
+      picked.forEach(function (i) {            // recolour the whole selection
+        const s = shapes[i];
+        if (!s) return;
+        if (s.type === "raw") recolorRaw(s, c);   // imported piece: colours live in its markup
+        else s.fill = c;
+      });
       render();
     }
   }
@@ -419,10 +535,15 @@
   if (colorInput) colorInput.addEventListener("input", function () { setColor(colorInput.value); });
   if (lineWidthInput) {
     // Snapshot once when the drag starts, then live-update, so undo is one step.
-    lineWidthInput.addEventListener("pointerdown", function () { if (selected >= 0 && shapes[selected] && shapes[selected].type === "line") snapshot(); });
+    const anyLinePicked = function () {
+      return picked.some(function (i) { return shapes[i] && shapes[i].type === "line"; });
+    };
+    lineWidthInput.addEventListener("pointerdown", function () { if (anyLinePicked()) snapshot(); });
     lineWidthInput.addEventListener("input", function () {
       lineWidth = parseFloat(lineWidthInput.value) || lineWidth;
-      if (selected >= 0 && shapes[selected] && shapes[selected].type === "line") { shapes[selected].width = lineWidth; render(); }
+      if (!anyLinePicked()) return;
+      picked.forEach(function (i) { if (shapes[i] && shapes[i].type === "line") shapes[i].width = lineWidth; });
+      render();
     });
   }
 
@@ -470,7 +591,7 @@
         const clean = sanitizeSvg(String(rd.result || ""));
         if (!clean) { showMsg("That file isn't an SVG we can use (or it's over the size limit).", false); return; }
         snapshot();
-        importedSvg = clean; shapes = []; selected = -1; pathPts = []; editingId = null;
+        importedSvg = clean; shapes = []; setSel([]); pathPts = []; editingId = null;
         if (!nameInput.value) nameInput.value = (f.name || "sprite").replace(/\.svg$/i, "").slice(0, 40);
         setPublishLabel(); render();
         showMsg('Imported! Publish it as-is, hit "Break into editable shapes" to edit it, or Clear to start over.', true);
@@ -509,17 +630,24 @@
     snapshot();
     const s = shapes.splice(selected, 1)[0];
     shapes.splice(j, 0, s);
-    selected = j; render();
+    setSel([j]); render();
   }
   document.getElementById("asset-forward").addEventListener("click", function () { reorder(1); });
   document.getElementById("asset-back").addEventListener("click", function () { reorder(-1); });
   document.getElementById("asset-delete").addEventListener("click", deleteSel);
-  function deleteSel() { if (selected < 0) return; snapshot(); shapes.splice(selected, 1); selected = -1; render(); }
+  function deleteSel() {
+    if (!picked.length) return;
+    snapshot();
+    // Highest index first, so removing one can't shift the next.
+    picked.slice().sort(function (a, b) { return b - a; }).forEach(function (i) { shapes.splice(i, 1); });
+    setSel([]);
+    render();
+  }
   document.getElementById("asset-undo").addEventListener("click", undo);
-  function undo() { if (!history.length) return; shapes = JSON.parse(history.pop()); selected = -1; render(); }
+  function undo() { if (!history.length) return; shapes = JSON.parse(history.pop()); setSel([]); render(); }
   document.getElementById("asset-clear").addEventListener("click", function () {
     if (!shapes.length && !importedSvg) return;
-    snapshot(); shapes = []; selected = -1; editingId = null; importedSvg = null; pathPts = []; setPublishLabel(); render();
+    snapshot(); shapes = []; setSel([]); editingId = null; importedSvg = null; pathPts = []; setPublishLabel(); render();
   });
 
   // ---- copy / duplicate / paste + right-click menu ----------------------------
@@ -540,22 +668,49 @@
     tool = "select";
     document.querySelectorAll(".asset-tool").forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-tool") === "select"); });
   }
-  function addShape(c) { shapes.push(c); selected = shapes.length - 1; useSelectTool(); render(); }
-  function duplicateSel() {
-    if (selected < 0 || !shapes[selected]) return;
-    snapshot();
-    const c = cloneShape(shapes[selected]);
-    moveShape(c, 3, 3);   // nudge so the copy is visibly offset
-    addShape(c);
+  function addShape(c) { shapes.push(c); setSel([shapes.length - 1]); useSelectTool(); render(); }
+  // The bounding box around a whole group, so a group pastes as one piece.
+  function groupBox(list) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    list.forEach(function (s) {
+      const b = bbox(s);
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h);
+    });
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   }
-  function copySel() { if (selected >= 0 && shapes[selected]) clipboard = cloneShape(shapes[selected]); }
-  function pasteShape(atPoint) {
-    if (!clipboard) return;
+  // Add several shapes at once and leave them selected, so a pasted group can be
+  // dragged straight away.
+  function addShapes(list) {
+    if (!list.length) return;
+    const start = shapes.length;
+    list.forEach(function (c) { shapes.push(c); });
+    setSel(list.map(function (_, k) { return start + k; }));
+    useSelectTool();
+    render();
+  }
+  function duplicateSel() {
+    if (!picked.length) return;
     snapshot();
-    const c = cloneShape(clipboard);   // re-clone each paste so repeats get fresh ids
-    if (atPoint) { const b = bbox(c); moveShape(c, atPoint.x - (b.x + b.w / 2), atPoint.y - (b.y + b.h / 2)); }
-    else moveShape(c, 3, 3);
-    addShape(c);
+    const copies = picked.map(function (i) { return cloneShape(shapes[i]); });
+    copies.forEach(function (c) { moveShape(c, 3, 3); });   // nudge so the copy shows
+    addShapes(copies);
+  }
+  function copySel() {
+    clipboard = picked.length ? picked.map(function (i) { return cloneShape(shapes[i]); }) : null;
+  }
+  function pasteShape(atPoint) {
+    if (!clipboard || !clipboard.length) return;
+    snapshot();
+    const copies = clipboard.map(cloneShape);   // re-clone each paste so repeats get fresh ids
+    let dx = 3, dy = 3;
+    if (atPoint) {
+      const b = groupBox(copies);               // drop the group centred on the cursor
+      dx = atPoint.x - (b.x + b.w / 2);
+      dy = atPoint.y - (b.y + b.h / 2);
+    }
+    copies.forEach(function (c) { moveShape(c, dx, dy); });
+    addShapes(copies);
   }
   const dupBtn = document.getElementById("asset-dup");
   if (dupBtn) dupBtn.addEventListener("click", duplicateSel);
@@ -602,7 +757,13 @@
     if (importedSvg) return;   // nothing to edit until it's broken into shapes
     e.preventDefault();
     const p = toStage(e);
-    for (let i = shapes.length - 1; i >= 0; i--) { if (hit(shapes[i], p.x, p.y)) { selected = i; useSelectTool(); render(); break; } }
+    // Right-clicking inside the current group keeps it, so "copy" copies them all.
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      if (hit(shapes[i], p.x, p.y)) {
+        if (picked.indexOf(i) < 0) setSel([i]);
+        useSelectTool(); render(); break;
+      }
+    }
     showCtx(e.clientX, e.clientY, p);
   });
 
@@ -617,10 +778,28 @@
       else if (k === "x") { e.preventDefault(); copySel(); deleteSel(); }
       else if (k === "v") { e.preventDefault(); pasteShape(null); }
       else if (k === "d") { e.preventDefault(); duplicateSel(); }
+      else if (k === "a") {   // select the whole drawing, ready to move as one
+        e.preventDefault();
+        if (shapes.length && !importedSvg) { selectAll(); useSelectTool(); render(); }
+      }
       return;
     }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); return; }
-    const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path", i: "eyedrop" }[e.key.toLowerCase()];
+    // Nudge the whole selection with the arrow keys (Shift for bigger steps).
+    if (picked.length && /^Arrow(Left|Right|Up|Down)$/.test(e.key)) {
+      e.preventDefault();
+      const step = e.shiftKey ? 5 : 1;
+      const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+      const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+      snapshot();
+      picked.forEach(function (i) { if (shapes[i]) moveShape(shapes[i], dx, dy); });
+      render();
+      return;
+    }
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(1.5); return; }
+    if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1 / 1.5); return; }
+    if (e.key === "0") { e.preventDefault(); resetView(); return; }
+    const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path", i: "eyedrop", h: "pan" }[e.key.toLowerCase()];
     if (k) { const btn = document.querySelector('[data-tool="' + k + '"]'); if (btn) btn.click(); }
   });
 
@@ -692,7 +871,7 @@
   }
   function loadIntoEditor(a, asTemplate) {
     snapshot();
-    selected = -1; pathPts = [];
+    setSel([]); pathPts = [];
     editingId = asTemplate ? null : a.id;   // a remix publishes as a NEW asset
     let imported = false;
     if (isStudioNative(a.svg)) {
@@ -939,7 +1118,7 @@
       showMsg("Couldn't find separable parts in this one. It's still fine to publish as-is.", false);
       return;
     }
-    shapes = flat; importedSvg = null; selected = -1; pathPts = [];
+    shapes = flat; importedSvg = null; setSel([]); pathPts = [];
     reflectImport(); render();
     showMsg("Split into " + flat.length + " piece" + (flat.length === 1 ? "" : "s") + " you can move, stretch or delete. Curvy parts keep their exact shape. Then publish.", true);
   }
