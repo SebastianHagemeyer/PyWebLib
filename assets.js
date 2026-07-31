@@ -34,6 +34,10 @@
   // Community assets are fetched once and paged in the browser: flipping a page
   // only hides and shows tiles that are already built, so nothing is re-queried
   // and no sprite is re-rendered (no flicker, no reload).
+  // Matches the assets.svg CHECK in supabase-schema.sql. An asset is limited by
+  // how much SVG TEXT it is, never by how many shapes.
+  const MAX_ASSET_CHARS = 8000;
+
   const ASSETS_PER_PAGE = 20;
   let allCards = [];      // every community tile, in order, page or not
   let assetPage = 0;
@@ -589,7 +593,7 @@
       const rd = new FileReader();
       rd.onload = function () {
         const clean = sanitizeSvg(String(rd.result || ""));
-        if (!clean) { showMsg("That file isn't an SVG we can use (or it's over the size limit).", false); return; }
+        if (!clean) { showMsg("That file isn't an SVG we can use, or it's over the " + MAX_ASSET_CHARS.toLocaleString() + " character size limit.", false); return; }
         snapshot();
         importedSvg = clean; shapes = []; setSel([]); pathPts = []; editingId = null;
         if (!nameInput.value) nameInput.value = (f.name || "sprite").replace(/\.svg$/i, "").slice(0, 40);
@@ -817,7 +821,14 @@
     if (!user) { PWL.auth.signInWithGoogle(); return; }
     if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
     const svg = currentSvg();
-    if (svg.length > 8000) { showMsg("That sprite is too detailed to save. Use fewer shapes.", false); return; }
+    // The cap is a SIZE, not a shape count: it mirrors the assets.svg CHECK in
+    // supabase-schema.sql (8000 characters of SVG text). Say the real numbers, so
+    // "too detailed" isn't a mystery you have to guess your way out of.
+    if (svg.length > MAX_ASSET_CHARS) {
+      showMsg("This sprite is " + svg.length.toLocaleString() + " characters of SVG and the limit is " +
+              MAX_ASSET_CHARS.toLocaleString() + ". Simplify it (fewer shapes, or fewer points in a path) and try again.", false);
+      return;
+    }
     const name = (nameInput.value || "").trim() || "untitled";
     publishBtn.disabled = true;
     let res;
