@@ -156,7 +156,36 @@
     return scene;
   }
 
+  // These canvases are declared with a small fixed buffer (320x180) and then
+  // stretched to fill their card by CSS, so what you see is an upscaled bitmap:
+  // blurry next to the live game canvas, which sizes its buffer to real device
+  // pixels. Do the same here. Every draw below scales off canvas.width/height,
+  // so they all sharpen for free, and SVG assets re-rasterize at the bigger
+  // size instead of being blown up.
+  const MAX_THUMB_PX = 4e6;     // buffer-area ceiling, so a wall of cards stays cheap
+  function fitBuffer(canvas) {
+    if (!canvas.__pwlBaseH) {
+      canvas.__pwlBaseW = canvas.width; canvas.__pwlBaseH = canvas.height;
+    }
+    const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+    // Not laid out yet (hidden card, detached node): leave the declared buffer
+    // alone rather than collapsing it to nothing.
+    if (!cssW || !cssH) return canvas.height / canvas.__pwlBaseH;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    let w = Math.round(cssW * dpr), h = Math.round(cssH * dpr);
+    const area = w * h;
+    if (area > MAX_THUMB_PX) {
+      const f = Math.sqrt(MAX_THUMB_PX / area);
+      w = Math.max(1, Math.round(w * f)); h = Math.max(1, Math.round(h * f));
+    }
+    // Assigning width/height also clears the canvas, which is fine: every
+    // caller paints the whole surface immediately after.
+    if (w !== canvas.width || h !== canvas.height) { canvas.width = w; canvas.height = h; }
+    return canvas.height / canvas.__pwlBaseH;
+  }
+
   function drawGame(code, canvas) {
+    fitBuffer(canvas);
     const scene = parseScene(code);
     const ctx = canvas.getContext("2d");
     const CW = canvas.width, CH = canvas.height;
@@ -205,6 +234,7 @@
   }
 
   function drawPlaceholder(kind, canvas) {
+    fitBuffer(canvas);
     const ctx = canvas.getContext("2d");
     const CW = canvas.width, CH = canvas.height;
     const g = ctx.createLinearGradient(0, 0, CW, CH);
@@ -221,6 +251,7 @@
   // list), so its card gets a themed placeholder instead of an empty black box:
   // the app's indigo, a wireframe cube and a "3D" wordmark.
   function draw3dPlaceholder(canvas) {
+    fitBuffer(canvas);
     const ctx = canvas.getContext("2d");
     const CW = canvas.width, CH = canvas.height;
     const g = ctx.createLinearGradient(0, 0, CW, CH);
@@ -316,6 +347,7 @@
   }
 
   function drawCode(code, canvas) {
+    const k = fitBuffer(canvas);
     const ctx = canvas.getContext("2d");
     const CW = canvas.width, CH = canvas.height;
     ctx.clearRect(0, 0, CW, CH);
@@ -327,7 +359,9 @@
     const maxLines = 10;
     const padY = Math.round(CH * 0.07);
     const avail = CH - padY * 2;
-    let fontSize = Math.max(8, Math.min(14, Math.floor(avail / (maxLines * 1.5))));
+    // Scaled by k, or the text would stay 14 device pixels tall in a buffer
+    // that is now several times bigger, i.e. unreadably small.
+    let fontSize = Math.max(8 * k, Math.min(14 * k, Math.floor(avail / (maxLines * 1.5))));
     const lineH = Math.round(fontSize * 1.5);
     const shown = Math.min(maxLines, Math.max(1, Math.floor(avail / lineH)), lines.length);
 
@@ -363,6 +397,7 @@
   // text) recorded in turtle coords (origin centre, y up), letterboxed onto the
   // preview canvas over its own background. The vector twin of renderScene.
   function renderTurtle(scene, canvas) {
+    fitBuffer(canvas);
     const ctx = canvas.getContext("2d");
     const CW = canvas.width, CH = canvas.height;
     ctx.clearRect(0, 0, CW, CH);
@@ -442,6 +477,7 @@
 
   // Paint a saved runtime scene (real sprite positions captured at publish time).
   function renderScene(scene, canvas) {
+    fitBuffer(canvas);
     const ctx = canvas.getContext("2d");
     const CW = canvas.width, CH = canvas.height;
     ctx.clearRect(0, 0, CW, CH);
