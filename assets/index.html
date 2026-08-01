@@ -78,6 +78,7 @@
           <div class="asset-tool-row asset-edit-actions">
             <button type="button" class="btn btn-ghost" id="asset-centre-h" title="Centre left-to-right on the canvas. Works on the selection, or the whole drawing if nothing is selected.">Centre&nbsp;↔</button>
             <button type="button" class="btn btn-ghost" id="asset-centre-v" title="Centre top-to-bottom on the canvas. Works on the selection, or the whole drawing if nothing is selected.">Centre&nbsp;↕</button>
+            <button type="button" class="btn btn-ghost is-on" id="asset-frame-toggle" title="Show the box your artwork actually fills inside the 64x64 canvas, and its ratio. A game draws the whole canvas, so the space around this box is empty space in your sprite.">Frame</button>
             <button type="button" class="btn btn-ghost" id="asset-fit" title="Grow the drawing to fill the canvas, keeping its proportions and centring it. Undo with Ctrl+Z.">Fit</button>
           </div>
           <div class="asset-tool-row asset-edit-actions">
@@ -104,6 +105,7 @@
               <img class="asset-prev" id="asset-prev-b" width="40" height="40" alt="" />
               <img class="asset-prev" id="asset-prev-c" width="24" height="24" alt="" />
             </div>
+            <span class="asset-frame-info" id="asset-frame-info"></span>
             <button type="button" class="asset-download" id="asset-download" title="Save this sprite to your computer as an .svg file">
               <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 1v8m0 0L5 6m3 3l3-3M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Download SVG

@@ -1315,3 +1315,7 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-card-fit:disabled { opacity: 0.5; cursor: default; }
 .asset-card-del { position: absolute; top: 3px; right: 6px; border: none; background: none; color: var(--muted); font-size: 17px; line-height: 1; cursor: pointer; }
 .asset-card-del:hover { color: #c0392b; }
+
+/* The frame readout under the preview: what shape the artwork really is. */
+.asset-frame-info { display: block; margin-top: 8px; font-size: 0.74rem; color: #8aa0d0; font-variant-numeric: tabular-nums; }
+.asset-tool-row .btn.is-on { background: var(--primary); color: #fff; border-color: var(--primary); }

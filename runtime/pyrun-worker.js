@@ -15,6 +15,7 @@ importScripts(PYODIDE_URL + "pyodide.js", "./pyrun-proto.js");
 let pyodide = null;
 let mem = null;                 // { ctrl, str, interruptView, ... } from PRProto.attach
 const assetRatios = {};         // asset id -> width/height, pushed from the main thread
+const assetInks = {};           // asset id -> "fx,fy,fw,fh" artwork box, likewise
 const CTRL = self.PRProto.CTRL;
 const dec = new TextDecoder();
 
@@ -78,6 +79,10 @@ const GAME_IO = {
     post("g", "preloadAssets", [JSON.stringify([id])]);   // make sure it is being fetched
     return assetRatios[String(id)] || 1;
   },
+  assetInk: function (id) {
+    if (id == null || id === "") return "";
+    return assetInks[String(id)] || "";
+  },
   pressed: function (key) { return Atomics.load(mem.ctrl, self.PRProto.keyIndex(key)) === 1; },
   mouseX: function () { return Atomics.load(mem.ctrl, CTRL.MX); },
   mouseY: function () { return Atomics.load(mem.ctrl, CTRL.MY); },
@@ -116,6 +121,7 @@ self.onmessage = async function (e) {
   const msg = e.data;
   try {
     if (msg.type === "assetRatio") { assetRatios[String(msg.id)] = Number(msg.ratio) || 1; return; }
+    if (msg.type === "assetInk") { assetInks[String(msg.id)] = String(msg.ink || ""); return; }
     if (msg.type === "init") {
       mem = self.PRProto.attach(msg.sab, msg.interrupt);
       pyodide = await loadPyodide({ indexURL: PYODIDE_URL });

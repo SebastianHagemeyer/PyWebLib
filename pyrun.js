@@ -535,13 +535,31 @@ def _pyrun_install_game():
                 wf, hf = _HIT_ASPECT.get(self.art, (0.8, 0.8))
                 w, h = self.size * wf, self.size * hf
             elif self.kind == "asset":
-                # Match the art exactly: your sprite is the shape you drew, so
-                # game.debug(True) outlines what you can actually see.
-                w, h = self._draw_wh()
+                # Hug the artwork, not the canvas around it. A rocket drawn tall
+                # and thin gets a tall thin box, so game.debug(True) outlines
+                # what you can actually see.
+                ink = _asset_ink(self._asset)
+                if ink:
+                    dw, dh = self._draw_wh()
+                    w, h = dw * ink[2], dh * ink[3]
+                else:
+                    w, h = self.size * 0.8, self.size * 0.8   # until the art loads
             else:
                 # emoji/text: a slightly-smaller-than-size box feels fair.
                 w, h = self.size * 0.8, self.size * 0.8
             return w * abs(self.scale_x), h * abs(self.scale_y)
+
+        def _ink_shift(self):
+            # The artwork is rarely dead centre on its canvas, so the collision
+            # box has to move with it or it sits beside the sprite.
+            if self.kind != "asset":
+                return (0.0, 0.0)
+            ink = _asset_ink(self._asset)
+            if not ink:
+                return (0.0, 0.0)
+            dw, dh = self._draw_wh()
+            return ((ink[0] + ink[2] / 2.0 - 0.5) * dw * abs(self.scale_x),
+                    (ink[1] + ink[3] / 2.0 - 0.5) * dh * abs(self.scale_y))
 
         def _anchor_shift(self):
             # anchor (0.5, 0.5) is the middle. Anything else moves the art so
@@ -551,12 +569,22 @@ def _pyrun_install_game():
             return ((0.5 - ax) * dw * abs(self.scale_x),
                     (0.5 - ay) * dh * abs(self.scale_y))
 
+        def _hit_centre(self):
+            # Where the collision box actually sits: the anchor moves the sprite,
+            # and the artwork's own offset on its canvas moves the box within it.
+            # A hitbox you set yourself is taken at face value, centred on you.
+            ox, oy = self._anchor_shift()
+            if self._hitbox is None:
+                ix, iy = self._ink_shift()
+            else:
+                ix, iy = 0.0, 0.0
+            return (self.x + ox + ix, self.y + oy + iy)
+
         def _obb(self):
             # Oriented box for collisions: centre, half-sizes, angle (radians).
             w, h = self._hit_wh()
-            ox, oy = self._anchor_shift()
-            return (self.x + ox, self.y + oy, w / 2.0, h / 2.0,
-                    self.angle * math.pi / 180.0)
+            cx, cy = self._hit_centre()
+            return (cx, cy, w / 2.0, h / 2.0, self.angle * math.pi / 180.0)
 
         def touches(self, other):
             # True if the two boxes overlap, taking each sprite's rotation and
@@ -624,6 +652,28 @@ def _pyrun_install_game():
     # Default collision-box shape per art (width, height as a fraction of size),
     # so a wide car gets a wide box and a tall egg a tall one. Anything not
     # listed falls back to a near-square box. Override any sprite with .hitbox.
+    # Each asset's artwork box inside its canvas, asked for once and remembered.
+    _INK = {}
+    def _asset_ink(aid):
+        if aid is None or aid == "":
+            return None
+        if aid in _INK:
+            return _INK[aid]
+        try:
+            raw = str(_io.assetInk(aid) or "")
+        except Exception:
+            return None
+        if not raw:
+            return None            # art not loaded yet; ask again next frame
+        try:
+            p = [float(v) for v in raw.split(",")]
+        except ValueError:
+            return None
+        if len(p) != 4 or p[2] <= 0 or p[3] <= 0:
+            return None
+        _INK[aid] = tuple(p)
+        return _INK[aid]
+
     _HIT_ASPECT = {
         3: (0.60, 0.80),   # egg: taller than wide
         8: (0.84, 0.68),   # turtle: a bit wide
@@ -819,15 +869,16 @@ def _pyrun_install_game():
             if s._anim:
                 kind, art, disp = s._anim[(W["tick"] // s._anim_every) % len(s._anim)]
             hbw, hbh = s._hit_wh()
-            aox, aoy = s._anchor_shift()
+            hbcx, hbcy = s._hit_centre()
             ax, ay = s.anchor
             arr.append({"kind": kind, "x": s.x, "y": s.y, "size": s.size,
                         "w": s.w, "h": s.h, "text": str(disp), "color": s.color,
                         "art": art, "asset": s.asset, "angle": s.angle,
                         "sx": s.scale_x, "sy": s.scale_y, "back": s.background,
                         "ax": ax, "ay": ay,
-                        # where the collision box really sits, anchor included
-                        "hbx": s.x + aox, "hby": s.y + aoy,
+                        # where the collision box really sits, anchor and the
+                        # artwork's offset on its canvas included
+                        "hbx": hbcx, "hby": hbcy,
                         "hbw": hbw, "hbh": hbh, "hba": s.angle})
         # Once the game is over the banner is sticky: every later redraw (like
         # the frame() at the end of the loop) keeps showing it instead of
@@ -1375,6 +1426,41 @@ del _pyrun_install_game3d
     if (mw && mh) { var ww = parseFloat(mw[1]), hh = parseFloat(mh[1]); if (ww > 0 && hh > 0) return ww / hh; }
     return 1;
   }
+  // Where the artwork actually sits inside its canvas, as fractions of it, so a
+  // long thin sprite gets a long thin collision box instead of the whole square.
+  // Measured by rasterising once and scanning alpha, which counts strokes and
+  // curves the way your eye does.
+  const ASSET_INK = {};   // "id" -> "fx,fy,fw,fh"
+  function measureInk(key, img) {
+    try {
+      const R = 96;   // plenty for a box, cheap to scan
+      const cv = document.createElement("canvas");
+      cv.width = R; cv.height = R;
+      const c = cv.getContext("2d", { willReadFrequently: true });
+      c.clearRect(0, 0, R, R);
+      c.drawImage(img, 0, 0, R, R);
+      const d = c.getImageData(0, 0, R, R).data;
+      let x0 = R, y0 = R, x1 = -1, y1 = -1;
+      for (let y = 0; y < R; y++) {
+        for (let x = 0; x < R; x++) {
+          if (d[(y * R + x) * 4 + 3] > 8) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+        }
+      }
+      if (x1 < x0 || y1 < y0) return;                 // nothing drawn
+      const ink = [x0 / R, y0 / R, (x1 - x0 + 1) / R, (y1 - y0 + 1) / R]
+        .map(function (v) { return Math.round(v * 1000) / 1000; }).join(",");
+      ASSET_INK[key] = ink;
+      try {
+        if (sharedWorker) sharedWorker.postMessage({ type: "assetInk", id: String(key), ink: ink });
+      } catch (e) {}
+    } catch (e) { /* tainted or undecodable: fall back to the square box */ }
+  }
+
   function useAssetSvg(key, svg) {
     ASSET_RATIO[key] = svgRatio(svg);
     // Python needs the shape of the art to size its collision box, and in the
@@ -1383,6 +1469,7 @@ del _pyrun_install_game3d
       if (sharedWorker) sharedWorker.postMessage({ type: "assetRatio", id: String(key), ratio: ASSET_RATIO[key] });
     } catch (e) {}
     const img = new Image();
+    img.onload = function () { measureInk(key, img); };
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     ASSET_IMAGES[key] = img;
   }
@@ -1549,6 +1636,14 @@ del _pyrun_install_game3d
       var key = String(id);
       ensureAsset(key);
       return ASSET_RATIO[key] || 1;
+    },
+    // "fx,fy,fw,fh": the artwork's box inside its canvas, as fractions. Empty
+    // until the art has loaded and been measured.
+    assetInk: function (id) {
+      if (id == null || id === "") return "";
+      var key = String(id);
+      ensureAsset(key);
+      return ASSET_INK[key] || "";
     },
     fullscreen: function (on) { setGameFullscreen(null, on !== false); },
     playing: function () { return gamePlaying; },

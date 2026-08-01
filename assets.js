@@ -96,6 +96,7 @@
   let tool = "select";
   let color = "#4f46e5";
   let lineWidth = 4;      // thickness for the line tool + the selected line
+  let showFrame = true;   // draw the box the artwork actually fills
   const history = [];     // JSON snapshots for undo
   let editingId = null;   // the asset id we're updating, or null for a new one
   let pathPts = [];        // vertices of the path currently being drawn
@@ -309,6 +310,16 @@
                  '" fill="#ffffff" stroke="#4f46e5" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
         }).join("");
       }
+      // The frame: the box your artwork actually fills inside the canvas. A game
+      // draws the whole 64x64, but the collision box hugs THIS, so for a long
+      // thin sprite (a rocket, a hammer) it shows you the shape that matters.
+      if (showFrame && shapes.length) {
+        const fb = groupBox(shapes);
+        if (fb.w > 0.01 && fb.h > 0.01) {
+          svg += '<rect x="' + rnd(fb.x) + '" y="' + rnd(fb.y) + '" width="' + rnd(fb.w) + '" height="' + rnd(fb.h) +
+                 '" fill="none" stroke="#d9861f" stroke-width="0.7" stroke-dasharray="1 1.2" vector-effect="non-scaling-stroke" pointer-events="none"/>';
+        }
+      }
       if (pathPts.length) {   // the path being drawn: open line + dots
         svg += '<polyline points="' + pathPts.map(function (p) { return rnd(p[0]) + "," + rnd(p[1]); }).join(" ") +
                '" fill="none" stroke="#4f46e5" stroke-width="0.8" vector-effect="non-scaling-stroke"/>';
@@ -318,6 +329,7 @@
     }
     const uri = dataUri(currentSvg());
     previews.forEach(function (img) { if (img) img.src = uri; });
+    renderFrameInfo();
     reflectImport();
   }
 
@@ -641,6 +653,23 @@
     shapes.splice(j, 0, s);
     setSel([j]); render();
   }
+  // ---- the frame readout ------------------------------------------------------
+  // Says, in numbers, what the dashed box on the canvas is showing: how much of
+  // the 64x64 your art fills, and what shape it is. That ratio is the shape the
+  // collision box takes in a game, which is what matters for a long thin sprite.
+  function renderFrameInfo() {
+    const el = document.getElementById("asset-frame-info");
+    if (!el) return;
+    if (!shapes.length || importedSvg) { el.textContent = ""; return; }
+    const b = groupBox(shapes);
+    if (!(b.w > 0.01) || !(b.h > 0.01)) { el.textContent = ""; return; }
+    const ratio = b.w / b.h;
+    const shape = Math.abs(ratio - 1) < 0.06 ? "square"
+      : ratio > 1 ? (Math.round(ratio * 100) / 100) + " : 1 wide"
+      : "1 : " + (Math.round((1 / ratio) * 100) / 100) + " tall";
+    el.textContent = "Art " + Math.round(b.w) + " x " + Math.round(b.h) + " of 64 - " + shape;
+  }
+
   // ---- centre on the canvas ---------------------------------------------------
   // Where the art sits on the 64x64 canvas is yours to decide: a closed fist
   // SHOULD be smaller than an open hand, and two animation frames SHOULD share
@@ -686,6 +715,15 @@
     render();
   }
   document.getElementById("asset-fit").addEventListener("click", fitToCanvas);
+  (function wireFrameToggle() {
+    const btn = document.getElementById("asset-frame-toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      showFrame = !showFrame;
+      btn.classList.toggle("is-on", showFrame);
+      render();
+    });
+  })();
 
   document.getElementById("asset-forward").addEventListener("click", function () { reorder(1); });
   document.getElementById("asset-back").addEventListener("click", function () { reorder(-1); });
