@@ -221,8 +221,79 @@
         "    game3d.frame(60)\n"
     },
     {
-      title: "Game: bouncing ball (vs pygame)",
-      desc: "The classic pygame bouncing ball, but web-native. The real pygame version is commented above; running it in a browser needs extra tooling like pygbag.",
+      title: "Mouse synth",
+      sub: "live sound",
+      cat: "Tech Demo",
+      desc: "A drone you play with the mouse: pitch follows left/right, volume follows up/down. One sustained tone, steered every frame, in about 20 lines.",
+      code:
+`import game
+
+# A synth you play with the mouse. No audio files, no library: one tone,
+# steered live. Move left and right for pitch, up and down for volume.
+game.window(480, 300, background="#141026")
+game.label("Move the mouse. Left/right = pitch, up/down = volume.",
+           240, 30, size=16, color="#c9c2ff")
+
+note = game.label("", 240, 150, size=44, color="#ffffff")
+bar = game.box(240, 230, 8, 8, "#7c5cff")
+
+drone = game.tone(220, "sawtooth", 0.0)   # starts silent
+
+while game.playing():
+    hz = 110 + game.mouse_x()             # 110 Hz on the left, ~590 on the right
+    vol = 0.25 * (1 - game.mouse_y() / 300.0)
+    if not game.mouse_in():
+        vol = 0.0                         # quiet when the pointer leaves
+    drone.pitch(hz)
+    drone.volume(max(0.0, vol))
+
+    note.content = str(int(hz)) + " Hz"
+    bar.w = 8 + vol * 1200                # a VU meter, wider when louder
+    bar.color = "#7c5cff" if vol > 0.01 else "#2a2350"
+    game.frame(60)
+
+drone.stop()`
+    },
+    {
+      title: "Drag a slider",
+      sub: "no widgets needed",
+      cat: "Tech Demo",
+      desc: "A working slider built from two boxes and a circle. Shows how far a handful of sprites and mouse_down() gets you.",
+      code:
+`import game
+
+# A slider you can actually drag, built from two boxes and a circle.
+game.window(480, 260, background="#101828")
+game.label("Drag the knob", 240, 34, size=18, color="#9fb3d1")
+
+LEFT, RIGHT, Y = 90, 390, 130
+track = game.box((LEFT + RIGHT) // 2, Y, RIGHT - LEFT, 8, "#243146")
+fill = game.box(LEFT, Y, 0, 8, "#4f9cff")
+knob = game.sprite("⚪", LEFT, Y, size=34)
+read = game.label("0", 240, 200, size=40, color="#ffffff")
+
+held = False
+
+while game.playing():
+    if game.mouse_down() and (knob.at_mouse() or held):
+        held = True
+        knob.x = max(LEFT, min(RIGHT, game.mouse_x()))
+    if not game.mouse_down():
+        held = False
+
+    # The filled part grows from the left edge, so it has to move as it grows.
+    fill.w = knob.x - LEFT
+    fill.x = LEFT + fill.w / 2
+
+    value = int((knob.x - LEFT) / (RIGHT - LEFT) * 100)
+    read.content = str(value)
+    game.frame(60)`
+    },
+    {
+      title: "Bouncing ball",
+      sub: "vs pygame",
+      cat: "Tech Demo",
+      desc: "The classic pygame bouncing ball, web-native. The real pygame version is commented at the top: same idea, but running it in a browser needs extra tooling like pygbag.",
       code:
         "# --- The real pygame version (works, but needs pygbag to run in a browser). ---\n" +
         "# import pygame\n" +
@@ -1650,7 +1721,7 @@ while game.playing():
     // rather than a wall of cards you scroll past.
     { name: "Stock Python", open: false, subOpen: false, cats: ["Basic", "Intermediate"] },
     { name: "PyWebLib", open: true, subOpen: false,
-      cats: ["Turtle", "Basic Games", "Advanced Games", "3D", "Coloured Text"] }
+      cats: ["Turtle", "Basic Games", "Advanced Games", "3D", "Tech Demo", "Coloured Text"] }
   ];
 
   // Work out which category a snippet belongs in. An explicit ex.cat wins;
@@ -1704,8 +1775,12 @@ while game.playing():
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "sandbox-example-card";
+          // An optional subtitle keeps the qualifier ("vs pygame") out of the
+          // title, so the name stays short enough to read at a glance.
           btn.innerHTML =
-            '<span class="sandbox-example-title">' + escapeHtml(ex.title) + '</span>' +
+            '<span class="sandbox-example-title">' + escapeHtml(ex.title) +
+              (ex.sub ? '<span class="sandbox-example-sub">' + escapeHtml(ex.sub) + '</span>' : "") +
+            '</span>' +
             '<span class="sandbox-example-desc">' + escapeHtml(ex.desc) + '</span>';
           btn.addEventListener("click", function () {
             loadInto(ex.code, 'Loaded "' + ex.title + '"');

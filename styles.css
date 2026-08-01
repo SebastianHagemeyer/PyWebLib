@@ -1319,3 +1319,28 @@ body.sandbox-maxed { overflow: hidden; }
 /* The frame readout under the preview: what shape the artwork really is. */
 .asset-frame-info { display: block; margin-top: 8px; font-size: 0.74rem; color: #8aa0d0; font-variant-numeric: tabular-nums; }
 .asset-tool-row .btn.is-on { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* Snippet subtitle: the qualifier, kept out of the title so names stay short. */
+.sandbox-example-sub {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+/* Asset library panels: closed by default, so the page is the editor first. */
+.asset-lib-group { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 12px; }
+.asset-lib-group > summary { cursor: pointer; padding: 13px 16px; font-weight: 800; font-size: 1.02rem; color: var(--text); list-style: none; display: flex; align-items: center; gap: 10px; }
+.asset-lib-group > summary::-webkit-details-marker { display: none; }
+.asset-lib-group > summary::before { content: ""; width: 0; height: 0; border-left: 7px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; transition: transform 0.15s ease; flex: none; }
+.asset-lib-group[open] > summary::before { transform: rotate(90deg); }
+.asset-lib-group > summary:hover { color: var(--primary); }
+.asset-lib-count { margin-left: auto; font-size: 0.78rem; font-weight: 700; color: var(--muted); background: var(--bg); border-radius: 999px; padding: 1px 9px; }
+.asset-lib-group .asset-grid { padding: 0 16px 16px; }
+.asset-lib-group .cc-pager { margin: 0 16px 16px; }

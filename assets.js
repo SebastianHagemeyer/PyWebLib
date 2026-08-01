@@ -1104,6 +1104,13 @@
     };
   }
 
+  // The library panels start closed, so the count is what tells you there is
+  // anything in them.
+  function setLibCount(id, n) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = n ? String(n) : "";
+  }
+
   async function loadLibrary() {
     if (!PWL.configured || !sb) return;
     const user = PWL.auth && PWL.auth.user();
@@ -1115,6 +1122,7 @@
         if (r.error || !r.data || !r.data.length) mineEl.innerHTML = '<p class="community-empty">No assets yet. Draw one above and publish it.</p>';
         else r.data.forEach(function (a) { mineEl.appendChild(card(a, true)); });
         offerFrameRepair((!r.error && r.data) ? r.data : []);
+        setLibCount("asset-mine-count", (!r.error && r.data) ? r.data.length : 0);
       }
     }
     if (allEl) {
@@ -1132,6 +1140,7 @@
         });
       }
       showAssetPage(0);
+      setLibCount("asset-all-count", allCards.length);
     }
   }
 
