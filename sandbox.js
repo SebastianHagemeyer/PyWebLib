@@ -120,7 +120,8 @@
         "        print(i)\n"
     },
     {
-      title: "Turtle: first drawing",
+      title: "First drawing",
+      cat: "Turtle",
       desc: "import turtle opens the drawing window. Draw a square.",
       code:
         "import turtle\n" +
@@ -130,7 +131,8 @@
         "    turtle.left(90)\n"
     },
     {
-      title: "Turtle: rainbow spiral",
+      title: "Rainbow spiral",
+      cat: "Turtle",
       desc: "The loop grows the size and rotates the colour.",
       code:
         "import turtle\n" +
@@ -144,7 +146,8 @@
         "    turtle.left(60)\n"
     },
     {
-      title: "Game: move the chicken",
+      title: "Move the chicken",
+      cat: "Basic Games",
       desc: "import game. Steer the chicken with the arrow keys.",
       code:
         "import game\n" +
@@ -162,7 +165,7 @@
         "    game.frame(60)\n"
     },
     {
-      title: "3D: your first 3D scene",
+      title: "Your first 3D scene",
       desc: "import game3d. A spinning cube on a green field. Change a number, hit Run, see what happens.",
       cat: "3D",
       code:
@@ -185,7 +188,7 @@
         "    game3d.frame(60)\n"
     },
     {
-      title: "3D: collect the coins",
+      title: "Collect the coins",
       desc: "Drive the red cube with the arrow keys and grab the gold spheres. Real 3D, same game loop you already know.",
       cat: "3D",
       code:
@@ -335,7 +338,8 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: catch the eggs",
+      title: "Catch the eggs",
+      cat: "Basic Games",
       desc: "Move the basket to catch falling eggs. Miss 3 and it's over.",
       code:
         "import game\n" +
@@ -372,7 +376,8 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: 2-player shout-off",
+      title: "2-player shout-off",
+      cat: "Basic Games",
       desc: "Two players tap A and L. Fill your shout bar to the top first to win.",
       code:
         "import game\n" +
@@ -438,7 +443,8 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: walk and turn around",
+      title: "Walk and turn around",
+      cat: "Basic Games",
       desc: "Side-scroller basics: the runner faces the way it walks (scale_x flips it).",
       code:
         "import game\n" +
@@ -460,7 +466,7 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: flappy bird",
+      title: "Flappy bird",
       cat: "Advanced Games",
       desc: "Tap the screen (or SPACE) to flap. Gravity pulls you down, dodge the pipes, one point each.",
       code:
@@ -541,7 +547,8 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: drive a car",
+      title: "Drive a car",
+      cat: "Basic Games",
       desc: "Top-down driving: arrows turn and drive, and it coasts to a stop.",
       code:
         "import game\n" +
@@ -577,7 +584,7 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: grow a garden",
+      title: "Grow a garden",
       cat: "Advanced Games",
       desc: "Drag a seed onto a plot, water it with the can, then snip the grown sunflower with the scissors for coins. Custom Asset-studio sprites throughout, with a two-frame scissor animation.",
       code:
@@ -881,7 +888,7 @@ while game.playing():
     game.frame(60)`
     },
     {
-      title: "Game: asteroids",
+      title: "Asteroids",
       cat: "Advanced Games",
       desc: "Turn and thrust with real momentum, so you drift, and blast the rocks with your laser. Big rocks split; clear a wave and a bigger one arrives. Shows off the rocket, asteroid and laser sprites.",
       code:
@@ -1048,7 +1055,8 @@ while game.playing():
     game.frame(60)`
     },
     {
-      title: "Game: whack a mouse",
+      title: "Whack a mouse",
+      cat: "Basic Games",
       desc: "Click the mouse with your mouse before it scurries to the next hole. It gets faster!",
       code:
         "import game\n" +
@@ -1086,7 +1094,8 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: drag and drop",
+      title: "Drag and drop",
+      cat: "Basic Games",
       desc: "Hold the mouse button to pick up an animal and carry it into the pen.",
       code:
         "import game\n" +
@@ -1128,7 +1137,7 @@ while game.playing():
         "    game.frame(60)\n"
     },
     {
-      title: "Game: 3D maze",
+      title: "3D maze",
       cat: "Advanced Games",
       desc: "A real first-person maze, the same trick the original Doom used. Pure Python, 80 lines.",
       code:
@@ -1418,7 +1427,8 @@ while game.playing():
         "print('|||', col=BROWN)\n"
     },
     {
-      title: "Christmas tree (sparkling)",
+      title: "Christmas tree",
+      sub: "animated",
       desc: "The tree redraws each frame, so the ornaments keep sparkling.",
       code:
         "import random\n" +
@@ -1468,7 +1478,8 @@ while game.playing():
         "print('Result:  ', out)\n"
     },
     {
-      title: "Game: Flappy (made for phones)",
+      title: "Flappy",
+      sub: "made for phones",
       cat: "Advanced Games",
       desc: "A portrait, tap-to-flap game that fills the whole screen with game.fullscreen(). Tap (or press Space) to flap through the pipes. Try it on your phone.",
       code:
@@ -1738,11 +1749,12 @@ while game.playing():
   ];
 
   // Work out which category a snippet belongs in. An explicit ex.cat wins;
-  // otherwise we sort by its title and whether it colours its output.
+  // otherwise anything that colours its output is Coloured Text and the rest
+  // is Basic. Titles used to carry a "Game: " / "Turtle: " prefix that this
+  // read, but the section heading above the card already says that, so the
+  // prefix went and those snippets name their category outright instead.
   function categoryOf(ex) {
     if (ex.cat) return ex.cat;
-    if (/^Game:/.test(ex.title)) return "Basic Games";   // ex.cat can move one to "Advanced Games"
-    if (/^Turtle:/.test(ex.title)) return "Turtle";
     if (/\bcol\s*=/.test(ex.code)) return "Coloured Text";
     return "Basic";
   }
