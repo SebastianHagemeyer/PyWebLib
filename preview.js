@@ -476,7 +476,7 @@
       let cx = 0, cy = 0;
       if (anX !== 0.5 || anY !== 0.5) {
         let dW, dH;
-        if (s.kind === "box") { dW = s.w; dH = s.h; }
+        if (s.kind === "box" || s.kind === "circle") { dW = s.w; dH = s.h; }
         else if (s.kind === "asset") {
           const rr = ASSET_RATIO[String(s.asset)] || 1;
           const ssz = s.size || 40;
@@ -489,6 +489,11 @@
       if (s.kind === "box") {
         ctx.fillStyle = s.color || "#fff";
         ctx.fillRect(cx - s.w * scale / 2, cy - s.h * scale / 2, s.w * scale, s.h * scale);
+      } else if (s.kind === "circle") {
+        ctx.fillStyle = s.color || "#fff";
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, Math.abs(s.w) * scale / 2, Math.abs(s.h) * scale / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
       } else if (s.kind === "art") {
         const img = IMAGES[s.art];
         const sz = (s.size || 40) * scale;

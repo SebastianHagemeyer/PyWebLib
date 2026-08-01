@@ -154,7 +154,7 @@ while game.playing():
 
         <section id="box">
           <h2>Boxes &amp; a scoreboard</h2>
-          <p>Prefer plain coloured shapes? <code>game.box(x, y, w, h, color)</code> is a rectangle with a real <code>.color</code> you can change, and it moves and collides just like a sprite. A scoreboard is just a <code>game.label</code> whose <code>.content</code> you update, so you decide where it sits and what it says.</p>
+          <p>Prefer plain coloured shapes? <code>game.box(x, y, w, h, color)</code> is a rectangle and <code>game.circle(x, y, w, h, color)</code> is a round one (leave <code>h</code> out for a true circle, or give it to squash the circle into an oval). Both have a real <code>.color</code> you can change, and both move and collide just like a sprite. A scoreboard is just a <code>game.label</code> whose <code>.content</code> you update, so you decide where it sits and what it says.</p>
           <pre class="guide-code language-python" id="ex-box">import game
 game.window(480, 360)
 

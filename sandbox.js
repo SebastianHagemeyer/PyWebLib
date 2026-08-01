@@ -269,7 +269,7 @@ game.label("Drag the knob", 240, 34, size=18, color="#9fb3d1")
 LEFT, RIGHT, Y = 90, 390, 130
 track = game.box((LEFT + RIGHT) // 2, Y, RIGHT - LEFT, 8, "#243146")
 fill = game.box(LEFT, Y, 0, 8, "#4f9cff")
-knob = game.sprite("⚪", LEFT, Y, size=34)
+knob = game.circle(LEFT, Y, 34, color="#e8eefc")
 read = game.label("0", 240, 200, size=40, color="#ffffff")
 
 held = False
@@ -324,7 +324,7 @@ while game.playing():
         "import game\n" +
         "\n" +
         'game.window(600, 400, background="#141828")\n' +
-        'ball = game.sprite("🔴", 300, 200, size=48)\n' +
+        'ball = game.circle(300, 200, 48, color="#e91e63")   # r=24, same as above\n' +
         "dx, dy = 2, 1.5\n" +
         "\n" +
         "while game.playing():\n" +
@@ -599,11 +599,20 @@ coins = 0
 PACK, PACK_COST, SELL_PRICE = 5, 8, 3
 
 # ===== the plot row ========================================================
+# Everything hangs off the planter, measured off the artwork rather than
+# guessed. At size 164 its box is 164 x 86 and the paint runs from 28 ABOVE the
+# sprite centre to 28 below, so RIM_Y is the one number to nudge: it is the
+# visible rim line, and the soil, the plants and the pot all follow it.
 PLOT_XS = [128, 304, 480, 656, 832]
-SOIL_Y, SOIL_W, SOIL_H = 334, 110, 52
+TROUGH_SIZE = 164
+TROUGH_RIM_UP = 28                       # sprite centre -> the painted top edge
+RIM_Y = 286                              # <-- the one knob
+TROUGH_Y = RIM_Y + TROUGH_RIM_UP
+
+SOIL_W, SOIL_H = 150, 67                 # deep enough to fill the pot's mouth
+SOIL_Y = TROUGH_Y - 8
 SOIL_TOP = SOIL_Y - SOIL_H // 2          # where droplets land
-PLANT_BASE = 344                         # every plant's feet sit on this line
-RIM_Y, TROUGH_SIZE = 300, 164            # the planter overlay
+PLANT_BASE = TROUGH_Y - 10               # every plant's feet sit on this line
 
 # What draws in front of what: bigger sits on top. Labels start at 1000, so the
 # droplets and the cursor are deliberately above that.
@@ -634,11 +643,12 @@ for px in PLOT_XS:
                   "planted": False, "growth": 0.0, "wet": 0.0})
 
 for plot in plots:                       # plants above the planter panel
-    plot["plant"] = game.sprite("", plot["x"], SOIL_Y, size=SPROUT_MIN)
+    plot["plant"] = game.sprite("", plot["x"], PLANT_BASE, size=SPROUT_MIN)
+    plot["plant"].anchor = (0.5, 1.0)    # the handle is its FEET, not its middle
     plot["plant"].layer = PLANT_LAYER
 
 for plot in plots:                       # planter over the dirt
-    frame = game.sprite(TROUGH, plot["x"], RIM_Y + 24, size=TROUGH_SIZE, asset=True)
+    frame = game.sprite(TROUGH, plot["x"], TROUGH_Y, size=TROUGH_SIZE, asset=True)
     frame.layer = TROUGH_LAYER
 
 # The seed you drag out of the tray.
@@ -685,9 +695,12 @@ def set_cursor(asset):
 
 
 def stand(plant, size):
-    # Feet on the same line every time: y is the sprite centre, not its base.
+    # Feet on the same line every time. The plants are anchored at (0.5, 1.0),
+    # so y IS the ground line and there is nothing to work out. Taking half the
+    # size instead only works for square art: size is the LONGER side, so a wide
+    # sprite would float above the soil.
     plant.size = size
-    plant.y = PLANT_BASE - size * 0.5
+    plant.y = PLANT_BASE
 
 
 def soil_color(wet):
@@ -1049,8 +1062,8 @@ while game.playing():
         "holes = []\n" +
         "for row in range(3):\n" +
         "    for col in range(3):\n" +
-        '        holes.append(game.box(120 + col * 120, 130 + row * 95, 70, 22,\n' +
-        '                              color="#3d2a1a"))\n' +
+        '        holes.append(game.circle(120 + col * 120, 130 + row * 95, 70, 22,\n' +
+        '                                 color="#3d2a1a"))\n' +
         "\n" +
         'mole = game.sprite("mouse", 120, 116, size=48)\n' +
         "score = 0\n" +

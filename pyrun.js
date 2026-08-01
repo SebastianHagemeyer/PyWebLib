@@ -517,7 +517,7 @@ def _pyrun_install_game():
 
         def _draw_wh(self):
             # How big the art is actually drawn, before scale_x/scale_y.
-            if self.kind == "box":
+            if self.kind == "box" or self.kind == "circle":
                 return self.w, self.h
             if self.kind == "asset":
                 # An asset keeps its own proportions: the long side is size.
@@ -529,7 +529,9 @@ def _pyrun_install_game():
             # The unrotated width and height of the collision box, before angle.
             if self._hitbox is not None:
                 w, h = self._hitbox
-            elif self.kind == "box":
+            elif self.kind == "box" or self.kind == "circle":
+                # The box around it. touches() stays rectangular, which is close
+                # enough for a hole you drop a mole into.
                 w, h = self.w, self.h
             elif self.kind == "art":
                 wf, hf = _HIT_ASPECT.get(self.art, (0.8, 0.8))
@@ -725,6 +727,13 @@ def _pyrun_install_game():
 
     def box(x, y, w, h, color="#ffffff"):
         return Sprite("box", x=x, y=y, w=w, h=h, color=color)
+
+    def circle(x, y, w, h=None, color="#ffffff"):
+        # A round one, measured like game.box: w across and h down. Leave h out
+        # for a true circle. A squashed one reads as a hole in the ground:
+        #   game.circle(240, 180, 70, 22, "#3d2a1a")
+        return Sprite("circle", x=x, y=y, w=w, h=(w if h is None else h),
+                      color=color)
 
     def label(message, x, y, size=20, color="#ffffff", background=None):
         # color is the text colour; background (optional) draws a filled box
@@ -939,6 +948,7 @@ def _pyrun_install_game():
     mod.background = background
     mod.sprite = sprite
     mod.box = box
+    mod.circle = circle
     mod.label = label
     mod.pressed = pressed
     mod.hide_cursor = hide_cursor
@@ -1739,7 +1749,7 @@ del _pyrun_install_game3d
         var lx = 0, ly = 0;
         if (anX !== 0.5 || anY !== 0.5) {
           var dW, dH;
-          if (s.kind === "box") { dW = s.w; dH = s.h; }
+          if (s.kind === "box" || s.kind === "circle") { dW = s.w; dH = s.h; }
           else if (s.kind === "asset") {
             var rr = ASSET_RATIO[String(s.asset)] || 1;
             var ssz = s.size || 40;
@@ -1761,6 +1771,11 @@ del _pyrun_install_game3d
         if (s.kind === "box") {
           c.fillStyle = s.color || "#fff";
           c.fillRect(dx - s.w / 2, dy - s.h / 2, s.w, s.h);
+        } else if (s.kind === "circle") {
+          c.fillStyle = s.color || "#fff";
+          c.beginPath();
+          c.ellipse(dx, dy, Math.abs(s.w) / 2, Math.abs(s.h) / 2, 0, 0, Math.PI * 2);
+          c.fill();
         } else if (s.kind === "art") {
           var img = SPRITE_ART[s.art];
           var sz = s.size || 40;
