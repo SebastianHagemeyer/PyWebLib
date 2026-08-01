@@ -34,6 +34,14 @@
       '<div class="pwl-player pwl-player-is-' + kind + '">' +
         '<div class="pwl-player-bar">' +
           '<button type="button" class="btn btn-primary pwl-player-run"><span class="sandbox-run-label">Run</span></button>' +
+          (kind === "game"
+            ? '<button type="button" class="btn btn-ghost game-fs-btn pwl-player-fs" '
+              + 'title="Fullscreen the game" aria-label="Fullscreen the game">'
+              + '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">'
+              + '<path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" fill="none" '
+              + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+              + 'stroke-linejoin="round"/></svg></button>'
+            : "") +
         "</div>" +
         '<div class="pwl-player-stage">' +
           '<div class="turtle-stage pwl-player-turtle-wrap"' + (kind === "turtle" ? "" : " hidden") + ">" +
@@ -48,6 +56,10 @@
       "</div>";
 
     const runBtn = container.querySelector(".pwl-player-run");
+    const fsBtn = container.querySelector(".pwl-player-fs");
+    if (fsBtn) fsBtn.addEventListener("click", function () {
+      if (window.PWL && window.PWL.toggleGameFullscreen) window.PWL.toggleGameFullscreen();
+    });
     const outEl = container.querySelector(".pwl-player-out");
     const gameCanvas = container.querySelector(".pwl-player-game");
     const turtleCanvas = container.querySelector(".pwl-player-turtle");
