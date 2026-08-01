@@ -184,6 +184,19 @@
     return canvas.height / canvas.__pwlBaseH;
   }
 
+  // A rounded-rectangle path, the same shape a label's background pill uses.
+  // arcTo rather than roundRect, which is younger than some of the browsers
+  // that only ever see this file through a preview.
+  function roundRectPath(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
   function drawGame(code, canvas) {
     fitBuffer(canvas);
     const scene = parseScene(code);
@@ -524,7 +537,14 @@
       }
       if (s.kind === "box") {
         ctx.fillStyle = s.color || "#fff";
-        ctx.fillRect(cx - s.w * scale / 2, cy - s.h * scale / 2, s.w * scale, s.h * scale);
+        const bw2 = s.w * scale, bh2 = s.h * scale;
+        const rr = Math.min((Number(s.rad) || 0) * scale, Math.abs(bw2) / 2, Math.abs(bh2) / 2);
+        if (rr > 0) {
+          roundRectPath(ctx, cx - bw2 / 2, cy - bh2 / 2, bw2, bh2, rr);
+          ctx.fill();
+        } else {
+          ctx.fillRect(cx - bw2 / 2, cy - bh2 / 2, bw2, bh2);
+        }
       } else if (s.kind === "circle") {
         ctx.fillStyle = s.color || "#fff";
         ctx.beginPath();

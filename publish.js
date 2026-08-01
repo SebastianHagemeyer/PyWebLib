@@ -106,7 +106,7 @@
       sprites: scene.sprites.map(function (s) {
         return { kind: s.kind, x: s.x, y: s.y, size: s.size, w: s.w, h: s.h,
                  text: s.text, color: s.color, art: s.art, asset: s.asset, angle: s.angle,
-                 sx: s.sx, sy: s.sy, back: s.back,
+                 sx: s.sx, sy: s.sy, back: s.back, rad: s.rad,
                  // The anchor decides where a sprite sits relative to (x, y).
                  // Dropping it here is why the share preview (which renders the
                  // live scene) looked right while the SAVED thumbnail put every

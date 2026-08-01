@@ -423,6 +423,9 @@ def _pyrun_install_game():
             self._content = kw.get("content", self._display)
             self._resolvable = kw.get("resolvable", False)
             self.color = kw.get("color", "#ffffff")
+            # Corner rounding for a box, in pixels. Settable later, like colour:
+            #   button.radius = 10
+            self.radius = kw.get("radius", 0)
             self.background = kw.get("background", None)
             self.angle = kw.get("angle", 0)
             self.scale_x = kw.get("scale_x", 1)
@@ -725,8 +728,12 @@ def _pyrun_install_game():
             sp.animate(_ANIM_ART[art])
         return sp
 
-    def box(x, y, w, h, color="#ffffff"):
-        return Sprite("box", x=x, y=y, w=w, h=h, color=color)
+    def box(x, y, w, h, color="#ffffff", radius=0):
+        # radius rounds the corners, the same way a label's background pill is
+        # rounded. 0 is a sharp rectangle; anything past half the short side is
+        # clamped, so a big number gives a stadium shape rather than a mess:
+        #   btn = game.box(730, 30, 160, 44, "#8a4a12", radius=12)
+        return Sprite("box", x=x, y=y, w=w, h=h, color=color, radius=radius)
 
     def circle(x, y, w, h=None, color="#ffffff"):
         # A round one, measured like game.box: w across and h down. Leave h out
@@ -880,7 +887,7 @@ def _pyrun_install_game():
                         "w": s.w, "h": s.h, "text": str(disp), "color": s.color,
                         "art": art, "asset": s.asset, "angle": s.angle,
                         "sx": s.scale_x, "sy": s.scale_y, "back": s.background,
-                        "ax": ax, "ay": ay,
+                        "ax": ax, "ay": ay, "rad": s.radius,
                         # where the collision box really sits, anchor and the
                         # artwork's offset on its canvas included
                         "hbx": hbcx, "hby": hbcy,
@@ -1619,6 +1626,19 @@ del _pyrun_install_game3d
     Object.keys(heldTones).forEach(function (id) { stopTone(id); });
   }
 
+  // A rounded-rectangle path, the same shape a label's background pill uses.
+  // arcTo rather than roundRect, which is younger than some of the browsers
+  // that only ever see this file through a preview.
+  function roundRectPath(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
   const GAME_IO = {
     jspiOk: function () { return jspiSupported(); },
     sound: function (which) { playGameSound(which); },
@@ -1770,7 +1790,13 @@ del _pyrun_install_game3d
         var dx = moved ? lx : s.x + lx, dy = moved ? ly : s.y + ly;
         if (s.kind === "box") {
           c.fillStyle = s.color || "#fff";
-          c.fillRect(dx - s.w / 2, dy - s.h / 2, s.w, s.h);
+          var rr = Math.min(Number(s.rad) || 0, Math.abs(s.w) / 2, Math.abs(s.h) / 2);
+          if (rr > 0) {
+            roundRectPath(c, dx - s.w / 2, dy - s.h / 2, s.w, s.h, rr);
+            c.fill();
+          } else {
+            c.fillRect(dx - s.w / 2, dy - s.h / 2, s.w, s.h);
+          }
         } else if (s.kind === "circle") {
           c.fillStyle = s.color || "#fff";
           c.beginPath();
