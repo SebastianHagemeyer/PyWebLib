@@ -113,16 +113,37 @@ returns void language sql security definer set search_path = public as $$
 $$;
 grant execute on function public.increment_view(uuid) to anon, authenticated;
 
+-- ============================ admins ============================
+-- Who gets raised limits. Deliberately NOT a column on profiles: every signed-in
+-- user may update their own profile row, and the anon key is public by design,
+-- so an is_admin flag there could be flipped by anyone on themselves with one
+-- REST call. This table has no policies and no grants, so it does not exist as
+-- far as the API is concerned; rows are added from the SQL editor, which runs as
+-- the owner. See supabase-migration-admins.sql.
+create table if not exists public.admins (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  note       text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.admins enable row level security;
+revoke all on public.admins from anon, authenticated;
+
 -- Cap how many programs one person can save (drafts and published both count).
 -- Enforced here because a client-side limit is trivially bypassed. To change the
 -- cap, edit the number and re-run this block (keep PROGRAM_CAP in publish.js in step).
 create or replace function public.enforce_project_limit()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare n integer;
+declare
+  n   integer;
+  cap integer := 10;
 begin
+  if exists (select 1 from public.admins where user_id = new.author_id) then
+    cap := 200;
+  end if;
   select count(*) into n from public.projects where author_id = new.author_id;
-  if n >= 10 then
-    raise exception 'You have reached the limit of 10 programs. Update or delete one first.'
+  if n >= cap then
+    raise exception 'You have reached the limit of % programs. Update or delete one first.', cap
       using errcode = 'check_violation';
   end if;
   return new;
@@ -283,11 +304,16 @@ create policy "authors delete own assets"
 -- Cap how many assets one person can publish (a client-side limit is bypassable).
 create or replace function public.enforce_asset_limit()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare n integer;
+declare
+  n   integer;
+  cap integer := 30;
 begin
+  if exists (select 1 from public.admins where user_id = new.author_id) then
+    cap := 500;
+  end if;
   select count(*) into n from public.assets where author_id = new.author_id;
-  if n >= 30 then
-    raise exception 'You have reached the limit of 30 assets. Delete one first.'
+  if n >= cap then
+    raise exception 'You have reached the limit of % assets. Delete one first.', cap
       using errcode = 'check_violation';
   end if;
   return new;
