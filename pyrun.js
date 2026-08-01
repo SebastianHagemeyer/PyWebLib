@@ -549,36 +549,32 @@ def _pyrun_install_game():
                 w, h = self.size * 0.8, self.size * 0.8
             return w * abs(self.scale_x), h * abs(self.scale_y)
 
-        def _ink_shift(self):
-            # The artwork is rarely dead centre on its canvas, so the collision
-            # box has to move with it or it sits beside the sprite.
-            if self.kind != "asset":
-                return (0.0, 0.0)
-            ink = _asset_ink(self._asset)
-            if not ink:
-                return (0.0, 0.0)
-            dw, dh = self._draw_wh()
-            return ((ink[0] + ink[2] / 2.0 - 0.5) * dw * abs(self.scale_x),
-                    (ink[1] + ink[3] / 2.0 - 0.5) * dh * abs(self.scale_y))
-
-        def _anchor_shift(self):
-            # anchor (0.5, 0.5) is the middle. Anything else moves the art so
-            # that point sits on (x, y), and the collision box comes with it.
+        def _local_offset(self):
+            # Where the middle of the art sits relative to the anchor, in the
+            # sprite's own unrotated, unscaled units. anchor (0.5, 0.5) is the
+            # middle, so this is (0, 0) and nothing moves.
             ax, ay = self.anchor
             dw, dh = self._draw_wh()
-            return ((0.5 - ax) * dw * abs(self.scale_x),
-                    (0.5 - ay) * dh * abs(self.scale_y))
+            return ((0.5 - ax) * dw, (0.5 - ay) * dh)
 
         def _hit_centre(self):
-            # Where the collision box actually sits: the anchor moves the sprite,
-            # and the artwork's own offset on its canvas moves the box within it.
-            # A hitbox you set yourself is taken at face value, centred on you.
-            ox, oy = self._anchor_shift()
-            if self._hitbox is None:
-                ix, iy = self._ink_shift()
-            else:
-                ix, iy = 0.0, 0.0
-            return (self.x + ox + ix, self.y + oy + iy)
+            # Where the collision box actually sits. (x, y) is the anchor, so the
+            # box is offset from it and then SPINS AROUND IT, the same way the art
+            # does. A hitbox you set yourself is taken at face value.
+            lx, ly = self._local_offset()
+            if self._hitbox is None and self.kind == "asset":
+                # The artwork is rarely dead centre on its canvas; the box follows
+                # it, or it ends up sitting beside the sprite.
+                ink = _asset_ink(self._asset)
+                if ink:
+                    dw, dh = self._draw_wh()
+                    lx += (ink[0] + ink[2] / 2.0 - 0.5) * dw
+                    ly += (ink[1] + ink[3] / 2.0 - 0.5) * dh
+            lx *= self.scale_x          # signed: a mirrored sprite mirrors its offset
+            ly *= self.scale_y
+            a = self.angle * math.pi / 180.0
+            ca, sa = math.cos(a), math.sin(a)
+            return (self.x + lx * ca - ly * sa, self.y + lx * sa + ly * ca)
 
         def _obb(self):
             # Oriented box for collisions: centre, half-sizes, angle (radians).
@@ -1734,12 +1730,13 @@ del _pyrun_install_game3d
         var sx = (s.sx == null || !isFinite(Number(s.sx))) ? 1 : Number(s.sx);
         var sy = (s.sy == null || !isFinite(Number(s.sy))) ? 1 : Number(s.sy);
         var moved = ang !== 0 || sx !== 1 || sy !== 1;
-        // The anchor says which point of the art sits on (x, y). Work out the
-        // shift here, in world units, so it matches the collision box Python
-        // computed the same way (see _anchor_shift).
+        // The anchor is the sprite's handle: that point sits on (x, y) AND the
+        // sprite spins around it, so a hammer anchored at its handle swings from
+        // the handle. The art's middle is offset from it by this much, in the
+        // sprite's own units (Python does the same sum for the collision box).
         var anX = (s.ax == null || !isFinite(Number(s.ax))) ? 0.5 : Number(s.ax);
         var anY = (s.ay == null || !isFinite(Number(s.ay))) ? 0.5 : Number(s.ay);
-        var offX = 0, offY = 0;
+        var lx = 0, ly = 0;
         if (anX !== 0.5 || anY !== 0.5) {
           var dW, dH;
           if (s.kind === "box") { dW = s.w; dH = s.h; }
@@ -1749,16 +1746,18 @@ del _pyrun_install_game3d
             dW = rr >= 1 ? ssz : ssz * rr;
             dH = rr >= 1 ? ssz / rr : ssz;
           } else { dW = s.size || 40; dH = s.size || 40; }
-          offX = (0.5 - anX) * dW * Math.abs(sx);
-          offY = (0.5 - anY) * dH * Math.abs(sy);
+          lx = (0.5 - anX) * dW;
+          ly = (0.5 - anY) * dH;
         }
         if (moved) {
           c.save();
-          c.translate(s.x + offX, s.y + offY);
+          c.translate(s.x, s.y);          // the anchor: the pivot
           if (ang !== 0) c.rotate(ang * Math.PI / 180);
           if (sx !== 1 || sy !== 1) c.scale(sx, sy);
         }
-        var dx = moved ? 0 : s.x + offX, dy = moved ? 0 : s.y + offY;
+        // Inside a scaled frame lx/ly are already in the right units; outside it
+        // there is no scale to apply (sx and sy are 1 whenever `moved` is false).
+        var dx = moved ? lx : s.x + lx, dy = moved ? ly : s.y + ly;
         if (s.kind === "box") {
           c.fillStyle = s.color || "#fff";
           c.fillRect(dx - s.w / 2, dy - s.h / 2, s.w, s.h);
