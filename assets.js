@@ -1070,47 +1070,6 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // A one-off repair. An earlier version cropped the canvas away on publish,
-  // which changed what `size` meant and, worse, boxed animation frames to their
-  // own ink so they no longer matched each other. This puts any sprite of yours
-  // that it happened to back on its 64x64 canvas. It only shows up while there
-  // is something to fix, and only touches our own shapes, where 0 0 64 64 is
-  // provably the frame they were drawn on.
-  function offerFrameRepair(rows) {
-    const host = document.getElementById("asset-restore-row");
-    const btn = document.getElementById("asset-restore-frames");
-    if (!host || !btn) return;
-    const cropped = rows.filter(function (a) {
-      return isStudioNative(a.svg) && !/viewBox\s*=\s*["']\s*0\s+0\s+64\s+64\s*["']/.test(a.svg);
-    });
-    host.hidden = !cropped.length;
-    if (!cropped.length) return;
-    btn.textContent = "Put " + cropped.length + " sprite" + (cropped.length === 1 ? "" : "s") + " back on the 64x64 canvas";
-    btn.onclick = async function () {
-      btn.disabled = true;
-      let done = 0, failed = 0;
-      for (const a of cropped) {
-        const next = a.svg.replace(/viewBox\s*=\s*["'][^"']*["']/, 'viewBox="0 0 64 64"');
-        const up = await sb.from("assets").update({ svg: next, updated_at: new Date().toISOString() }).eq("id", a.id);
-        if (up.error) { failed++; continue; }
-        done++;
-        try { if (window.PWL && window.PWL.assetSvgCache) window.PWL.assetSvgCache.put(String(a.id), next); } catch (e) {}
-      }
-      btn.disabled = false;
-      showMsg(failed
-        ? ("Restored " + done + ", but " + failed + " failed.")
-        : ("Restored " + done + " sprite" + (done === 1 ? "" : "s") + " to the 64x64 canvas."), !failed);
-      loadLibrary();
-    };
-  }
-
-  // The library panels start closed, so the count is what tells you there is
-  // anything in them.
-  function setLibCount(id, n) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = n ? String(n) : "";
-  }
-
   async function loadLibrary() {
     if (!PWL.configured || !sb) return;
     const user = PWL.auth && PWL.auth.user();
@@ -1121,7 +1080,6 @@
         mineEl.innerHTML = "";
         if (r.error || !r.data || !r.data.length) mineEl.innerHTML = '<p class="community-empty">No assets yet. Draw one above and publish it.</p>';
         else r.data.forEach(function (a) { mineEl.appendChild(card(a, true)); });
-        offerFrameRepair((!r.error && r.data) ? r.data : []);
         setLibCount("asset-mine-count", (!r.error && r.data) ? r.data.length : 0);
       }
     }
