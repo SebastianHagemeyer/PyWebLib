@@ -467,13 +467,32 @@
       ctx.translate(ox + s.x * scale, oy + s.y * scale);
       if (ang) ctx.rotate(ang * Math.PI / 180);
       if (sx !== 1 || sy !== 1) ctx.scale(sx, sy);
+      // The anchor says which point of the sprite sits on (x, y), and it is the
+      // pivot too, so the middle of the art is offset from it. The live renderer
+      // does this same sum, and a thumbnail that skips it puts every anchored
+      // sprite (a plant standing on its feet, say) in the wrong place.
+      const anX = (s.ax == null || !isFinite(+s.ax)) ? 0.5 : +s.ax;
+      const anY = (s.ay == null || !isFinite(+s.ay)) ? 0.5 : +s.ay;
+      let cx = 0, cy = 0;
+      if (anX !== 0.5 || anY !== 0.5) {
+        let dW, dH;
+        if (s.kind === "box") { dW = s.w; dH = s.h; }
+        else if (s.kind === "asset") {
+          const rr = ASSET_RATIO[String(s.asset)] || 1;
+          const ssz = s.size || 40;
+          dW = rr >= 1 ? ssz : ssz * rr;
+          dH = rr >= 1 ? ssz / rr : ssz;
+        } else { dW = s.size || 40; dH = s.size || 40; }
+        cx = (0.5 - anX) * dW * scale;
+        cy = (0.5 - anY) * dH * scale;
+      }
       if (s.kind === "box") {
         ctx.fillStyle = s.color || "#fff";
-        ctx.fillRect(-s.w * scale / 2, -s.h * scale / 2, s.w * scale, s.h * scale);
+        ctx.fillRect(cx - s.w * scale / 2, cy - s.h * scale / 2, s.w * scale, s.h * scale);
       } else if (s.kind === "art") {
         const img = IMAGES[s.art];
         const sz = (s.size || 40) * scale;
-        if (img && img.complete && img.naturalWidth) ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
+        if (img && img.complete && img.naturalWidth) ctx.drawImage(img, cx - sz / 2, cy - sz / 2, sz, sz);
       } else if (s.kind === "asset") {
         // A sprite the author designed in the Asset studio: fetch its SVG once
         // and draw it at its real proportions (longer side = size), repainting
@@ -484,7 +503,7 @@
           const ratio = ASSET_RATIO[String(s.asset)] || 1;
           const aw = ratio >= 1 ? sz : sz * ratio;
           const ah = ratio >= 1 ? sz / ratio : sz;
-          ctx.drawImage(aimg, -aw / 2, -ah / 2, aw, ah);
+          ctx.drawImage(aimg, cx - aw / 2, cy - ah / 2, aw, ah);
         }
       } else if (s.kind === "text") {
         ctx.font = "bold " + ((s.size || 20) * scale) + "px system-ui, sans-serif";
@@ -495,7 +514,7 @@
           const tw = ctx.measureText(String(s.text || "")).width;
           const th = (s.size || 20) * scale;
           const padX = 8 * scale, padY = 5 * scale, r = 6 * scale;
-          const bw = tw + padX * 2, bh = th + padY * 2, bx = -bw / 2, by = -bh / 2;
+          const bw = tw + padX * 2, bh = th + padY * 2, bx = cx - bw / 2, by = cy - bh / 2;
           ctx.fillStyle = s.back;
           ctx.beginPath();
           ctx.moveTo(bx + r, by);
@@ -507,11 +526,11 @@
           ctx.fill();
         }
         ctx.fillStyle = s.color || "#fff";
-        ctx.fillText(String(s.text || ""), 0, 0);
+        ctx.fillText(String(s.text || ""), cx, cy);
       } else {
         ctx.font = ((s.size || 40) * scale) + "px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(String(s.text || ""), 0, 0);
+        ctx.fillText(String(s.text || ""), cx, cy);
       }
       ctx.restore();
     });
