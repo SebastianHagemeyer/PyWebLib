@@ -1284,6 +1284,14 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-recent .asset-swatch { width: 22px; height: 22px; aspect-ratio: auto; }
 .asset-import-btn { width: 100%; }
 .asset-card-name { font-size: 0.8rem; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-restore-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: #fff8ee; border: 1px solid #f1ddbf; border-radius: var(--radius);
+  padding: 12px 14px; margin: 0 0 14px; color: var(--text); font-size: 0.9rem;
+}
+.asset-restore-row[hidden] { display: none; }
+.asset-restore-row .btn { flex: none; }
+
 .asset-download {
   display: inline-flex;
   align-items: center;

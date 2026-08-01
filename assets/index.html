@@ -76,6 +76,11 @@
             <div class="asset-swatches asset-recent" id="asset-recent"></div>
           </div>
           <div class="asset-tool-row asset-edit-actions">
+            <button type="button" class="btn btn-ghost" id="asset-centre-h" title="Centre left-to-right on the canvas. Works on the selection, or the whole drawing if nothing is selected.">Centre&nbsp;↔</button>
+            <button type="button" class="btn btn-ghost" id="asset-centre-v" title="Centre top-to-bottom on the canvas. Works on the selection, or the whole drawing if nothing is selected.">Centre&nbsp;↕</button>
+            <button type="button" class="btn btn-ghost" id="asset-fit" title="Grow the drawing to fill the canvas, keeping its proportions and centring it. Undo with Ctrl+Z.">Fit</button>
+          </div>
+          <div class="asset-tool-row asset-edit-actions">
             <button type="button" class="btn btn-ghost" id="asset-forward" title="Bring forward">Forward</button>
             <button type="button" class="btn btn-ghost" id="asset-back" title="Send back">Back</button>
             <button type="button" class="btn btn-ghost" id="asset-dup" title="Duplicate the selected shape (Ctrl+D)">Duplicate</button>
@@ -117,6 +122,11 @@
 
       <section class="asset-library">
         <h2>Your assets</h2>
+        <p class="asset-restore-row" id="asset-restore-row" hidden>
+          Some of your sprites were cropped to their artwork by an earlier version, which changes what
+          <code>size</code> means and stops animation frames matching each other.
+          <button type="button" class="btn btn-ghost" id="asset-restore-frames">Restore</button>
+        </p>
         <div class="asset-grid" id="asset-mine"><p class="community-empty">Sign in to save and reuse your sprites.</p></div>
         <h2>Community assets</h2>
         <div class="asset-grid" id="asset-all"><p class="community-empty">Loading…</p></div>

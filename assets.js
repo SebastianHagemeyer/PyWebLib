@@ -191,63 +191,6 @@
   }
   function dataUri(svg) { return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); }
 
-  // ---- framing ---------------------------------------------------------------
-  // The tight box around the actual drawing, in the SVG's own viewBox units.
-  // Rasterised and alpha-scanned rather than measured from the markup, so
-  // strokes, curves and imported art are all judged by what you can SEE.
-  function inkBox(svgText) {
-    return new Promise(function (resolve) {
-      const m = /viewBox\s*=\s*["']([^"']+)["']/.exec(svgText);
-      const v = m ? m[1].trim().split(/[\s,]+/).map(parseFloat) : [0, 0, 64, 64];
-      if (v.length !== 4 || !(v[2] > 0) || !(v[3] > 0)) { resolve(null); return; }
-      const R = 256;
-      const img = new Image();
-      img.onload = function () {
-        try {
-          const cv = document.createElement("canvas");
-          cv.width = R; cv.height = R;
-          const c = cv.getContext("2d", { willReadFrequently: true });
-          c.clearRect(0, 0, R, R);
-          c.drawImage(img, 0, 0, R, R);
-          const d = c.getImageData(0, 0, R, R).data;
-          let x0 = R, y0 = R, x1 = -1, y1 = -1;
-          for (let y = 0; y < R; y++) {
-            for (let x = 0; x < R; x++) {
-              if (d[(y * R + x) * 4 + 3] > 8) {
-                if (x < x0) x0 = x;
-                if (x > x1) x1 = x;
-                if (y < y0) y0 = y;
-                if (y > y1) y1 = y;
-              }
-            }
-          }
-          if (x1 < x0 || y1 < y0) { resolve(null); return; }   // nothing drawn
-          const sx = v[2] / R, sy = v[3] / R;
-          resolve({ x: v[0] + x0 * sx, y: v[1] + y0 * sy,
-                    w: (x1 - x0 + 1) * sx, h: (y1 - y0 + 1) * sy });
-        } catch (e) { resolve(null); }
-      };
-      img.onerror = function () { resolve(null); };
-      img.src = dataUri(svgText);
-    });
-  }
-  // Re-point the viewBox at the drawing itself. Nothing inside the SVG moves, so
-  // the shapes still round-trip back into the editor; what changes is that a
-  // game now measures the sprite by its art instead of by the empty canvas it was
-  // drawn on. That is what makes `size` mean the thing you can see, puts the
-  // sprite's middle where it looks like it is, and lets the collision box take
-  // the shape of the art.
-  async function reframe(svgText) {
-    const b = await inkBox(svgText);
-    if (!b || !(b.w > 0) || !(b.h > 0)) return svgText;
-    const pad = Math.max(b.w, b.h) * 0.01;   // a hair, so soft edges aren't clipped
-    const vb = rnd(b.x - pad) + " " + rnd(b.y - pad) + " " +
-               rnd(b.w + pad * 2) + " " + rnd(b.h + pad * 2);
-    return /viewBox\s*=\s*["'][^"']*["']/.test(svgText)
-      ? svgText.replace(/viewBox\s*=\s*["'][^"']*["']/, 'viewBox="' + vb + '"')
-      : svgText.replace(/<svg\b/, '<svg viewBox="' + vb + '"');
-  }
-
   function bbox(s) {
     if (s.type === "rect" || s.type === "triangle") return { x: s.x, y: s.y, w: s.w, h: s.h };
     if (s.type === "circle") return { x: s.cx - s.r, y: s.cy - s.r, w: s.r * 2, h: s.r * 2 };
@@ -698,6 +641,52 @@
     shapes.splice(j, 0, s);
     setSel([j]); render();
   }
+  // ---- centre on the canvas ---------------------------------------------------
+  // Where the art sits on the 64x64 canvas is yours to decide: a closed fist
+  // SHOULD be smaller than an open hand, and two animation frames SHOULD share
+  // one frame of reference. So instead of cropping the canvas away, this moves
+  // the art to the middle of it when you want that, and leaves it alone when you
+  // don't. Acts on the selection, or on everything if nothing is selected.
+  function centreOn(axis) {
+    const idx = picked.length ? picked.slice() : shapes.map(function (_, i) { return i; });
+    if (!idx.length) return;
+    const box = groupBox(idx.map(function (i) { return shapes[i]; }));
+    if (!(box.w >= 0) || !(box.h >= 0)) return;
+    const dx = axis === "h" ? (64 - box.w) / 2 - box.x : 0;
+    const dy = axis === "v" ? (64 - box.h) / 2 - box.y : 0;
+    if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) return;   // already there
+    snapshot();
+    idx.forEach(function (i) { if (shapes[i]) moveShape(shapes[i], dx, dy); });
+    render();
+  }
+  document.getElementById("asset-centre-h").addEventListener("click", function () { centreOn("h"); });
+  document.getElementById("asset-centre-v").addEventListener("click", function () { centreOn("v"); });
+
+  // Grow the drawing until it fills the canvas, keeping its proportions. This is
+  // the useful half of "re-framing" without the harm: the art gets bigger so
+  // `size` is worth what you expect, but it stays on the same 64x64 canvas as
+  // every other sprite, so relative sizes and animation frames still line up,
+  // and Ctrl+Z takes it back. Acts on the selection, or on everything.
+  const FIT_MARGIN = 2;
+  function fitToCanvas() {
+    const idx = picked.length ? picked.slice() : shapes.map(function (_, i) { return i; });
+    if (!idx.length) return;
+    const box = groupBox(idx.map(function (i) { return shapes[i]; }));
+    if (!(box.w > 0.01) && !(box.h > 0.01)) return;
+    const avail = 64 - FIT_MARGIN * 2;
+    const k = Math.min(box.w > 0.01 ? avail / box.w : Infinity,
+                       box.h > 0.01 ? avail / box.h : Infinity);
+    if (!isFinite(k) || Math.abs(k - 1) < 0.01) return;   // already fits
+    const nw = box.w * k, nh = box.h * k;
+    const nx = (64 - nw) / 2, ny = (64 - nh) / 2;          // fit AND centre
+    snapshot();
+    idx.forEach(function (i) {
+      if (shapes[i]) scaleShape(shapes[i], box.x, box.y, box.w, box.h, nx, ny, nw, nh);
+    });
+    render();
+  }
+  document.getElementById("asset-fit").addEventListener("click", fitToCanvas);
+
   document.getElementById("asset-forward").addEventListener("click", function () { reorder(1); });
   document.getElementById("asset-back").addEventListener("click", function () { reorder(-1); });
   document.getElementById("asset-delete").addEventListener("click", deleteSel);
@@ -879,7 +868,7 @@
       if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
       btn.disabled = true;
       try {
-        const svg = await reframe(currentSvg());
+        const svg = currentSvg();
         // A tidy filename from the name box: letters, digits and dashes.
         const base = ((nameInput && nameInput.value) || "sprite").trim()
           .replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "sprite";
@@ -912,9 +901,10 @@
     const user = PWL.auth && PWL.auth.user();
     if (!user) { PWL.auth.signInWithGoogle(); return; }
     if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
-    // Frame it on the drawing before it goes out, so games get a sprite that is
-    // the size it says it is and sits where it looks like it sits.
-    const svg = await reframe(currentSvg());
+    // The 64x64 canvas IS the frame: where you put the art on it, and how big
+    // you drew it, is information (an open hand bigger than a closed fist), so
+    // it is never cropped away. Use the Centre tools to place it deliberately.
+    const svg = currentSvg();
     // The cap is a SIZE, not a shape count: it mirrors the assets.svg CHECK in
     // supabase-schema.sql. Say the real numbers, so
     // "too detailed" isn't a mystery you have to guess your way out of.
@@ -946,7 +936,6 @@
       '<img class="asset-card-pic" alt="" title="' + (mine ? "Click to edit" : "Click to remix a copy") + '" src="' + esc(dataUri(a.svg)) + '" />' +
       '<button type="button" class="asset-card-id" title="Copy the game.sprite line">#' + a.id + '</button>' +
       '<span class="asset-card-name"></span>' +
-      (mine ? '<button type="button" class="asset-card-fit" title="Re-frame: point this sprite\'s box at the drawing, so games size and centre it on the art">Re-frame</button>' : "") +
       (mine ? '<button type="button" class="asset-card-del" title="Delete">×</button>' : "");
     el.querySelector(".asset-card-name").textContent = a.name || "untitled";
     // Open the sprite in the editor: yours to edit, someone else's as a fresh
@@ -956,20 +945,6 @@
     el.querySelector(".asset-card-id").addEventListener("click", function () {
       const snippet = "game.sprite(" + a.id + ", 100, 100, asset=True)";
       try { navigator.clipboard.writeText(snippet); showMsg("Copied: " + snippet, true); } catch (e) { showMsg(snippet, true); }
-    });
-    // Re-frame an asset you published before framing existed, without redrawing
-    // it: same art, viewBox moved onto the drawing.
-    if (mine) el.querySelector(".asset-card-fit").addEventListener("click", async function (ev) {
-      ev.stopPropagation();
-      const btn = ev.currentTarget;
-      btn.disabled = true; btn.textContent = "…";
-      const fixed = await reframe(a.svg);
-      if (fixed === a.svg) { btn.disabled = false; btn.textContent = "Re-frame"; showMsg("#" + a.id + " already fits its art.", true); return; }
-      const r = await sb.from("assets").update({ svg: fixed, updated_at: new Date().toISOString() }).eq("id", a.id);
-      if (r.error) { btn.disabled = false; btn.textContent = "Re-frame"; showMsg("Couldn't re-frame: " + r.error.message, false); return; }
-      try { if (window.PWL && window.PWL.assetSvgCache) window.PWL.assetSvgCache.put(String(a.id), fixed); } catch (e) {}
-      showMsg("Re-framed #" + a.id + ". It now measures by its art.", true);
-      loadLibrary();
     });
     if (mine) el.querySelector(".asset-card-del").addEventListener("click", async function (ev) {
       ev.stopPropagation();
@@ -1015,6 +990,40 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // A one-off repair. An earlier version cropped the canvas away on publish,
+  // which changed what `size` meant and, worse, boxed animation frames to their
+  // own ink so they no longer matched each other. This puts any sprite of yours
+  // that it happened to back on its 64x64 canvas. It only shows up while there
+  // is something to fix, and only touches our own shapes, where 0 0 64 64 is
+  // provably the frame they were drawn on.
+  function offerFrameRepair(rows) {
+    const host = document.getElementById("asset-restore-row");
+    const btn = document.getElementById("asset-restore-frames");
+    if (!host || !btn) return;
+    const cropped = rows.filter(function (a) {
+      return isStudioNative(a.svg) && !/viewBox\s*=\s*["']\s*0\s+0\s+64\s+64\s*["']/.test(a.svg);
+    });
+    host.hidden = !cropped.length;
+    if (!cropped.length) return;
+    btn.textContent = "Put " + cropped.length + " sprite" + (cropped.length === 1 ? "" : "s") + " back on the 64x64 canvas";
+    btn.onclick = async function () {
+      btn.disabled = true;
+      let done = 0, failed = 0;
+      for (const a of cropped) {
+        const next = a.svg.replace(/viewBox\s*=\s*["'][^"']*["']/, 'viewBox="0 0 64 64"');
+        const up = await sb.from("assets").update({ svg: next, updated_at: new Date().toISOString() }).eq("id", a.id);
+        if (up.error) { failed++; continue; }
+        done++;
+        try { if (window.PWL && window.PWL.assetSvgCache) window.PWL.assetSvgCache.put(String(a.id), next); } catch (e) {}
+      }
+      btn.disabled = false;
+      showMsg(failed
+        ? ("Restored " + done + ", but " + failed + " failed.")
+        : ("Restored " + done + " sprite" + (done === 1 ? "" : "s") + " to the 64x64 canvas."), !failed);
+      loadLibrary();
+    };
+  }
+
   async function loadLibrary() {
     if (!PWL.configured || !sb) return;
     const user = PWL.auth && PWL.auth.user();
@@ -1025,6 +1034,7 @@
         mineEl.innerHTML = "";
         if (r.error || !r.data || !r.data.length) mineEl.innerHTML = '<p class="community-empty">No assets yet. Draw one above and publish it.</p>';
         else r.data.forEach(function (a) { mineEl.appendChild(card(a, true)); });
+        offerFrameRepair((!r.error && r.data) ? r.data : []);
       }
     }
     if (allEl) {
