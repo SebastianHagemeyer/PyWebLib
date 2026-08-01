@@ -667,7 +667,11 @@
     const shape = Math.abs(ratio - 1) < 0.06 ? "square"
       : ratio > 1 ? (Math.round(ratio * 100) / 100) + " : 1 wide"
       : "1 : " + (Math.round((1 / ratio) * 100) / 100) + " tall";
-    el.textContent = "Art " + Math.round(b.w) + " x " + Math.round(b.h) + " of 64 - " + shape;
+    // The fill percentage is the number to match ACROSS sprites: a sprout at 40%
+    // next to a sunflower at 90% will always be that much smaller in a game.
+    const fill = Math.round(Math.max(b.w, b.h) / 64 * 100);
+    el.textContent = "Art " + Math.round(b.w) + " x " + Math.round(b.h) +
+                     " - " + shape + " - fills " + fill + "%";
   }
 
   // ---- centre on the canvas ---------------------------------------------------
@@ -715,6 +719,41 @@
     render();
   }
   document.getElementById("asset-fit").addEventListener("click", fitToCanvas);
+
+  // Scale in place, keeping proportions. This is how you say "a sprout is
+  // smaller than a sunflower" without hardcoding it in every game: draw them on
+  // the same canvas at the sizes they should be relative to each other, and one
+  // size in code gives you all of them correctly.
+  const SCALE_STEP = 1.1;
+  const MIN_ART = 1.5;    // stop before a sprite disappears into nothing
+  function scaleArt(factor) {
+    const idx = picked.length ? picked.slice() : shapes.map(function (_, i) { return i; });
+    if (!idx.length) return;
+    const box = groupBox(idx.map(function (i) { return shapes[i]; }));
+    if (!(box.w > 0) && !(box.h > 0)) return;
+    let k = factor;
+    // Growing stops at the canvas edge; shrinking stops before it vanishes.
+    if (k > 1) {
+      const room = Math.min(box.w > 0 ? 64 / box.w : Infinity, box.h > 0 ? 64 / box.h : Infinity);
+      k = Math.min(k, room);
+    } else {
+      const floor = Math.max(box.w, box.h);
+      if (floor * k < MIN_ART) k = floor > 0 ? MIN_ART / floor : 1;
+    }
+    if (Math.abs(k - 1) < 0.005) return;
+    const nw = box.w * k, nh = box.h * k;
+    // About its own middle, so it shrinks in place rather than drifting.
+    let nx = box.x + (box.w - nw) / 2, ny = box.y + (box.h - nh) / 2;
+    nx = Math.max(0, Math.min(64 - nw, nx));
+    ny = Math.max(0, Math.min(64 - nh, ny));
+    snapshot();
+    idx.forEach(function (i) {
+      if (shapes[i]) scaleShape(shapes[i], box.x, box.y, box.w, box.h, nx, ny, nw, nh);
+    });
+    render();
+  }
+  document.getElementById("asset-smaller").addEventListener("click", function () { scaleArt(1 / SCALE_STEP); });
+  document.getElementById("asset-bigger").addEventListener("click", function () { scaleArt(SCALE_STEP); });
   (function wireFrameToggle() {
     const btn = document.getElementById("asset-frame-toggle");
     if (!btn) return;
@@ -889,6 +928,9 @@
       render();
       return;
     }
+    // [ and ] scale the art itself; + and - zoom the view. Different jobs.
+    if (e.key === "[") { e.preventDefault(); scaleArt(1 / SCALE_STEP); return; }
+    if (e.key === "]") { e.preventDefault(); scaleArt(SCALE_STEP); return; }
     if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(1.5); return; }
     if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1 / 1.5); return; }
     if (e.key === "0") { e.preventDefault(); resetView(); return; }
