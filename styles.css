@@ -1284,6 +1284,24 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-recent .asset-swatch { width: 22px; height: 22px; aspect-ratio: auto; }
 .asset-import-btn { width: 100%; }
 .asset-card-name { font-size: 0.8rem; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--code-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.asset-download:hover:not(:disabled) { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.6); color: #fff; }
+.asset-download:disabled { opacity: 0.5; cursor: default; }
+
 .asset-card-fit { border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 999px; font: inherit; font-size: 0.68rem; font-weight: 700; padding: 1px 8px; cursor: pointer; }
 .asset-card-fit:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .asset-card-fit:disabled { opacity: 0.5; cursor: default; }

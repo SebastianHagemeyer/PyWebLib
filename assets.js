@@ -869,6 +869,36 @@
     if (k) { const btn = document.querySelector('[data-tool="' + k + '"]'); if (btn) btn.click(); }
   });
 
+  // ---- download ---------------------------------------------------------------
+  // Save what's on the canvas as a real .svg file. It is framed the same way
+  // publishing frames it, so the file you get is the sprite you would get.
+  (function wireDownload() {
+    const btn = document.getElementById("asset-download");
+    if (!btn) return;
+    btn.addEventListener("click", async function () {
+      if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
+      btn.disabled = true;
+      try {
+        const svg = await reframe(currentSvg());
+        // A tidy filename from the name box: letters, digits and dashes.
+        const base = ((nameInput && nameInput.value) || "sprite").trim()
+          .replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "sprite";
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = base + ".svg";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+        showMsg("Downloaded " + base + ".svg", true);
+      } catch (e) {
+        showMsg("Couldn't build the file to download.", false);
+      }
+      btn.disabled = false;
+    });
+  })();
+
   // ---- publish + library ----
   function showMsg(text, ok) {
     if (!msg) return;
