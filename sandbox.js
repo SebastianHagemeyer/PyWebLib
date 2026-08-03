@@ -1684,12 +1684,31 @@ while game.playing():
     if (!shell || !editorPanel || !right || !expandBtn) return;
     const isMobile = function () { return window.matchMedia("(max-width: 760px)").matches; };
 
+    // The output column's OWN height, not its grid-stretched offsetHeight. The
+    // shell is a two-column grid with align-items: stretch, so both columns are
+    // sized to the taller one. Reading right.offsetHeight here would couple the
+    // cap back to the editor: a taller editor stretches `right`, whose resize
+    // (via the ResizeObserver below) grows --code-cap, which lets the editor
+    // show more, which stretches `right` again — a feedback loop that ratchets
+    // the editor open to its full height on the first edit/backspace. Summing
+    // the visible panels sidesteps the stretch and stays stable.
+    function rightNaturalHeight() {
+      const cs = getComputedStyle(right);
+      const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 0;
+      let total = 0, shown = 0;
+      for (let i = 0; i < right.children.length; i++) {
+        const h = right.children[i].offsetHeight;
+        if (h > 0) { total += h; shown++; }   // hidden panels report 0
+      }
+      if (shown > 1) total += gap * (shown - 1);
+      return total;
+    }
     function measureCap() {
       // Single column (phones): a plain viewport-based cap. Two columns: match
       // the output side so the code never towers over the game/output boxes.
       if (isMobile()) { editorPanel.style.setProperty("--code-cap", "62vh"); return; }
       const barH = bar ? bar.offsetHeight : 44;
-      const cap = Math.max(240, Math.round(right.offsetHeight - barH));
+      const cap = Math.max(240, Math.round(rightNaturalHeight() - barH));
       editorPanel.style.setProperty("--code-cap", cap + "px");
     }
     function refreshOverflow() {
