@@ -165,6 +165,74 @@
         "    game.frame(60)\n"
     },
     {
+      title: "Grow a garden (saved)",
+      cat: "Advanced Games",
+      desc: "import game + save games. Plant, wait, harvest — and your garden is remembered between runs. Runs at 60fps.",
+      code:
+        "import game, random\n" +
+        "\n" +
+        'game.window(480, 360, background="#8fd0ff")\n' +
+        "\n" +
+        "# Save games: the garden remembers itself between runs.\n" +
+        "COST, REWARD = 2, 5\n" +
+        'STAGES = ["🟫", "🌱", "🌿", "🌻"]   # empty, sprout, growing, ripe\n' +
+        "XS = [60, 150, 240, 330, 420]\n" +
+        "GY = 300\n" +
+        "\n" +
+        'coins = game.load("coins", 8)              # 8 the very first run\n' +
+        'plots = game.load("plots", [0, 0, 0, 0, 0])\n' +
+        "if len(plots) != 5:\n" +
+        "    plots = [0, 0, 0, 0, 0]\n" +
+        "\n" +
+        'game.box(240, 350, 480, 80, "#6bbf59")     # grass strip along the bottom\n' +
+        "crops = [game.sprite(STAGES[plots[i]], XS[i], GY, size=56) for i in range(5)]\n" +
+        'board = game.label("Coins: " + str(coins), 12, 14, size=24,\n' +
+        '                   color="#20242e", background="#ffffff")\n' +
+        'game.label("Click a plot: plant (-2) or harvest ripe (+5).  Press R to reset.",\n' +
+        '           12, 344, size=13, color="#20242e", background="#ffffff")\n' +
+        "\n" +
+        "def refresh():\n" +
+        "    for i in range(5):\n" +
+        "        crops[i].content = STAGES[plots[i]]\n" +
+        '    board.content = "Coins: " + str(coins)\n' +
+        "\n" +
+        "grow = 0\n" +
+        "while game.playing():\n" +
+        '    if game.pressed("r"):                      # wipe the save, start over\n' +
+        "        coins, plots = 8, [0, 0, 0, 0, 0]\n" +
+        "        game.clear_save()\n" +
+        "        refresh()\n" +
+        "\n" +
+        "    if game.clicked():                         # plant an empty plot or harvest a ripe one\n" +
+        "        mx, my = game.mouse_x(), game.mouse_y()\n" +
+        "        for i in range(5):\n" +
+        "            if abs(mx - XS[i]) < 44 and abs(my - GY) < 48:\n" +
+        "                if plots[i] == 0 and coins >= COST:\n" +
+        "                    coins -= COST\n" +
+        "                    plots[i] = 1\n" +
+        '                    game.sound("powerup")\n' +
+        "                elif plots[i] == 3:\n" +
+        "                    coins += REWARD\n" +
+        "                    plots[i] = 0\n" +
+        '                    game.sound("coin")\n' +
+        '                game.save("coins", coins)      # save the moment it changes\n' +
+        '                game.save("plots", plots)\n' +
+        "                refresh()\n" +
+        "                break\n" +
+        "\n" +
+        "    grow += 1                                  # plants ripen slowly\n" +
+        "    if grow >= 180:                            # about 3 seconds at 60 fps\n" +
+        "        grow = 0\n" +
+        "        ready = [i for i in range(5) if 1 <= plots[i] <= 2]\n" +
+        "        if ready:\n" +
+        "            i = random.choice(ready)\n" +
+        "            plots[i] += 1\n" +
+        '            game.save("plots", plots)\n' +
+        "            refresh()\n" +
+        "\n" +
+        "    game.frame(60)\n"
+    },
+    {
       title: "Your first 3D scene",
       desc: "import game3d. A spinning cube on a green field. Change a number, hit Run, see what happens.",
       cat: "3D",
