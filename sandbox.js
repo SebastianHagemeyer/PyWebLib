@@ -165,8 +165,9 @@
         "    game.frame(60)\n"
     },
     {
-      title: "Grow a garden (saved)",
+      title: "Grow a garden",
       cat: "Advanced Games",
+      sub: "saved",
       desc: "import game + save games. Plant, wait, harvest — and your garden is remembered between runs. Runs at 60fps.",
       code:
         "import game, random\n" +
@@ -186,10 +187,12 @@
         "\n" +
         'game.box(240, 350, 480, 80, "#6bbf59")     # grass strip along the bottom\n' +
         "crops = [game.sprite(STAGES[plots[i]], XS[i], GY, size=56) for i in range(5)]\n" +
-        'board = game.label("Coins: " + str(coins), 12, 14, size=24,\n' +
+        "# Labels sit centred on their (x, y), so give them the middle of the\n" +
+        "# window, not the left edge, or the text runs off the side.\n" +
+        'board = game.label("Coins: " + str(coins), 70, 24, size=24,\n' +
         '                   color="#20242e", background="#ffffff")\n' +
         'game.label("Click a plot: plant (-2) or harvest ripe (+5).  Press R to reset.",\n' +
-        '           12, 344, size=13, color="#20242e", background="#ffffff")\n' +
+        '           240, 342, size=13, color="#20242e", background="#ffffff")\n' +
         "\n" +
         "def refresh():\n" +
         "    for i in range(5):\n" +
