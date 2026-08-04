@@ -15,7 +15,8 @@ importScripts(PYODIDE_URL + "pyodide.js", "./pyrun-proto.js");
 let pyodide = null;
 let mem = null;                 // { ctrl, str, interruptView, ... } from PRProto.attach
 const assetRatios = {};         // asset id -> width/height, pushed from the main thread
-const assetInks = {};           // asset id -> "fx,fy,fw,fh" artwork box, likewise
+const assetInks = {};            // asset id -> "fx,fy,fw,fh" artwork box, likewise
+let savedState = {};            // logical save key -> blob, seeded by "saveSnapshot" at run start
 const CTRL = self.PRProto.CTRL;
 const dec = new TextDecoder();
 
@@ -65,6 +66,21 @@ const GAME_IO = {
   setCursor: function (hidden) { post("g", "setCursor", [hidden]); },
   fullscreen: function (on) { post("g", "fullscreen", [!!on]); },
   submitScore: function (points) { post("g", "submitScore", [points]); },
+  // Save games. Writes go to the main thread to hit localStorage, and also
+  // update the local snapshot so an immediate load() sees them. Reads are served
+  // straight from the snapshot (seeded before the run) - no round-trip needed.
+  saveState: function (key, blob) {
+    savedState[String(key)] = String(blob);
+    post("g", "saveState", [String(key), String(blob)]);
+  },
+  loadState: function (key) {
+    var k = String(key);
+    return Object.prototype.hasOwnProperty.call(savedState, k) ? savedState[k] : null;
+  },
+  clearState: function (key) {
+    if (key == null) { savedState = {}; post("g", "clearState", [null]); }
+    else { delete savedState[String(key)]; post("g", "clearState", [String(key)]); }
+  },
   sound: function (name) { post("g", "sound", [name]); },
   toneStart: function (id, freq, wave, vol) { post("g", "toneStart", [id, freq, wave, vol]); },
   tonePitch: function (id, hz) { post("g", "tonePitch", [id, hz]); },
@@ -122,6 +138,7 @@ self.onmessage = async function (e) {
   try {
     if (msg.type === "assetRatio") { assetRatios[String(msg.id)] = Number(msg.ratio) || 1; return; }
     if (msg.type === "assetInk") { assetInks[String(msg.id)] = String(msg.ink || ""); return; }
+    if (msg.type === "saveSnapshot") { savedState = msg.data || {}; return; }
     if (msg.type === "init") {
       mem = self.PRProto.attach(msg.sab, msg.interrupt);
       pyodide = await loadPyodide({ indexURL: PYODIDE_URL });

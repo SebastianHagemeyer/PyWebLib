@@ -85,6 +85,9 @@
       runBtn: runBtn,
       defaultCode: program.code,
       storageKey: null,
+      // Save games (game.save/load) are namespaced per published program, so each
+      // one keeps its own progress. Falls back to the page path when there's no id.
+      saveKey: program && program.id != null ? "prog:" + program.id : null,
       turtle: { canvas: turtleCanvas, sprite: spriteCanvas },
       game: { canvas: gameCanvas, onScore: (opts && opts.onScore) || null },
       onChange: function (code) {

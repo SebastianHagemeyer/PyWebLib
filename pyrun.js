@@ -802,6 +802,41 @@ def _pyrun_install_game():
         except (TypeError, ValueError):
             pass
 
+    def save(key, value):
+        # Remember a value between runs, in this browser, for this program: a
+        # garden's coins, unlocked levels, a best time. value can be a number,
+        # text, True/False, or lists/dicts of those. Save when something changes
+        # (a plant grows, a level clears), not every single frame:
+        #   game.save("coins", 120)
+        #   game.save("plants", ["carrot", "rose"])
+        try:
+            blob = json.dumps(value)
+        except (TypeError, ValueError):
+            raise ValueError(
+                "game.save() can store numbers, text, True/False and "
+                "lists/dicts of those, not a " + type(value).__name__)
+        _io.saveState(str(key), blob)
+
+    def load(key, default=None):
+        # Read back what game.save() stored under this key. The first time (before
+        # anything was saved) you get default, so a new player starts fresh:
+        #   coins  = game.load("coins", 0)
+        #   plants = game.load("plants", [])
+        raw = _io.loadState(str(key))
+        if raw is None or raw == "":
+            return default
+        try:
+            return json.loads(raw)
+        except (TypeError, ValueError):
+            return default
+
+    def clear_save(key=None):
+        # Forget one saved value, or this whole program's save when you leave the
+        # key out (wire it to a "New game" button):
+        #   game.clear_save("coins")   # just the coins
+        #   game.clear_save()          # wipe everything this program saved
+        _io.clearState(None if key is None else str(key))
+
     def sound(name=0):
         # Play a short built-in arcade sound. Pick one by number:
         #   0 beep   1 buzz   2 coin   3 powerup   4 jump
@@ -970,6 +1005,9 @@ def _pyrun_install_game():
     mod.frame = frame
     mod.game_over = game_over
     mod.submit_score = submit_score
+    mod.save = save
+    mod.load = load
+    mod.clear_save = clear_save
     mod.sound = sound
     mod.tone = tone
     mod.debug = debug
@@ -1639,8 +1677,59 @@ del _pyrun_install_game3d
     c.closePath();
   }
 
+  // ---- Save games (game.save / game.load / game.clear_save) ----
+  // Everything a program saves is namespaced per program, so one game can never
+  // read or clobber another's save. The namespace is the host's saveKey, else
+  // its code-autosave storageKey, else the page path as a last resort.
+  function gameSaveNamespace() {
+    var o = (active && active.opts) || {};
+    var k = o.saveKey != null ? o.saveKey : o.storageKey;
+    if (typeof k === "function") { try { k = k(); } catch (e) { k = null; } }
+    if (!k) { try { k = location.pathname; } catch (e) { k = "default"; } }
+    return String(k);
+  }
+  function gameSaveKey(logicalKey) { return "pwlsg:" + gameSaveNamespace() + ":" + logicalKey; }
+
   const GAME_IO = {
     jspiOk: function () { return jspiSupported(); },
+    // Persist one value for this program (JSON string in, from Python). Silently
+    // no-ops if storage is full or blocked, so a save can never crash a game.
+    saveState: function (key, blob) {
+      try { localStorage.setItem(gameSaveKey(String(key)), String(blob)); } catch (e) {}
+    },
+    // Read one value back (or null when nothing is stored). Used directly on the
+    // main-thread runtime; the worker serves it from the snapshot below instead.
+    loadState: function (key) {
+      try { return localStorage.getItem(gameSaveKey(String(key))); } catch (e) { return null; }
+    },
+    // Forget one key, or (key == null) this whole program's save.
+    clearState: function (key) {
+      try {
+        if (key == null) {
+          var p = gameSaveKey("");
+          for (var i = localStorage.length - 1; i >= 0; i--) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf(p) === 0) localStorage.removeItem(k);
+          }
+        } else {
+          localStorage.removeItem(gameSaveKey(String(key)));
+        }
+      } catch (e) {}
+    },
+    // Every saved value for this program as { logicalKey: blob }. Pushed into the
+    // worker at run start so game.load() works there without touching
+    // localStorage (a Web Worker has none).
+    saveSnapshot: function () {
+      var out = {};
+      try {
+        var p = gameSaveKey("");
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf(p) === 0) out[k.slice(p.length)] = localStorage.getItem(k);
+        }
+      } catch (e) {}
+      return out;
+    },
     sound: function (which) { playGameSound(which); },
     toneStart: function (id, freq, wave, vol) { startTone(id, freq, wave, vol); },
     tonePitch: function (id, hz) { pitchTone(id, hz); },
@@ -2754,6 +2843,9 @@ del _pyrun_install_game3d
         Atomics.store(c, K.PLAYING, 1);
         workerMem.interruptView[0] = 0;
         zeroInputState();
+        // Seed the worker with this program's saved values before it runs, so
+        // game.load() can read them (the worker can't reach localStorage itself).
+        sharedWorker.postMessage({ type: "saveSnapshot", data: GAME_IO.saveSnapshot() });
         sharedWorker.postMessage({ type: "run", code: getCode() });
       } catch (err) {
         runner.appendOut(String(err && err.message || err), "stderr");

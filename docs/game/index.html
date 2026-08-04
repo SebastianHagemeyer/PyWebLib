@@ -201,6 +201,30 @@ if basket.touches(bomb):
           <p>The names work too, e.g. <code>game.sound("coin")</code>. Browsers only allow audio after a click, and a game is clicked to play, so it just works.</p>
         </section>
 
+        <section id="saving">
+          <h2>Saving progress</h2>
+          <p>Games forget everything when they stop &mdash; unless you save. <code>game.save(key, value)</code> remembers a value in this browser, and <code>game.load(key, default)</code> reads it back next time. Perfect for a garden that keeps growing, coins that add up, or levels you've unlocked.</p>
+          <ul class="key-points">
+            <li><code>game.save("coins", 120)</code> &mdash; store a value under a name. It can be a number, text, <code>True</code>/<code>False</code>, or a list/dict of those.</li>
+            <li><code>game.load("coins", 0)</code> &mdash; read it back. The very first time (nothing saved yet) you get the default, so a new player starts fresh.</li>
+            <li><code>game.clear_save()</code> &mdash; wipe this game's save (a "New game" button). Pass a key to forget just one thing.</li>
+          </ul>
+          <pre class="guide-code language-python">import game
+game.window(480, 360)
+
+coins  = game.load("coins", 0)     # 0 the first ever run
+plants = game.load("plants", 0)
+
+# ...play: earn a coin, grow a plant...
+coins += 5
+plants += 1
+
+game.save("coins", coins)          # save when things change,
+game.save("plants", plants)        # not every frame
+# Run it again and the garden is exactly where you left it.</pre>
+          <p class="callout"><strong>It's per-game and per-browser.</strong> Each program keeps its own save, and it lives on this device only (it isn't synced across computers or accounts). Save when something actually changes rather than every frame.</p>
+        </section>
+
         <section id="limits">
           <h2>What it can and can't do</h2>
           <ul class="key-points">
