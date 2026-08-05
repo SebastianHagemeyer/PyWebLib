@@ -979,7 +979,7 @@
   if (publishBtn) publishBtn.addEventListener("click", async function () {
     if (!PWL.configured || !sb) { showMsg("The asset backend isn't set up yet.", false); return; }
     const user = PWL.auth && PWL.auth.user();
-    if (!user) { PWL.auth.signInWithGoogle(); return; }
+    if (!user) { PWL.auth.signIn(); return; }
     if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
     // The 64x64 canvas IS the frame: where you put the art on it, and how big
     // you drew it, is information (an open hand bigger than a closed fist), so

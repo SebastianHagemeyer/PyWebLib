@@ -972,6 +972,41 @@ body.sandbox-maxed { overflow: hidden; }
 .pwl-modal-desc { color: var(--muted); margin: 8px 0; overflow-wrap: anywhere; }
 .pwl-modal-code { background: var(--code-bg); color: var(--code-text); border-radius: 8px; padding: 12px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.82rem; line-height: 1.5; overflow: auto; max-height: 240px; white-space: pre; margin: 10px 0; }
 .pwl-modal-actions { display: flex; gap: 10px; }
+/* Sign-in dialog: an Email tab (Google or email + password) and a Class code
+   tab (the code + PIN a school student is given). */
+.pwl-signin-tabs { display: flex; gap: 4px; margin: 14px 0 16px; border-bottom: 1px solid var(--border); }
+.pwl-signin-tab {
+  font: inherit; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  background: transparent; border: 0; border-bottom: 2px solid transparent;
+  color: var(--muted); padding: 8px 14px; margin-bottom: -1px;
+}
+.pwl-signin-tab:hover { color: var(--text); }
+.pwl-signin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.pwl-signin-google { width: 100%; justify-content: center; padding: 11px 14px; }
+.pwl-signin-or {
+  display: flex; align-items: center; gap: 12px;
+  margin: 16px 0 4px; color: var(--muted); font-size: 0.85rem;
+}
+.pwl-signin-or::before, .pwl-signin-or::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
+.pwl-signin-swap { color: var(--muted); font-size: 0.88rem; margin: 4px 0 0; }
+.pwl-linkbtn {
+  font: inherit; font-weight: 600; color: var(--primary);
+  background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline;
+}
+
+.pwl-signin-row { display: flex; gap: 10px; align-items: flex-start; }
+.pwl-signin-row > label { flex: 1; }
+.pwl-signin-row > .pwl-signin-pin { flex: 0 0 88px; }
+#pwl-code-form input[name="code"], #pwl-code-form input[name="pin"] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.08em; text-transform: uppercase; width: 100%;
+}
+#pwl-code-form input[name="pin"] { text-align: center; letter-spacing: 0.25em; }
+#pwl-code-form input::placeholder { letter-spacing: normal; text-transform: none; }
+
 .pwl-share-form { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
 .pwl-share-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 0.88rem; }
 .pwl-share-form input, .pwl-share-form textarea, .pwl-share-form select { font: inherit; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); resize: vertical; }

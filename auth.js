@@ -1,13 +1,20 @@
 /*
  * PyWebLib auth + account control.
  *
- * Google sign-in through Supabase. Renders the account control into every
- * element with id="pwl-account" (or class "pwl-account") in the page header,
- * and exposes window.PWL.auth for the community pages:
+ * Two ways in, both Supabase: Google sign-in for the public, and a class code
+ * for school students (see supabase-migration-students.sql). Renders the
+ * account control into every element with id="pwl-account" (or class
+ * "pwl-account") in the page header, and exposes window.PWL.auth for the
+ * community pages:
  *
  *   PWL.auth.user()               -> the signed-in Supabase user, or null
  *   PWL.auth.profile()            -> their profiles row {display_name, avatar_url}
+ *   PWL.auth.signIn(tab)          -> opens the dialog ("email" or "code" tab)
  *   PWL.auth.signInWithGoogle()   -> starts the Google OAuth redirect
+ *   PWL.auth.signInWithEmail(e,p) -> email + password sign-in
+ *   PWL.auth.signUpWithEmail(e,p) -> makes a new email account
+ *   PWL.auth.signInWithCode(c,pin)-> signs a student in from code + PIN
+ *   PWL.auth.isStudent()          -> true for a class-code account
  *   PWL.auth.signOut()
  *   PWL.auth.onChange(cb)         -> cb(user, profile) on every auth change
  *   PWL.auth.requireSignIn()      -> true if signed in, else kicks off sign-in
@@ -19,6 +26,12 @@
 
   const PWL = (window.PWL = window.PWL || {});
   const sb = PWL.supabase;
+
+  // Class-code accounts are ordinary email/password users, both halves derived
+  // from what the student types: code ABC0001 + PIN 482 becomes the address
+  // abc0001@hallam.local with the password ABC0001482.
+  // The suffix is also how we recognise a student once they are signed in.
+  const STUDENT_DOMAIN = "@hallam.local";
 
   let currentUser = null;
   let currentProfile = null;
@@ -58,12 +71,21 @@
            (currentUser && (currentUser.email || "You")) || "You";
   }
 
+  function isStudent() {
+    return !!currentUser &&
+           String(currentUser.email || "").toLowerCase().endsWith(STUDENT_DOMAIN);
+  }
+
   function accountMarkup() {
     if (!PWL.configured) return "";
     if (!currentUser) {
       return '<button type="button" class="btn btn-google" data-pwl="signin">' +
              googleIcon() + '<span>Sign in</span></button>';
     }
+    // Students keep the handle they were given: this is a public site, so no
+    // child gets to put their real name on a published program.
+    const rename = isStudent() ? "" :
+      '<button type="button" class="pwl-acct-item" data-pwl="editname" role="menuitem">Edit name</button>';
     return '<div class="pwl-acct" data-open="false">' +
              '<button type="button" class="pwl-acct-btn" data-pwl="acct-toggle" aria-haspopup="true">' +
                avatarMarkup() +
@@ -71,7 +93,7 @@
              '</button>' +
              '<div class="pwl-acct-menu" role="menu">' +
                '<a class="pwl-acct-item" href="/community/?mine=1" role="menuitem">My programs</a>' +
-               '<button type="button" class="pwl-acct-item" data-pwl="editname" role="menuitem">Edit name</button>' +
+               rename +
                '<button type="button" class="pwl-acct-item" data-pwl="signout" role="menuitem">Sign out</button>' +
              '</div>' +
            '</div>';
@@ -109,7 +131,7 @@
     const trigger = e.target.closest("[data-pwl]");
     if (trigger) {
       const what = trigger.getAttribute("data-pwl");
-      if (what === "signin") { e.preventDefault(); signInWithGoogle(); return; }
+      if (what === "signin") { e.preventDefault(); openSignIn(); return; }
       if (what === "signout") { e.preventDefault(); signOut(); return; }
       if (what === "editname") { e.preventDefault(); openNameEditor(); return; }
       if (what === "acct-toggle") {
@@ -165,6 +187,64 @@
     });
   }
 
+  // The code and PIN together ARE the credential: the code becomes the address,
+  // the two concatenated become the password. A student types two short things
+  // and never sees an email or a password at all.
+  async function signInWithCode(rawCode, rawPin) {
+    const code = String(rawCode || "").trim().toUpperCase();
+    const pin = String(rawPin || "").trim();
+    if (!sb) return { error: { message: "Sign-in is not set up on this site." } };
+    if (!code) return { error: { message: "Enter your class code." } };
+    if (!/^[0-9]{3}$/.test(pin)) {
+      return { error: { message: "Your PIN is the 3 numbers your teacher gave you." } };
+    }
+    const res = await sb.auth.signInWithPassword({
+      email: code.toLowerCase() + STUDENT_DOMAIN,
+      password: code + pin
+    });
+    // Never echo the Supabase wording back: "Invalid login credentials" reads
+    // as a scary failure to a Year 7, and it is nearly always a typo.
+    if (res.error) {
+      return { error: { message: "That code and PIN did not match. Check them and try again." } };
+    }
+    return res;
+  }
+
+  async function signInWithEmail(email, password) {
+    if (!sb) return { error: { message: "Sign-in is not set up on this site." } };
+    const res = await sb.auth.signInWithPassword({
+      email: String(email || "").trim().toLowerCase(),
+      password: password
+    });
+    if (res.error) {
+      return { error: { message: "That email and password did not match. Check them and try again." } };
+    }
+    return res;
+  }
+
+  async function signUpWithEmail(email, password) {
+    if (!sb) return { error: { message: "Sign-in is not set up on this site." } };
+    const mail = String(email || "").trim().toLowerCase();
+    // The student domain is ours to hand out, not to claim.
+    if (mail.endsWith(STUDENT_DOMAIN)) {
+      return { error: { message: "That address is reserved. Use the Class code tab instead." } };
+    }
+    const res = await sb.auth.signUp({
+      email: mail,
+      password: password,
+      options: { emailRedirectTo: window.location.href }
+    });
+    if (res.error) {
+      const already = /already|registered|exists/i.test(res.error.message || "");
+      return { error: { message: already
+        ? "There is already an account with that email. Try signing in."
+        : res.error.message } };
+    }
+    // With "Confirm email" switched on in Supabase, sign-up hands back a user
+    // but no session: they are not in until they click the link in the email.
+    return { data: res.data, needsConfirm: !(res.data && res.data.session) };
+  }
+
   async function signOut() {
     if (!sb) return;
     await sb.auth.signOut();
@@ -179,31 +259,173 @@
     return res;
   }
 
-  function openNameEditor() {
-    if (!currentUser) { signInWithGoogle(); return; }
+  // Shared chrome for the two dialogs below: the X, a backdrop click and Escape
+  // all close it. Returns the box to fill in, plus its close function.
+  function openModal(inner) {
     const back = document.createElement("div");
     back.className = "pwl-modal-back";
     back.innerHTML =
       '<div class="pwl-modal" role="dialog" aria-modal="true">' +
         '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
-        '<h2 class="pwl-modal-title">Edit your name</h2>' +
-        '<form id="pwl-name-form" class="pwl-share-form">' +
-          '<label>Display name<input name="name" type="text" maxlength="40" required autocomplete="off" /></label>' +
-          '<p class="pwl-comment-signin" id="pwl-name-err" hidden></p>' +
-          '<div class="pwl-modal-actions"><button type="submit" class="btn btn-primary">Save</button></div>' +
-        "</form>" +
+        inner +
       "</div>";
-    const input = back.querySelector('input[name="name"]');
-    input.value = displayName();
-    const err = back.querySelector("#pwl-name-err");
     function close() { back.remove(); document.removeEventListener("keydown", onKey); }
     function onKey(e) { if (e.key === "Escape") close(); }
     back.addEventListener("click", function (e) { if (e.target === back) close(); });
     back.querySelector(".pwl-modal-x").addEventListener("click", close);
     document.addEventListener("keydown", onKey);
     document.body.appendChild(back);
+    return { box: back, close: close };
+  }
+
+  // Three ways in, two tabs: Google or an email account for the public, a class
+  // code plus PIN for school students (whose accounts are made for them).
+  function openSignIn(startTab) {
+    if (!PWL.configured || currentUser) return;
+    const m = openModal(
+      '<h2 class="pwl-modal-title">Sign in</h2>' +
+      '<div class="pwl-signin-tabs" role="tablist">' +
+        '<button type="button" class="pwl-signin-tab" data-tab="email" role="tab">Email</button>' +
+        '<button type="button" class="pwl-signin-tab" data-tab="code" role="tab">Class code</button>' +
+      "</div>" +
+
+      '<div class="pwl-signin-panel" data-panel="email">' +
+        '<button type="button" class="btn btn-google pwl-signin-google">' +
+          googleIcon() + "<span>Continue with Google</span></button>" +
+        '<div class="pwl-signin-or"><span>or</span></div>' +
+        '<form id="pwl-email-form" class="pwl-share-form">' +
+          '<label>Email<input name="email" type="email" required autocomplete="email" /></label>' +
+          "<label>Password<input name=\"password\" type=\"password\" required minlength=\"6\" " +
+            'autocomplete="current-password" /></label>' +
+          '<p class="pwl-comment-signin" id="pwl-email-err" hidden></p>' +
+          '<div class="pwl-modal-actions">' +
+            '<button type="submit" class="btn btn-primary">Sign in</button>' +
+          "</div>" +
+          '<p class="pwl-signin-swap"><span id="pwl-swap-lead">New here?</span> ' +
+            '<button type="button" class="pwl-linkbtn" id="pwl-swap">Create an account</button></p>' +
+        "</form>" +
+      "</div>" +
+
+      '<div class="pwl-signin-panel" data-panel="code" hidden>' +
+        '<p class="pwl-modal-desc">Use the code and PIN your teacher gave you.</p>' +
+        '<form id="pwl-code-form" class="pwl-share-form">' +
+          '<div class="pwl-signin-row">' +
+            "<label>Class code" +
+              '<input name="code" type="text" maxlength="20" required autocomplete="off" ' +
+              'autocapitalize="characters" spellcheck="false" placeholder="e.g. ABC0001" />' +
+            "</label>" +
+            '<label class="pwl-signin-pin">PIN' +
+              '<input name="pin" type="text" inputmode="numeric" pattern="[0-9]{3}" maxlength="3" ' +
+              'required autocomplete="off" placeholder="123" />' +
+            "</label>" +
+          "</div>" +
+          '<p class="pwl-comment-signin" id="pwl-code-err" hidden></p>' +
+          '<div class="pwl-modal-actions"><button type="submit" class="btn btn-primary">Sign in</button></div>' +
+        "</form>" +
+      "</div>"
+    );
+
+    const panels = m.box.querySelectorAll(".pwl-signin-panel");
+    const tabs = m.box.querySelectorAll(".pwl-signin-tab");
+    function showTab(name) {
+      tabs.forEach(function (t) {
+        const on = t.dataset.tab === name;
+        t.classList.toggle("active", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      panels.forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+      const first = m.box.querySelector('.pwl-signin-panel:not([hidden]) input');
+      if (first) first.focus();
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () { showTab(t.dataset.tab); });
+    });
+
+    m.box.querySelector(".pwl-signin-google").addEventListener("click", signInWithGoogle);
+
+    // ---- email panel: one form, two modes ----
+    const emailForm = m.box.querySelector("#pwl-email-form");
+    const emailErr = m.box.querySelector("#pwl-email-err");
+    const emailBtn = emailForm.querySelector('button[type="submit"]');
+    const swap = m.box.querySelector("#pwl-swap");
+    const pwInput = emailForm.querySelector('input[name="password"]');
+    let signingUp = false;
+
+    swap.addEventListener("click", function () {
+      signingUp = !signingUp;
+      emailBtn.textContent = signingUp ? "Create account" : "Sign in";
+      swap.textContent = signingUp ? "Sign in instead" : "Create an account";
+      m.box.querySelector("#pwl-swap-lead").textContent =
+        signingUp ? "Already have an account?" : "New here?";
+      pwInput.setAttribute("autocomplete", signingUp ? "new-password" : "current-password");
+      emailErr.hidden = true;
+    });
+
+    emailForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const mail = emailForm.querySelector('input[name="email"]').value;
+      const pw = pwInput.value;
+      const label = emailBtn.textContent;
+      emailBtn.disabled = true;
+      emailBtn.textContent = signingUp ? "Creating…" : "Signing in…";
+      emailErr.hidden = true;
+      const res = signingUp ? await signUpWithEmail(mail, pw) : await signInWithEmail(mail, pw);
+      if (res.error) {
+        emailBtn.disabled = false; emailBtn.textContent = label;
+        emailErr.textContent = res.error.message; emailErr.hidden = false;
+      } else if (res.needsConfirm) {
+        // Nothing to sign into yet: swap the form for the "go check your inbox".
+        emailForm.innerHTML =
+          '<p class="pwl-modal-desc">Almost there. We sent a confirmation link to <strong>' +
+          esc(mail.trim().toLowerCase()) + "</strong> - click it, then come back and sign in.</p>";
+      } else {
+        m.close();   // onAuthStateChange repaints the header
+      }
+    });
+
+    // ---- class code panel ----
+    const codeForm = m.box.querySelector("#pwl-code-form");
+    const codeErr = m.box.querySelector("#pwl-code-err");
+    const codeInput = codeForm.querySelector('input[name="code"]');
+    const pinInput = codeForm.querySelector('input[name="pin"]');
+
+    pinInput.addEventListener("input", function () {
+      pinInput.value = pinInput.value.replace(/\D/g, "").slice(0, 3);
+    });
+
+    codeForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const btn = codeForm.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = "Signing in…"; codeErr.hidden = true;
+      const res = await signInWithCode(codeInput.value, pinInput.value);
+      if (res.error) {
+        btn.disabled = false; btn.textContent = "Sign in";
+        codeErr.textContent = res.error.message; codeErr.hidden = false;
+        pinInput.select();
+      } else {
+        m.close();
+      }
+    });
+
+    showTab(startTab === "code" ? "code" : "email");
+  }
+
+  function openNameEditor() {
+    if (!currentUser) { openSignIn(); return; }
+    if (isStudent()) return;
+    const m = openModal(
+      '<h2 class="pwl-modal-title">Edit your name</h2>' +
+      '<form id="pwl-name-form" class="pwl-share-form">' +
+        '<label>Display name<input name="name" type="text" maxlength="40" required autocomplete="off" /></label>' +
+        '<p class="pwl-comment-signin" id="pwl-name-err" hidden></p>' +
+        '<div class="pwl-modal-actions"><button type="submit" class="btn btn-primary">Save</button></div>' +
+      "</form>"
+    );
+    const input = m.box.querySelector('input[name="name"]');
+    input.value = displayName();
+    const err = m.box.querySelector("#pwl-name-err");
     input.focus(); input.select();
-    back.querySelector("#pwl-name-form").addEventListener("submit", async function (e) {
+    m.box.querySelector("#pwl-name-form").addEventListener("submit", async function (e) {
       e.preventDefault();
       const name = input.value.trim();
       if (!name) return;
@@ -213,7 +435,7 @@
       if (res.error) {
         btn.disabled = false; btn.textContent = "Save";
         err.textContent = "Couldn't save: " + res.error.message; err.hidden = false;
-      } else { close(); }
+      } else { m.close(); }
     });
   }
 
@@ -322,12 +544,17 @@
     user: function () { return currentUser; },
     profile: function () { return currentProfile; },
     displayName: displayName,
+    isStudent: isStudent,
+    signIn: openSignIn,
     signInWithGoogle: signInWithGoogle,
+    signInWithEmail: signInWithEmail,
+    signUpWithEmail: signUpWithEmail,
+    signInWithCode: signInWithCode,
     signOut: signOut,
     onChange: function (cb) { listeners.push(cb); return function () {}; },
     requireSignIn: function () {
       if (currentUser) return true;
-      signInWithGoogle();
+      openSignIn();
       return false;
     }
   };

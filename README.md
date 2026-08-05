@@ -19,7 +19,7 @@ Run real Python in your browser, with nothing to install. **PyWebLib** brings tu
 Sprites, the keyboard, the mouse, collisions and a score, all running smoothly on
 a canvas. No install, and none of the extra build steps or tooling (like pygbag)
 that pygame needs before it runs in a browser at all. Full walkthrough and a
-sprite table are in the [game guide](https://pyweb.qmarkapp.com/docs/game/).
+sprite table are in the [game guide](https://play.pyweblib.org/docs/game/).
 
 <p>
   <img src="assets/game-chicken.gif" width="250" alt="Walk the chicken" />
@@ -32,7 +32,7 @@ sprite table are in the [game guide](https://pyweb.qmarkapp.com/docs/game/).
 The classic turtle pen, right in the browser. Forward, turn, change colour,
 lift the pen, and a few lines in a loop become squares, stars, flowers and
 rainbow spirals. It is the gentlest way into loops and coordinates. Full
-walkthrough in the [turtle guide](https://pyweb.qmarkapp.com/docs/turtle/).
+walkthrough in the [turtle guide](https://play.pyweblib.org/docs/turtle/).
 
 ![Rainbow spiral drawn with turtle](assets/turtle-spiral.gif)
 
@@ -120,7 +120,7 @@ works fully without it. To switch it on:
    - In Supabase: Authentication -> Providers -> Google -> paste the Client ID
      and Client Secret and enable it.
    - In Supabase: Authentication -> URL Configuration -> add your site to
-     "Redirect URLs", e.g. `https://pyweb.qmarkapp.com/**`
+     "Redirect URLs", e.g. `https://play.pyweblib.org/**`
      and `http://localhost:8000/**` for local testing.
 4. **Add your keys.** In `supabase-config.js`, set `SUPABASE_URL` and
    `SUPABASE_ANON_KEY` (Supabase dashboard -> Project Settings -> API). The anon
@@ -131,6 +131,34 @@ works fully without it. To switch it on:
 Data model (`supabase-schema.sql`): `profiles` (auto-created on first sign-in),
 `projects` (a shared program), `votes` (one per user per project, kept counted
 by a trigger), `comments`, and a `top_creators` leaderboard view.
+
+Signing in offers three ways in: Google, an email address and password, or a
+class code (below). Email sign-up honours whatever you set for "Confirm email"
+in Supabase - leave it on and new accounts get a confirmation link first.
+
+### Class codes (optional, for schools)
+
+`supabase-migration-students.sql` adds a way in for a class that has no Google
+accounts: a student types a code (`ABC0001`) and a 3-digit PIN, nothing else.
+Each one is a normal Supabase email/password user underneath
+(`<code>@hallam.local`, password `<CODE><PIN>`), so every RLS policy, cap and
+leaderboard keeps working with no schema changes.
+
+Run that file once to get the `students` table and `sync_student_accounts()`,
+then load your roster and call the function. Re-running is safe: it keeps
+everyone's work, and it is also how you reset a forgotten PIN.
+
+The PIN stops a classmate signing in with a code they saw on a school bag. It is
+a speed bump, not a secret - 3 digits is 1000 guesses.
+
+Publicly students show as a handle ("Quiet Aardvark"), never a real name, and the
+"Edit name" menu item is hidden for them. The private `students` table maps a
+code back to a real child and is readable only from the SQL editor.
+
+**Keep your real roster out of git.** It is a list of children's names next to
+working credentials, and this repo is public. `.gitignore` already blocks
+`students-roster*.sql` and `*.local.sql`; keep the file somewhere private and
+paste it straight into the SQL editor.
 
 ## License
 

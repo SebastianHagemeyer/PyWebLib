@@ -317,7 +317,7 @@
     // (private to the author's account, thumbnail optional).
     async function doSave(makePublic) {
       const u = PWL.auth && PWL.auth.user();
-      if (!u) { PWL.auth.signInWithGoogle(); return; }
+      if (!u) { PWL.auth.signIn(); return; }
       const title = titleEl.value.trim();
       if (!title) { titleEl.focus(); return; }
       if (makePublic && needsThumbNow() && !allowNoScene) { toast("Run your program first to capture a thumbnail, or choose \"Publish without a thumbnail\"."); return; }
