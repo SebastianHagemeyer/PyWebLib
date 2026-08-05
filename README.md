@@ -2,7 +2,7 @@
 
 # PyWebLib
 
-Try it here: [pyweb.qmarkapp.com](https://play.pyweblib.org/)
+Try it here: [play.pyweblib.org](https://play.pyweblib.org/)
 Or
 Read my medium article : [medium.com](https://medium.com/@hagemeyer.sebastian/running-python-turtle-and-more-on-the-web-24856ffc72b7)
 
