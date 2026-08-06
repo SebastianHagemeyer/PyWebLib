@@ -172,6 +172,9 @@ img { max-width: 100%; display: block; }
   display: flex;
   flex-direction: column;
   min-height: 360px;
+  /* Grid children default to min-width: auto, which lets their contents push
+     the column wider than its track. */
+  min-width: 0;
   box-shadow: var(--shadow-md);
 }
 .sandbox-bar {
@@ -231,6 +234,14 @@ img { max-width: 100%; display: block; }
   font-size: 0.95rem;
   line-height: 1.55;
   white-space: pre-wrap;
+  /* pre-wrap only breaks at spaces, so a long run with no space in it (a loop
+     printing without a newline, a long traceback path, someone leaning on a
+     key) has no break opportunity and the box grows sideways instead.
+     `anywhere` rather than `break-word`: only `anywhere` is counted towards
+     min-content width, so only `anywhere` stops a grid or flex child forcing
+     its parent wider. That is the difference between the box scrolling and
+     the whole page scrolling. */
+  overflow-wrap: anywhere;
   overflow: auto;
 }
 .sandbox-run[disabled] { opacity: 0.55; cursor: not-allowed; }
