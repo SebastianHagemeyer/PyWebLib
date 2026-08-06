@@ -13,7 +13,22 @@
 
   if (!PWL.configured) { host.hidden = true; return; }
   const sb = PWL.supabase;
-  const PROGRAM_CAP = 10;   // keep in step with enforce_project_limit() in supabase-schema.sql
+  // The database is the authority on this (enforce_project_limit()), and admins
+  // get a much higher cap. The page cannot read public.admins to find out, by
+  // design, so it asks my_program_cap() for its OWN limit and falls back to the
+  // ordinary one if that function is not installed yet.
+  // See supabase-migration-caps.sql.
+  const DEFAULT_PROGRAM_CAP = 10;
+  let programCap = DEFAULT_PROGRAM_CAP;
+
+  async function loadCap() {
+    if (!sb || !(PWL.auth && PWL.auth.user())) { programCap = DEFAULT_PROGRAM_CAP; return; }
+    try {
+      const r = await sb.rpc("my_program_cap");
+      if (!r.error && typeof r.data === "number" && r.data > 0) programCap = r.data;
+      else programCap = DEFAULT_PROGRAM_CAP;
+    } catch (e) { programCap = DEFAULT_PROGRAM_CAP; }
+  }
 
   // "My programs" quick-picker, inserted just under the share panel.
   const myHost = document.createElement("div");
@@ -156,7 +171,7 @@
           mine.map(function (m) { return '<option value="' + esc(m.id) + '">Update: ' + esc(m.title) + (m.published === false ? " (draft)" : "") + "</option>"; }).join("") +
         "</select></label>"
       : "";
-    const atCap = mine.length >= PROGRAM_CAP;
+    const atCap = mine.length >= programCap;
 
     const back = document.createElement("div");
     back.className = "pwl-modal-back";
@@ -322,7 +337,7 @@
       if (!title) { titleEl.focus(); return; }
       if (makePublic && needsThumbNow() && !allowNoScene) { toast("Run your program first to capture a thumbnail, or choose \"Publish without a thumbnail\"."); return; }
       const targetId = targetEl ? targetEl.value : "";
-      if (atCap && !targetId) { toast("You're at the " + PROGRAM_CAP + " program limit. Update one, or delete one first."); return; }
+      if (atCap && !targetId) { toast("You're at the " + programCap + " program limit. Update one, or delete one first."); return; }
       const sceneJson = scene
         ? JSON.stringify(scene.kind === "turtle"
             ? { kind: "turtle", w: scene.w, h: scene.h, bg: scene.bg, ops: scene.ops }
@@ -460,8 +475,9 @@
     });
   }
 
-  document.addEventListener("pwl:auth", function () { render(); loadMine(); });
+  document.addEventListener("pwl:auth", function () { render(); loadCap(); loadMine(); });
   document.addEventListener("pwl:editing", render);
   render();
+  loadCap();
   loadMine();
 })();
