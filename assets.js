@@ -441,11 +441,16 @@
   stage.addEventListener("pointerup", function (e) {
     if (drawing) {
       const s = drawing.shape;
-      // A plain click (no real drag) drops a default-sized shape.
-      const tiny = (s.type === "line") ? (Math.abs(s.x2 - s.x1) + Math.abs(s.y2 - s.y1) < 3)
-        : (s.type === "circle") ? (s.r < 2)
-        : (s.type === "ellipse") ? (s.rx < 2 || s.ry < 2)
-        : (s.w < 2 || s.h < 2);
+      // A plain CLICK (no real drag) drops a default-sized shape, so you can tap
+      // out a dot without measuring one. The bar for "that was a click" is
+      // deliberately low: at the old threshold a 4-unit drag was replaced by a
+      // 24-unit shape, a six-fold jump, so meaning to draw something small and
+      // twitching gave you a third of the canvas instead. Below the bar it is a
+      // click and you get the default; above it, you get exactly what you drew.
+      const tiny = (s.type === "line") ? (Math.abs(s.x2 - s.x1) + Math.abs(s.y2 - s.y1) < 1)
+        : (s.type === "circle") ? (s.r < 0.6)
+        : (s.type === "ellipse") ? (s.rx < 0.6 || s.ry < 0.6)
+        : (s.w < 1 || s.h < 1);
       if (tiny) applyDefault(s);
       pushRecent(s.fill);
       drawing = null;
@@ -455,12 +460,15 @@
     try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
   });
 
+  // The size a click (rather than a drag) gives you. Kept to roughly a sixth of
+  // the 64-unit canvas: big enough to see and grab, small enough that a stray
+  // click is a nudge rather than something that fills the artboard.
   function applyDefault(s) {
-    if (s.type === "line") { s.x2 = clamp(s.x1 + 18); s.y2 = s.y1; }
-    else if (s.type === "circle") { s.r = 12; }
-    else if (s.type === "ellipse") { s.rx = 14; s.ry = 9; }
-    else if (s.type === "triangle") { s.x -= 11; s.y -= 10; s.w = 22; s.h = 20; }
-    else { s.x -= 10; s.y -= 7; s.w = 20; s.h = 14; s.rx = 1; }
+    if (s.type === "line") { s.x2 = clamp(s.x1 + 14); s.y2 = s.y1; }
+    else if (s.type === "circle") { s.r = 6; }
+    else if (s.type === "ellipse") { s.rx = 7; s.ry = 5; }
+    else if (s.type === "triangle") { s.x -= 6; s.y -= 5; s.w = 12; s.h = 11; }
+    else { s.x -= 6; s.y -= 4; s.w = 12; s.h = 8; s.rx = 1; }
     s.x = clamp(s.x); s.y = clamp(s.y);
   }
 
