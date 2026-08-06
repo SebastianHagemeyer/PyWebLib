@@ -1,6 +1,12 @@
 # Test artifacts
 .playwright-mcp/
 
+# A real class roster is children's names next to working credentials, and this
+# repo is public. Keep it on the drive, never here. See
+# supabase-migration-students.sql, "Loading a real roster".
+students-roster*.sql
+*.local.sql
+
 # Python cache
 __pycache__/
 *.pyc
