@@ -54,9 +54,9 @@
     if (!user) {
       host.innerHTML =
         '<div class="share-cta">' +
-          '<div><h2>Share your program</h2>' +
-          "<p>Sign in with Google to publish this to the community, collect upvotes and climb the leaderboard.</p></div>" +
-          '<button type="button" class="btn btn-google" data-pwl="signin"><span>Sign in with Google</span></button>' +
+          '<div><h2>Save / Share</h2>' +
+          "<p>Sign in to keep your programs, publish them to the community, collect upvotes and climb the leaderboard.</p></div>" +
+          '<button type="button" class="btn btn-primary" data-pwl="signin"><span>Sign in</span></button>' +
         "</div>";
       return; // data-pwl="signin" is handled by auth.js
     }
@@ -92,8 +92,8 @@
     }
     host.innerHTML =
       '<div class="share-cta">' +
-        '<div><h2>Share your program</h2><p>Publish what is in the editor to the community gallery.</p></div>' +
-        '<button type="button" class="btn btn-primary" id="pwl-share-btn">Share to community</button>' +
+        '<div><h2>Save / Share</h2><p>Keep this privately in your account, or publish it to the community gallery.</p></div>' +
+        '<button type="button" class="btn btn-primary" id="pwl-share-btn">Save or share</button>' +
       "</div>";
     const btn = document.getElementById("pwl-share-btn");
     if (btn) btn.addEventListener("click", function () { openShareModal(); });
@@ -163,7 +163,7 @@
     back.innerHTML =
       '<div class="pwl-modal" role="dialog" aria-modal="true">' +
         '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
-        '<h2 class="pwl-modal-title">Share to community</h2>' +
+        '<h2 class="pwl-modal-title">Save / Share</h2>' +
         '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
         '<div class="pwl-share-preview-wrap"><canvas class="pwl-share-preview" width="320" height="180"></canvas></div>' +
         '<p class="pwl-thumb-keep" hidden style="margin:6px 0 0;font-size:0.85rem;color:var(--muted)">Keeping this program\'s thumbnail. Run it to capture a new one.</p>' +
@@ -382,32 +382,81 @@
   async function loadMine() {
     const user = PWL.auth && PWL.auth.user();
     if (!user) { myPrograms = []; renderMine(); return; }
-    let r = await sb.from("projects").select("id,title,code,author_id,published")
+    let r = await sb.from("projects").select("id,title,code,author_id,published,updated_at")
       .eq("author_id", user.id).order("updated_at", { ascending: false });
     if (r.error && /published/i.test(r.error.message || "")) {   // DB without the column yet
-      r = await sb.from("projects").select("id,title,code,author_id")
+      r = await sb.from("projects").select("id,title,code,author_id,updated_at")
         .eq("author_id", user.id).order("updated_at", { ascending: false });
     }
     myPrograms = (!r.error && r.data) ? r.data : [];
     renderMine();
   }
+  const MINE_OPEN_KEY = "pwl-mine-open";
+
+  // The first line that actually does something, so a card shows what the
+  // program IS ("import game") rather than just its name.
+  function firstLine(code) {
+    const lines = String(code || "").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const t = lines[i].trim();
+      if (t && t[0] !== "#") return t.length > 42 ? t.slice(0, 41) + "…" : t;
+    }
+    return "";
+  }
+
+  function savedWhen(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d)) return "";
+    return "saved " + d.getDate() + " " +
+      ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+  }
+
   function renderMine() {
     if (!myPrograms.length) { myHost.innerHTML = ""; return; }
+    const open = localStorage.getItem(MINE_OPEN_KEY) !== "0";
+
     myHost.innerHTML =
-      '<div class="pwl-mine">' +
-        '<span class="pwl-mine-title">Your programs</span>' +
-        '<select id="pwl-mine-select" aria-label="Open one of your programs">' +
-          '<option value="">Open one of your programs…</option>' +
-          myPrograms.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.title) + (p.published === false ? " (draft)" : "") + "</option>"; }).join("") +
-        "</select>" +
-      "</div>";
-    const sel = document.getElementById("pwl-mine-select");
-    sel.addEventListener("change", function () {
-      const p = myPrograms.filter(function (x) { return x.id === sel.value; })[0];
-      sel.value = "";
-      if (p && window.PWL.loadProgram) {
-        window.PWL.loadProgram(p.code, { id: p.id, title: p.title, author_id: p.author_id, published: p.published });
-      }
+      '<section class="pwl-mine" data-open="' + (open ? "true" : "false") + '">' +
+        '<button type="button" class="pwl-mine-head" id="pwl-mine-toggle" ' +
+                'aria-expanded="' + (open ? "true" : "false") + '" aria-controls="pwl-mine-grid">' +
+          '<svg class="pwl-mine-chev" viewBox="0 0 12 8" aria-hidden="true">' +
+            '<path d="M1 6l5-4 5 4" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+                  'stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+          '<span class="pwl-mine-title">Your programs</span>' +
+          '<span class="pwl-mine-count">' + myPrograms.length + "</span>" +
+        "</button>" +
+        '<div class="pwl-mine-grid" id="pwl-mine-grid">' +
+          myPrograms.map(function (p) {
+            return '<button type="button" class="pwl-mine-card" data-id="' + esc(p.id) + '">' +
+                     '<span class="pwl-mine-name">' + esc(p.title) +
+                       (p.published === false ? '<span class="pwl-mine-draft">draft</span>' : "") +
+                     "</span>" +
+                     '<span class="pwl-mine-meta">' + esc(firstLine(p.code)) +
+                       (savedWhen(p.updated_at) ? ' <span class="pwl-mine-dot">·</span> ' +
+                         esc(savedWhen(p.updated_at)) : "") +
+                     "</span>" +
+                   "</button>";
+          }).join("") +
+        "</div>" +
+      "</section>";
+
+    const box = myHost.querySelector(".pwl-mine");
+    myHost.querySelector("#pwl-mine-toggle").addEventListener("click", function () {
+      const now = box.dataset.open !== "true";
+      box.dataset.open = now ? "true" : "false";
+      this.setAttribute("aria-expanded", now ? "true" : "false");
+      localStorage.setItem(MINE_OPEN_KEY, now ? "1" : "0");
+    });
+
+    myHost.querySelectorAll(".pwl-mine-card").forEach(function (card) {
+      card.addEventListener("click", function () {
+        const p = myPrograms.filter(function (x) { return x.id === card.dataset.id; })[0];
+        if (p && window.PWL.loadProgram) {
+          window.PWL.loadProgram(p.code, { id: p.id, title: p.title,
+                                           author_id: p.author_id, published: p.published });
+        }
+      });
     });
   }
 

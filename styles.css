@@ -1015,10 +1015,58 @@ body.sandbox-maxed { overflow: hidden; }
 
 /* "My programs" quick-picker under the share panel */
 .pwl-myprograms:not(:empty) { margin-top: 12px; }
-.pwl-mine { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
+/* A grid of cards rather than a <select>: a dropdown hides every option until
+   you open it and shows nothing but a title, so you cannot tell two programs
+   apart without opening each one. A card can carry the first line of code and
+   when it was saved. Collapsible, because with 15 saves it is a lot of page. */
+.pwl-mine { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px 14px; }
+.pwl-mine-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: 0; padding: 2px 0; cursor: pointer;
+  font: inherit; color: var(--text); text-align: left;
+}
+.pwl-mine-head:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 6px; }
 .pwl-mine-title { font-weight: 700; font-size: 0.92rem; }
-.pwl-mine select { font: inherit; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; flex: 1; min-width: 220px; }
-.pwl-mine select:focus { outline: none; border-color: var(--primary); }
+.pwl-mine-count {
+  background: var(--primary); color: #fff; font-size: 0.74rem; font-weight: 700;
+  padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums;
+}
+.pwl-mine-chev { width: 12px; height: 8px; flex: none; color: var(--muted); transition: transform 0.18s ease; }
+.pwl-mine[data-open="false"] .pwl-mine-chev { transform: rotate(180deg); }
+.pwl-mine[data-open="false"] .pwl-mine-grid { display: none; }
+
+.pwl-mine-grid {
+  display: grid; gap: 10px; margin-top: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+.pwl-mine-card {
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 13px; cursor: pointer; font: inherit; color: var(--text);
+  transition: border-color 0.15s ease, transform 0.06s ease;
+}
+.pwl-mine-card:hover { border-color: var(--primary); }
+.pwl-mine-card:active { transform: translateY(1px); }
+.pwl-mine-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pwl-mine-name {
+  font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 7px;
+  overflow-wrap: anywhere;
+}
+.pwl-mine-draft {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  background: var(--border); color: var(--muted); padding: 1px 6px; border-radius: 4px;
+  /* the name wraps, the badge must not: it was breaking into "DRAF / T" */
+  flex: none; white-space: nowrap; align-self: flex-start;
+}
+.pwl-mine-meta {
+  font-size: 0.78rem; color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pwl-mine-dot { font-family: inherit; }
+@media (prefers-reduced-motion: reduce) {
+  .pwl-mine-chev, .pwl-mine-card { transition: none; }
+}
 .pwl-share-form input:focus, .pwl-share-form textarea:focus, .pwl-share-form select:focus { outline: none; border-color: var(--primary); }
 
 /* Comments */
