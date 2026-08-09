@@ -1248,6 +1248,22 @@ body.sandbox-maxed { overflow: hidden; }
 .pwl-player-run { margin-left: auto; }
 .pwl-player-stage { display: flex; justify-content: center; background: #0b1020; border-radius: var(--radius-sm); padding: 10px; overflow: hidden; }
 .pwl-player-stage .turtle-stage, .pwl-player-stage .game-stage { margin: 0; max-width: 100%; }
+
+/* [hidden] has to actually hide. The player marks the unused stage hidden, but
+   .game-stage sets display:flex, and an author rule beats the UA sheet's
+   [hidden] { display: none }, so the "hidden" 480x360 game canvas was still
+   laid out. Every text-only program in the player therefore opened with a big
+   black rectangle above its output, and the output was squeezed underneath it.
+   .game-stage[hidden] is class+attribute, so it outranks the plain class. */
+.game-stage[hidden], .turtle-stage[hidden] { display: none; }
+
+/* A python program has no canvas at all, so it gets no plate either. */
+.pwl-player-is-python .pwl-player-stage { display: none; }
+
+/* ...and the console is then the whole program, so give it the room the canvas
+   would have taken. At 140px the Matrix Rain example showed about a fifth of
+   itself through a scrollbar. */
+.pwl-player-is-python .pwl-player-out { max-height: min(62vh, 460px); }
 /* The run output is a real terminal: keep the dark code background so the
    light text reads, instead of light-grey-on-white on the page/modal. */
 .pwl-player-out {

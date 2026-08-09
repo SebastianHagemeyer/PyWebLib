@@ -600,7 +600,7 @@
 
   // A saved runtime scene wins (real sprite positions); otherwise parse the
   // code's opening scene; otherwise a themed placeholder. sceneJson is optional.
-  function renderInto(canvas, code, sceneJson) {
+  function drawOnce(canvas, code, sceneJson) {
     if (sceneJson) {
       try {
         const scene = typeof sceneJson === "string" ? JSON.parse(sceneJson) : sceneJson;
@@ -627,6 +627,39 @@
     } else {
       // python (and a turtle program that wasn't run) show their code.
       drawCode(code, canvas);
+    }
+    return kind;
+  }
+
+  // Draw now, then draw again once the canvas has a size.
+  //
+  // fitBuffer can only match the buffer to real device pixels if the canvas is
+  // laid out; called on a canvas with clientWidth 0 it leaves the declared
+  // 320x180 alone. Cards render the moment their markup exists, which is before
+  // layout, so EVERY thumbnail started life at 320x180 and then got stretched
+  // over a ~347px CSS box (694px at 2x): blurry.
+  //
+  // Game and scene previews only escaped that by accident. Both schedule a
+  // 150ms repaint to wait for sprite images to load, and by then layout has
+  // happened, so they re-sized for free. Turtle scenes and plain code previews
+  // schedule nothing, so they stayed soft forever, which is why a turtle card
+  // and every python card looked worse than the games sitting next to them.
+  //
+  // An observer is the honest fix rather than another sprinkled timeout: it
+  // catches first layout, responsive reflow and a window moving to a different
+  // DPI screen. Setting width/height only touches the backing store, and these
+  // canvases are sized by CSS, so repainting cannot retrigger the observer.
+  function renderInto(canvas, code, sceneJson) {
+    const kind = drawOnce(canvas, code, sceneJson);
+    if (canvas && !canvas.__pwlResizeWatch && typeof ResizeObserver !== "undefined") {
+      let last = canvas.clientWidth + "x" + canvas.clientHeight;
+      canvas.__pwlResizeWatch = new ResizeObserver(function () {
+        const now = canvas.clientWidth + "x" + canvas.clientHeight;
+        if (!canvas.clientWidth || now === last) return;
+        last = now;
+        try { drawOnce(canvas, code, sceneJson); } catch (e) {}
+      });
+      try { canvas.__pwlResizeWatch.observe(canvas); } catch (e) {}
     }
     return kind;
   }
