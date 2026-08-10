@@ -36,6 +36,7 @@
           <a href="#box">Boxes &amp; score</a>
           <a href="#over">Ending a game</a>
           <a href="#sound">Sound</a>
+          <a href="#ink">Drawing that stays</a>
           <a href="#limits">What it can do</a>
         </nav>
 
@@ -209,6 +210,43 @@ game.save("coins", coins)          # save when things change,
 game.save("plants", plants)        # not every frame
 # Run it again and the garden is exactly where you left it.</pre>
           <p class="callout"><strong>It's per-game and per-browser.</strong> Each program keeps its own save, and it lives on this device only (it isn't synced across computers or accounts). Save when something actually changes rather than every frame.</p>
+        </section>
+
+        <section id="ink">
+          <h2>Drawing that stays put, and saving it</h2>
+          <p>A sprite is a thing you keep moving, so every frame wipes the window and redraws it. That is the wrong deal for a picture that builds up: a few thousand sprites and the game crawls. <strong>Ink</strong> is the other half of the library. You stamp a mark once and leave it, and by the next frame it is simply pixels, so a quarter of a million dots costs no more to keep than one.</p>
+          <ul class="key-points">
+            <li><code>game.plot(x, y, color, size)</code> stamps a dot that stays.</li>
+            <li><code>game.line(x1, y1, x2, y2, color, width)</code> stamps a stroke. Use it for anything fast, or a trail of dots comes out dashed.</li>
+            <li><code>game.fade(0.05)</code> rubs out a fraction of the ink each frame, so a trail dies away instead of piling up.</li>
+            <li><code>game.wipe()</code> clears all the ink and leaves your sprites alone.</li>
+          </ul>
+          <pre class="guide-code language-python" id="ex-ink">import game, math
+
+game.window(480, 300)
+ball = game.sprite("coin", 240, 150, size=26)
+t, px, py = 0.0, 240.0, 150.0
+
+while game.playing():
+    t += 0.05
+    x = 240 + math.cos(t) * 170
+    y = 150 + math.sin(t * 1.7) * 110
+    game.line(px, py, x, y, "#4ea8ff", 3)   # the trail is ink: it stays
+    px, py = x, y
+    ball.x, ball.y = x, y                   # the coin is a sprite: it moves
+    game.fade(0.03)                         # so the old tail slowly dies
+    game.frame(60)</pre>
+          <h3>Saving the picture</h3>
+          <p><code>game.save_image()</code> saves a PNG to the player's computer. It hands the file to the browser and returns straight away, so you can call it right in the game loop. The <code>surface</code> argument is the useful part:</p>
+          <ul class="key-points">
+            <li><code>game.save_image()</code> saves <em>what you can see</em>, scoreboard and all.</li>
+            <li><code>game.save_image("ink")</code> saves <em>only the stamped layer</em>. Your artwork comes out clean, with none of the UI drawn over it, and you never have to hide the labels first.</li>
+            <li><code>game.copy_image("ink")</code> puts it on the clipboard instead, ready to paste into a chat or a post.</li>
+          </ul>
+          <pre class="guide-code language-python">if game.pressed("s"):
+    game.save_image("ink")            # just the drawing, no UI
+    # game.save_image(None, "art.png", ask=True)   # or pick where it goes</pre>
+          <p class="callout"><strong>A real save dialog is a bonus, not a promise.</strong> <code>ask=True</code> opens a proper "where shall I put it?" box, but only on Chrome and Edge, and only while the keypress that asked for it is still fresh. Everywhere else the file simply lands in Downloads, which is what happens by default anyway.</p>
         </section>
 
         <section id="limits">

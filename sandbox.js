@@ -146,6 +146,177 @@
         "    turtle.left(60)\n"
     },
     {
+      title: "Chaos game fractal",
+      cat: "Turtle",
+      desc: "Pick a corner at random, hop half way to it, leave a dot. Do it 15,000 times and the Sierpinski triangle is just there. Nothing in the code draws a triangle.",
+      code:
+        "# The chaos game: a fractal that falls out of pure randomness.\n" +
+        "#\n" +
+        "# Pick a corner at random, hop part of the way toward it, leave a dot,\n" +
+        "# repeat. Nothing below draws a triangle. The triangle is what the\n" +
+        "# randomness leaves behind.\n" +
+        "#\n" +
+        "# Pairs worth trying:  3 corners, hop 0.5    the Sierpinski triangle\n" +
+        "#                      4 corners, hop 0.5    fills in solid\n" +
+        "#                      5 corners, hop 0.618\n" +
+        "#                      6 corners, hop 0.667\n" +
+        "import turtle, random, math, time\n" +
+        "\n" +
+        'corners = int(input("How many corners? (try 3) ") or 3)\n' +
+        'hop = float(input("How far to hop each time? (try 0.5) ") or 0.5)\n' +
+        "corners = max(3, min(8, corners))\n" +
+        "DOTS = 15000\n" +
+        "\n" +
+        "turtle.speed(0)        # 0 means no animation delay, so it plots flat out\n" +
+        "turtle.hideturtle()\n" +
+        "turtle.penup()\n" +
+        'turtle.bgcolor("#0b1020")\n' +
+        "\n" +
+        "# The corners, spaced evenly around a circle, starting at the top.\n" +
+        "R = 170\n" +
+        "points = []\n" +
+        "for i in range(corners):\n" +
+        "    angle = math.pi / 2 + i * 2 * math.pi / corners\n" +
+        "    points.append((R * math.cos(angle), R * math.sin(angle)))\n" +
+        "\n" +
+        'colors = ["#22d3a5", "#4ea8ff", "#ff5c8a", "#ffc857",\n' +
+        '          "#b48cff", "#5be3c0", "#ff8f4e", "#7ef0ff"]\n' +
+        "\n" +
+        "x, y = 0.0, 0.0\n" +
+        "for i in range(DOTS):\n" +
+        "    c = random.randrange(corners)          # the corner we jump at\n" +
+        "    cx, cy = points[c]\n" +
+        "    x = x + (cx - x) * hop                 # hop that far toward it\n" +
+        "    y = y + (cy - y) * hop\n" +
+        "    if abs(x) > 3000 or abs(y) > 3000:     # a hop above 1 flings points away,\n" +
+        "        x, y = 0.0, 0.0                    # so drop back to the middle\n" +
+        "    if i > 10:                             # skip the first few, before it settles\n" +
+        "        turtle.goto(x, y)\n" +
+        "        turtle.dot(2, colors[c % len(colors)])   # coloured by its corner\n" +
+        "    if i % 400 == 0:\n" +
+        "        time.sleep(0.001)                  # let the browser paint what is there\n" +
+        "\n" +
+        'print(DOTS, "dots, and not one of them was told where the triangle goes.")\n' +
+        'print("Change the corners or the hop, then hit Run again.")\n'
+    },
+    {
+      title: "Chaos game, live",
+      cat: "Tech Demo",
+      desc: "A fractal you steer while it draws. Arrows change the shape, S saves a clean PNG of just the fractal. Built on game.plot(), which stamps marks that stay put instead of being redrawn every frame.",
+      code:
+        "# The chaos game, live. A fractal drawn by pure chance, that you can steer\n" +
+        "# while it draws.\n" +
+        "#\n" +
+        "# Pick a corner at random, hop part of the way toward it, leave a dot, repeat.\n" +
+        "# Nothing here draws a triangle. The triangle is what the randomness leaves.\n" +
+        "#\n" +
+        "# game.plot() is the trick: a dot stamped with plot() STAYS on the screen, so\n" +
+        "# the picture builds up. Sprites are the opposite, redrawn from scratch every\n" +
+        "# single frame, which is why a quarter of a million of them would be hopeless\n" +
+        "# and a quarter of a million dots of ink is free.\n" +
+        "import game, random, math\n" +
+        "\n" +
+        'game.window(560, 400, background="#0b1020")\n' +
+        "\n" +
+        "CX, CY, R = 280, 210, 160          # where the shape sits, and how big\n" +
+        "PER_FRAME = 400                    # dots added per frame\n" +
+        "LIMIT = 250000                     # stop here, or it eventually goes solid\n" +
+        "\n" +
+        'colors = ["#22d3a5", "#4ea8ff", "#ff5c8a", "#ffc857",\n' +
+        '          "#b48cff", "#5be3c0", "#ff8f4e", "#7ef0ff"]\n' +
+        "\n" +
+        "corners = 3\n" +
+        "hop = 0.5\n" +
+        "\n" +
+        'info = game.label("", CX, 22, size=15, color="#dbe4ff", background="#161c33")\n' +
+        'help1 = game.label("left/right: corners    up/down: hop    SPACE: pause    R: restart",\n' +
+        '                   CX, 366, size=12, color="#8fa0c8", background="#161c33")\n' +
+        'help2 = game.label("S: save a clean PNG    C: copy it    H: hide this text",\n' +
+        '                   CX, 386, size=12, color="#8fa0c8", background="#161c33")\n' +
+        "\n" +
+        '# game.pressed() is true for every frame a key is held down. For "one press,\n' +
+        '# one step" we have to notice the moment it CHANGES from up to down.\n' +
+        "held = {}\n" +
+        "\n" +
+        "\n" +
+        "def tapped(key):\n" +
+        "    down = game.pressed(key)\n" +
+        "    fresh = down and not held.get(key, False)\n" +
+        "    held[key] = down\n" +
+        "    return fresh\n" +
+        "\n" +
+        "\n" +
+        "def corner_points():\n" +
+        "    out = []\n" +
+        "    for i in range(corners):\n" +
+        "        a = -math.pi / 2 + i * 2 * math.pi / corners\n" +
+        "        out.append((CX + R * math.cos(a), CY + R * math.sin(a)))\n" +
+        "    return out\n" +
+        "\n" +
+        "\n" +
+        "points = corner_points()\n" +
+        "x, y = float(CX), float(CY)\n" +
+        "drawn = 0\n" +
+        "paused = False\n" +
+        "shown = True\n" +
+        "\n" +
+        "\n" +
+        "def restart():\n" +
+        "    # Changing the shape means the old dots no longer belong. wipe() clears the\n" +
+        "    # stamped layer and leaves the sprites (the text) alone.\n" +
+        "    global points, x, y, drawn\n" +
+        "    points = corner_points()\n" +
+        "    x, y = float(CX), float(CY)\n" +
+        "    drawn = 0\n" +
+        "    game.wipe()\n" +
+        "\n" +
+        "\n" +
+        "while game.playing():\n" +
+        '    if tapped("left") and corners > 3:\n' +
+        "        corners -= 1\n" +
+        "        restart()\n" +
+        '    if tapped("right") and corners < 8:\n' +
+        "        corners += 1\n" +
+        "        restart()\n" +
+        '    if game.pressed("up"):\n' +
+        "        hop = min(1.15, hop + 0.005)\n" +
+        "        restart()\n" +
+        '    if game.pressed("down"):\n' +
+        "        hop = max(0.05, hop - 0.005)\n" +
+        "        restart()\n" +
+        '    if tapped("space"):\n' +
+        "        paused = not paused\n" +
+        '    if tapped("r"):\n' +
+        "        restart()\n" +
+        '    if tapped("h"):\n' +
+        "        shown = not shown\n" +
+        "        for lab in (help1, help2, info):\n" +
+        "            lab.show() if shown else lab.hide()\n" +
+        '    if tapped("s"):\n' +
+        '        # "ink" saves JUST the stamped layer, with none of the text on top, so\n' +
+        "        # the fractal comes out clean without having to hide anything first.\n" +
+        '        game.save_image("ink")\n' +
+        '        print("Saved the fractal to your downloads.")\n' +
+        '    if tapped("c"):\n' +
+        '        game.copy_image("ink")\n' +
+        '        print("Copied the fractal to your clipboard.")\n' +
+        "\n" +
+        "    if not paused and drawn < LIMIT:\n" +
+        "        for _ in range(PER_FRAME):\n" +
+        "            c = random.randrange(corners)\n" +
+        "            px, py = points[c]\n" +
+        "            x += (px - x) * hop\n" +
+        "            y += (py - y) * hop\n" +
+        "            if not (-4000 < x < 4000 and -4000 < y < 4000):\n" +
+        "                x, y = float(CX), float(CY)   # a hop near 1 can fling it away\n" +
+        "            game.plot(x, y, colors[c % len(colors)], 1.6)\n" +
+        "        drawn += PER_FRAME\n" +
+        "\n" +
+        '    info.content = ("corners " + str(corners) + "     hop " + str(round(hop, 3)) +\n' +
+        '                    "     dots " + str(drawn) + (" (paused)" if paused else ""))\n' +
+        "    game.frame(60)\n"
+    },
+    {
       title: "Move the chicken",
       cat: "Basic Games",
       desc: "import game. Steer the chicken with the arrow keys.",

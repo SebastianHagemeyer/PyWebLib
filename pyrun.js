@@ -408,6 +408,11 @@ def _pyrun_install_game():
     W = {"w": 480, "h": 360, "bg": "#0b1020", "score": 0, "over": None,
          "debug": False, "clicks": 0, "tick": 0}
     _sprites = []
+    # Ink: marks stamped onto a layer that is NOT wiped between frames, unlike
+    # sprites. Each entry is a short list (an op letter plus its numbers) that
+    # rides along in the scene the next frame() sends, so ten thousand dots cost
+    # one message, and once stamped they cost nothing at all to keep.
+    _ink = []
 
     def _norm_asset(v):
         # Asset ids are numbers (you see them as #2 and write game.sprite(2,...)),
@@ -761,6 +766,83 @@ def _pyrun_install_game():
                       x=x, y=y, size=size, color=color, background=background,
                       layer=1000)
 
+    # ---- Ink: drawing that stays put ----------------------------------------
+    # A sprite is a thing you keep moving, so every frame redraws it from
+    # scratch. Ink is the opposite: a mark you stamp once and leave alone. That
+    # makes it the right tool for a trail, a fractal, a painting, anything where
+    # the picture builds up. A million dots of ink cost the same as one, because
+    # by the next frame they are just pixels.
+    def plot(x, y, color="#ffffff", size=2):
+        # Stamp one dot and leave it there for good:
+        #   game.plot(x, y, "#22d3a5")
+        _ink.append(["p", float(x), float(y), float(size), str(color)])
+
+    def line(x1, y1, x2, y2, color="#ffffff", width=2):
+        # A stamped stroke. Use it instead of plot() when the thing you are
+        # tracking moves fast, or the trail comes out as dashes:
+        #   game.line(old_x, old_y, ship.x, ship.y, "#4ea8ff")
+        _ink.append(["l", float(x1), float(y1), float(x2), float(y2),
+                     float(width), str(color)])
+
+    def fade(amount=0.05):
+        # Rub out a fraction of the ink, so trails die away instead of piling up
+        # forever. Call it once a frame: 0.02 is a long comet tail, 0.2 a short
+        # one. The window background shows through as it goes.
+        _ink.append(["f", max(0.0, min(1.0, float(amount)))])
+
+    def wipe():
+        # Erase all the ink at once, leaving the sprites alone.
+        _ink.append(["w"])
+
+    def _which_surface(surface, caller):
+        which = "screen" if surface is None else str(surface).lower()
+        if which not in ("screen", "ink"):
+            raise ValueError(
+                'game.' + caller + '() takes surface="ink" or nothing at all, '
+                "not " + repr(surface))
+        return which
+
+    def save_image(surface=None, filename=None, ask=False):
+        # Save the picture as a PNG on the player's computer. It hands the file
+        # to the browser and returns straight away, so it is safe to call from
+        # inside the game loop:
+        #   if game.pressed("s"): game.save_image()
+        # surface picks what goes in the file:
+        #   None (the default) is what you can see, sprites and all
+        #   "ink" is JUST the stamped layer, with no sprites over the top, so a
+        #   drawing saves clean without having to hide the scoreboard first
+        # ask=True opens a proper "where shall I put it?" dialog instead of
+        # dropping it in Downloads. Chrome and Edge only, and only while the
+        # keypress that asked for it is still fresh, so treat it as a bonus.
+        which = _which_surface(surface, "save_image")
+        if filename is None:
+            import time as _t
+            filename = "pyweblib_" + _t.strftime("%Y%m%d_%H%M%S") + ".png"
+        name = str(filename)
+        if not name.lower().endswith(".png"):
+            name += ".png"
+        fn = getattr(_io, "saveImage", None)
+        if fn is None:
+            raise RuntimeError(
+                "This browser cannot save images from a game. Try Chrome or Edge.")
+        # Any ink stamped this tick is still sitting in the batch, so push the
+        # picture out before asking for a copy of it, or the newest marks would
+        # be missing from the file.
+        _draw()
+        fn(which, name, bool(ask))
+
+    def copy_image(surface=None):
+        # Put the picture on the clipboard instead of saving it, ready to paste
+        # straight into a chat or a post:
+        #   if game.pressed("c"): game.copy_image("ink")
+        which = _which_surface(surface, "copy_image")
+        fn = getattr(_io, "copyImage", None)
+        if fn is None:
+            raise RuntimeError(
+                "This browser cannot copy images from a game. Try Chrome or Edge.")
+        _draw()
+        fn(which)
+
     def pressed(key):
         return bool(_io.pressed(str(key).lower()))
 
@@ -942,8 +1024,12 @@ def _pyrun_install_game():
         # the frame() at the end of the loop) keeps showing it instead of
         # painting over it.
         shown = banner if banner is not None else W["over"]
+        # The ink batch goes out with this frame and is then forgotten here: the
+        # marks live on the JS side's layer from now on, not in this list.
+        ink = _ink[:]
+        del _ink[:]
         _io.draw(json.dumps({"w": W["w"], "h": W["h"], "bg": W["bg"],
-                             "sprites": arr, "banner": shown,
+                             "sprites": arr, "banner": shown, "ink": ink,
                              "debug": W["debug"]}))
 
     def frame(fps=30):
@@ -992,6 +1078,7 @@ def _pyrun_install_game():
 
     def _reset_all():
         _sprites.clear()
+        del _ink[:]
         W.update(w=480, h=360, bg="#0b1020", score=0, over=None, debug=False,
                  clicks=0, tick=0)
         _io.reset()
@@ -1003,6 +1090,12 @@ def _pyrun_install_game():
     mod.box = box
     mod.circle = circle
     mod.label = label
+    mod.plot = plot
+    mod.line = line
+    mod.fade = fade
+    mod.wipe = wipe
+    mod.save_image = save_image
+    mod.copy_image = copy_image
     mod.pressed = pressed
     mod.hide_cursor = hide_cursor
     mod.show_cursor = show_cursor
@@ -1347,13 +1440,204 @@ del _pyrun_install_game3d
       cv.width = bw; cv.height = bh;    // this clears the canvas
       applyGameTransform();
       // A running game repaints next frame, but a finished/paused one would be
-      // left blank, so put the last frame back.
+      // left blank, so put the last frame back. Flagged as a replay: the ink in
+      // that scene was stamped when it first arrived, and stamping it twice
+      // would double up every fade() and wipe() it carried.
       if (lastGameSceneJson != null && GAME_IO && GAME_IO.draw) {
-        try { GAME_IO.draw(lastGameSceneJson); } catch (e) {}
+        try { GAME_IO.draw(lastGameSceneJson, true); } catch (e) {}
       }
       return;
     }
     applyGameTransform();
+  }
+
+  // ---- The ink layer -------------------------------------------------------
+  // Sprites are wiped and redrawn every frame. Ink is not: it lives on its own
+  // offscreen canvas that nothing clears, so a drawing can build up over
+  // thousands of frames and cost nothing to keep. The buffer is sized ONCE per
+  // run, exactly like the turtle's and for the same reason: assigning
+  // canvas.width erases the canvas, so the ink must not follow the visible one
+  // when a panel resizes or a phone rotates. Compositing scales it instead.
+  let gameInk = null, gameInkCtx = null;
+  const MAX_INK_PX = 4e6;
+  const TAU = Math.PI * 2;
+
+  function resetGameInk() {
+    const lw = gameLogicalW, lh = gameLogicalH;
+    if (!(lw > 0) || !(lh > 0) || typeof document === "undefined") return;
+    const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_DPR);
+    // Generous enough that any later layout change only ever scales it DOWN,
+    // which stays sharp. The stage can never be wider than the viewport.
+    let k = (Math.max(lw, window.innerWidth || lw) / lw) * dpr;
+    const px = (lw * k) * (lh * k);
+    if (px > MAX_INK_PX) k *= Math.sqrt(MAX_INK_PX / px);
+    k = Math.max(1, k);
+    const bw = Math.max(1, Math.round(lw * k));
+    const bh = Math.max(1, Math.round(lh * k));
+    if (!gameInk) gameInk = document.createElement("canvas");
+    gameInk.width = bw; gameInk.height = bh;      // assigning size also clears it
+    gameInkCtx = gameInk.getContext("2d");
+    if (gameInkCtx) gameInkCtx.setTransform(bw / lw, 0, 0, bh / lh, 0, 0);
+  }
+
+  // Stamp one frame's batch of marks. Runs of dots sharing a colour go into a
+  // single path, because a chaos game sends a few thousand of them per frame and
+  // one fill() beats a few thousand.
+  function applyInk(ops) {
+    if (!ops || !ops.length) return;
+    if (!gameInkCtx) resetGameInk();
+    const c = gameInkCtx;
+    if (!c) return;
+    for (let i = 0; i < ops.length; i++) {
+      const o = ops[i];
+      if (o[0] === "p") {
+        const col = o[4];
+        c.fillStyle = col;
+        c.beginPath();
+        let r = Math.max(0.25, o[3] / 2);
+        c.moveTo(o[1] + r, o[2]);       // or the arcs get joined up by a line
+        c.arc(o[1], o[2], r, 0, TAU);
+        while (i + 1 < ops.length && ops[i + 1][0] === "p" && ops[i + 1][4] === col) {
+          const p = ops[++i];
+          r = Math.max(0.25, p[3] / 2);
+          c.moveTo(p[1] + r, p[2]);
+          c.arc(p[1], p[2], r, 0, TAU);
+        }
+        c.fill();
+      } else if (o[0] === "l") {
+        c.strokeStyle = o[6];
+        c.lineWidth = Math.max(0.25, o[5]);
+        c.lineCap = "round";
+        c.beginPath();
+        c.moveTo(o[1], o[2]);
+        c.lineTo(o[3], o[4]);
+        c.stroke();
+      } else if (o[0] === "f") {
+        // Rub the layer out toward transparent rather than painting the
+        // background over it: whatever colour the window is shows through as a
+        // trail dies, and a saved "ink" PNG keeps its see-through background.
+        c.save();
+        c.globalCompositeOperation = "destination-out";
+        c.globalAlpha = o[1];
+        c.fillStyle = "#000";
+        c.fillRect(0, 0, gameLogicalW, gameLogicalH);
+        c.restore();
+      } else if (o[0] === "w") {
+        c.clearRect(0, 0, gameLogicalW, gameLogicalH);
+      }
+    }
+  }
+
+  // ---- Saving a game picture ----------------------------------------------
+  // Both runtimes keep every canvas on the main thread (the worker only ever
+  // posts drawing instructions over), so there is one code path here and no
+  // blob has to cross a thread boundary. Nothing is handed a Python callback
+  // either, so there are no proxies to leak however many times it is called.
+  function gameSaveProblem(msg) {
+    try { SANDBOX_IO.writeColored("\n[save_image] " + msg + "\n", "#ff8f4e"); } catch (e) {}
+  }
+
+  function anchorDownload(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.rel = "noopener";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    // Hold the URL open long enough for the browser to have taken the bytes,
+    // then hand the memory back.
+    setTimeout(function () {
+      try { a.remove(); } catch (e) {}
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    }, 5000);
+  }
+
+  function deliverPng(blob, name) {
+    // iOS ignores the download attribute in a lot of contexts, and a student on
+    // an iPad would just see nothing happen. The share sheet is what actually
+    // saves a file there, so prefer it on those devices only.
+    const touchMac = /Mac/.test(navigator.platform || "") && (navigator.maxTouchPoints || 0) > 1;
+    const iosish = /iP(hone|ad|od)/.test(navigator.platform || "") || touchMac;
+    if (iosish && typeof File === "function" && navigator.canShare) {
+      try {
+        const file = new File([blob], name, { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: name }).catch(function (err) {
+            // A cancelled share sheet is a choice, not a failure.
+            if (!err || err.name !== "AbortError") anchorDownload(blob, name);
+          });
+          return;
+        }
+      } catch (e) { /* fall through to the ordinary download */ }
+    }
+    anchorDownload(blob, name);
+  }
+
+  function encodePng(canvas, name, sink) {
+    try {
+      canvas.toBlob(function (blob) {
+        if (!blob) { gameSaveProblem("the browser could not encode the picture."); return; }
+        sink(blob, name);
+      }, "image/png");
+    } catch (e) {
+      // Practically only reachable if something ever draws a cross-origin image
+      // onto the canvas: everything this library loads is a data: URI, which
+      // does not taint it. Say so plainly rather than failing silently.
+      gameSaveProblem(
+        "the browser blocked reading the picture (" + ((e && e.name) || "error") +
+        "). That happens when artwork was loaded from another site.");
+    }
+  }
+
+  function saveGamePicture(which, name, ask) {
+    const src = String(which) === "ink" ? gameInk : (gameCtx() && gameCtx().canvas);
+    if (!src || !src.width) {
+      gameSaveProblem("there is no game window to save yet. Call game.window() first.");
+      return;
+    }
+    // A real "where shall I put it?" dialog, like a desktop app's. Chromium
+    // only, and it needs a click or keypress the browser still counts as live,
+    // so it is an upgrade where it works and never a requirement.
+    if (ask && typeof window.showSaveFilePicker === "function") {
+      const act = navigator.userActivation;
+      if (!act || act.isActive !== false) {
+        window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: "PNG image", accept: { "image/png": [".png"] } }]
+        }).then(function (handle) {
+          encodePng(src, name, function (blob) {
+            handle.createWritable()
+              .then(function (w) { return w.write(blob).then(function () { return w.close(); }); })
+              .catch(function () { gameSaveProblem("could not write to that file."); });
+          });
+        }, function (err) {
+          if (err && err.name === "AbortError") return;    // they hit cancel
+          encodePng(src, name, deliverPng);                // no picker: just save it
+        });
+        return;
+      }
+    }
+    encodePng(src, name, deliverPng);
+  }
+
+  function copyGamePicture(which) {
+    const src = String(which) === "ink" ? gameInk : (gameCtx() && gameCtx().canvas);
+    if (!src || !src.width) {
+      gameSaveProblem("there is no game window to copy yet. Call game.window() first.");
+      return;
+    }
+    if (!navigator.clipboard || typeof window.ClipboardItem !== "function") {
+      gameSaveProblem("this browser cannot copy images to the clipboard.");
+      return;
+    }
+    encodePng(src, "clipboard.png", function (blob) {
+      navigator.clipboard.write([new window.ClipboardItem({ "image/png": blob })])
+        .catch(function () {
+          gameSaveProblem("the browser would not let the page use the clipboard.");
+        });
+    });
   }
   // The shared player's markup has no ✕ (the editor does), so add one to whatever
   // stage is going fullscreen. Without it there's no way out on a phone.
@@ -1786,6 +2070,7 @@ del _pyrun_install_game3d
       gameLogicalW = 480; gameLogicalH = 360;
       lastGameSceneJson = null;
       fitRetries = 0;
+      resetGameInk();   // a new run starts on a blank layer, not last run's drawing
       const c = gameCtx();
       if (c) {
         c.canvas.style.cursor = "";
@@ -1806,6 +2091,7 @@ del _pyrun_install_game3d
       gameLogicalH = Number(h) || 360;
       lastGameSceneJson = null;
       fitRetries = 0;
+      resetGameInk();   // the layer matches the window the game just asked for
       c.canvas.style.background = String(bg || "#0b1020");
       c.canvas.style.cursor = "";
       fitGameCanvas();
@@ -1828,7 +2114,9 @@ del _pyrun_install_game3d
     mouseDown: function () { return gameMouse.down; },
     mouseClicks: function () { return gameMouse.clicks; },
     nextFrame: function (seconds) { return interruptibleSleep(seconds); },
-    draw: function (json) {
+    saveImage: function (which, name, ask) { saveGamePicture(which, name, !!ask); },
+    copyImage: function (which) { copyGamePicture(which); },
+    draw: function (json, isReplay) {
       let scene;
       try { scene = JSON.parse(json); } catch (e) { return; }
       const c = gameCtx();
@@ -1837,6 +2125,10 @@ del _pyrun_install_game3d
       // Draw in logical units: the buffer is display-sized, so this transform is
       // what makes the same code crisp at any resolution.
       applyGameTransform(c);
+      // Stamp this frame's ink before compositing. Only on a real frame: a
+      // replay (after a resize) is showing a scene whose marks are already on
+      // the layer, and re-running them would double its fades and wipes.
+      if (!isReplay) applyInk(scene.ink);
       lastGameSceneJson = json;
       // Remember the last drawn frame so publish.js can save it as a preview
       // "scene" (real sprite positions + the window size), tagged with the code
@@ -1852,6 +2144,11 @@ del _pyrun_install_game3d
       c.clearRect(0, 0, gameLogicalW, gameLogicalH);
       c.fillStyle = scene.bg || "#0b1020";
       c.fillRect(0, 0, gameLogicalW, gameLogicalH);
+      // Ink sits between the background and the sprites, so a scoreboard still
+      // reads over the top of a drawing that has been building up all game.
+      if (gameInk && gameInk.width) {
+        c.drawImage(gameInk, 0, 0, gameLogicalW, gameLogicalH);
+      }
       (scene.sprites || []).forEach(function (s) {
         // Angle (degrees) spins the sprite and scale_x / scale_y stretch or
         // mirror it, all about its own centre: move the canvas origin to the

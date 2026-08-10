@@ -106,6 +106,10 @@ const GAME_IO = {
   mouseDown: function () { return Atomics.load(mem.ctrl, CTRL.MDOWN) === 1; },
   mouseClicks: function () { return Atomics.load(mem.ctrl, CTRL.MCLICKS); },
   nextFrame: function (seconds) { blockSleep(seconds * 1000); },
+  // Every canvas lives on the main thread, so saving is just a message: no
+  // OffscreenCanvas, and no blob has to be handed back across the boundary.
+  saveImage: function (which, name, ask) { post("g", "saveImage", [String(which), String(name), !!ask]); },
+  copyImage: function (which) { post("g", "copyImage", [String(which)]); },
   draw: function (json) { post("g", "draw", [String(json)]); }
 };
 
