@@ -122,6 +122,17 @@ def _pyrun_install_interrupt():
         counter[0] += 1
         if counter[0] >= 500:
             counter[0] = 0
+            # Never raise inside the event loop's own machinery. settrace is
+            # global, so the counter can trip while the interpreter is deep in
+            # pyodide's webloop scheduling a callback. The KeyboardInterrupt
+            # then lands in an asyncio Handle that nobody awaits: it escapes as
+            # an unhandled promise rejection, runPythonAsync never settles, and
+            # the run's finally block never runs, so Stop stays stuck as Stop
+            # and the program can't be started again without a reload.
+            # User code is what we want to interrupt, and it is never in here.
+            name = frame.f_code.co_filename
+            if "webloop" in name or "/asyncio/" in name:
+                return trace
             if shouldStop():
                 raise KeyboardInterrupt("Stopped by user")
         return trace
@@ -2715,6 +2726,27 @@ del _pyrun_install_game3d
       }
     }
 
+    // Putting the run back to idle. Safe to call twice: whoever gets there
+    // first wins, so the normal end of a run and the watchdog below cannot
+    // both fire the teardown.
+    let finalized = true;
+    function finalizeRun() {
+      if (finalized) return;
+      finalized = true;
+      running = false;
+      stopRequested = false;
+      pendingReject = null;
+      if (stopWatchdog) { clearTimeout(stopWatchdog); stopWatchdog = null; }
+      // A game that ended or was stopped leaves fullscreen, so the page scrolls
+      // again (a restart loop stays inside run(), so it keeps fullscreen).
+      try { setGameFullscreen(null, false); } catch (e) {}
+      try { stopAllTones(); } catch (e) {}   // silence any held engine/drone tone
+      try { captureTurtleScene(runner); } catch (e) {}
+      setRunMode("idle");
+      if (opts.onRunEnd) opts.onRunEnd();
+    }
+
+    let stopWatchdog = null;
     function stop() {
       if (!running) return;
       stopRequested = true;
@@ -2724,6 +2756,20 @@ del _pyrun_install_game3d
         pendingReject = null;
         r(new Error("Stopped by user"));
       }
+      // Stop must always give the button back. A clean stop lands in run()'s
+      // finally within a frame or two; if it has not, something swallowed the
+      // interrupt and that promise is never going to settle, so put the UI
+      // back anyway rather than stranding the user on a dead Stop button.
+      if (stopWatchdog) clearTimeout(stopWatchdog);
+      stopWatchdog = setTimeout(function () {
+        stopWatchdog = null;
+        if (!running) return;
+        runner.appendOut("[stopped]", "info");
+        // Detach first: if Python really is still grinding away in the
+        // background, this stops its output and drawing reaching the page.
+        if (active === runner) active = null;
+        finalizeRun();
+      }, 1200);
     }
 
     function clearOut() { output.innerHTML = ""; }
@@ -2746,6 +2792,8 @@ del _pyrun_install_game3d
     async function run() {
       if (running) { stop(); return; }
       running = true;
+      finalized = false;
+      if (stopWatchdog) { clearTimeout(stopWatchdog); stopWatchdog = null; }
       try { window.PWL = window.PWL || {}; window.PWL.runningCode = getCode(); } catch (e) {}
       active = runner;
       stopRequested = false;
@@ -2794,17 +2842,7 @@ del _pyrun_install_game3d
           runner.appendOut(msg, "stderr");
         }
       } finally {
-        running = false;
-        stopRequested = false;
-        pendingReject = null;
-        // A game that ended or was stopped leaves fullscreen, so the page scrolls
-        // again (a restart loop stays inside this run(), so it keeps fullscreen).
-        try { setGameFullscreen(null, false); } catch (e) {}
-        try { stopAllTones(); } catch (e) {}   // silence any held engine/drone tone
-        // Snapshot the finished turtle drawing for a community thumbnail.
-        try { captureTurtleScene(runner); } catch (e) {}
-        setRunMode("idle");
-        if (opts.onRunEnd) opts.onRunEnd();
+        finalizeRun();
       }
     }
 
