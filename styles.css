@@ -1,4 +1,9 @@
 :root {
+  /* Tell the browser which way round we are. Without this the UA picks from
+     the OS preference, not from data-theme, so choosing Dark on a light
+     machine left native scrollbars, form controls and the canvas painted
+     light: a white scrollbar down the side of the dark code editor. */
+  color-scheme: light;
   /* PyWebLib palette: indigo chrome, amber accents, light surfaces. */
   --bg: #f7f8fb;
   --surface: #ffffff;
@@ -29,6 +34,7 @@
    exactly as they are, which is why this is six tokens and not fifty.
    ------------------------------------------------------------------------ */
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0b1020;
   --surface: #151b30;
   --text: #e7eaf6;
