@@ -6,9 +6,10 @@
  * header and the footer: 496 of 1569 HTML lines, 32% of the markup, and up to
  * 69% on a short page. Copies drift, and these already had:
  *
- *   - the three docs/ subpages missing the "Assets" nav link
- *   - the same three missing <link rel="manifest"> and two favicon sizes
+ *   - three docs/ pages missing <link rel="manifest"> and two favicon sizes
  *   - footers disagreeing on whether Privacy/Terms links exist at all
+ *   - the same three docs pages missing "Assets" from the nav, which only
+ *     showed with JS off because auth.js rebuilt the nav at runtime
  *
  * None of that is anyone being careless. It is what hand-copied chrome does.
  *
@@ -26,8 +27,14 @@ import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from "n
 import { dirname, join, relative, sep } from "node:path";
 
 const SRC = "src";
+const NL = "\n";
 const LAYOUT = readFileSync(join(SRC, "_layout.html"), "utf8");
 const NAV = JSON.parse(readFileSync(join(SRC, "_nav.json"), "utf8"));
+
+const CARET =
+  '<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true">' +
+  '<path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 /* Front matter is a JSON object in an HTML comment at the top of the page, so
  * the source file stays valid HTML that an editor will still highlight. */
@@ -46,38 +53,65 @@ function rootFor(outPath) {
   return depth === 0 ? "" : "../".repeat(depth);
 }
 
-function nav(active) {
-  return NAV.links.map((l) => {
-    // "active", not "is-active": auth.js reads classList.contains("active")
-    // when it rebuilds the nav, and would drop the state otherwise.
-    const cls = l.text === active ? "header-link active" : "header-link";
-    return `        <a class="${cls}" href="${l.href}">${l.text}</a>`;
-  }).join("\n");
+/* The finished nav, dropdowns and active state included.
+ *
+ * auth.js used to assemble this on every page load: find the Community link by
+ * its text, build a dropdown, delete the Assets and Leaderboard anchors, repeat
+ * for About, then mark the active item from location.pathname. Roughly sixty
+ * lines of DOM surgery recreating identical markup every time, which also left
+ * the nav un-enhanced until JS ran and wrong for good without it.
+ *
+ * The build knows the page's own path, so it writes the answer instead. */
+function nav(pagePath) {
+  const on = (href) => href === pagePath;
+  const out = [];
+  for (const l of NAV.links) {
+    if (!l.menu) {
+      out.push('        <a class="header-link' + (on(l.href) ? " active" : "") +
+               '" href="' + l.href + '">' + l.text + "</a>");
+      continue;
+    }
+    // The trigger also lights up when the page is one of its menu items, which
+    // is what markActive() did at runtime.
+    const hot = on(l.href) || l.menu.some((m) => on(m.href));
+    const items = l.menu.map((m) =>
+      "            <a" + (on(m.href) ? ' class="active"' : "") +
+      ' href="' + m.href + '">' + m.text + "</a>").join(NL);
+    out.push(
+      '        <div class="nav-dd">' + NL +
+      '          <a class="header-link' + (hot ? " active" : "") + '" href="' +
+      l.href + '">' + l.text + CARET + "</a>" + NL +
+      '          <div class="nav-dd-menu">' + NL + items + NL + "          </div>" + NL +
+      "        </div>");
+  }
+  return out.join(NL);
 }
 
 function render(page, body, outPath) {
   const root = rootFor(outPath);
+  const pagePath = "/" + outPath.split(sep).slice(0, -1).map((s) => s + "/").join("");
   const fill = {
     title: page.title,
     description: page.description,
     root,
-    nav: nav(page.active || ""),
+    nav: nav(pagePath),
     head: (page.head || "").trimEnd(),
     // Script paths in front matter are relative to the SITE ROOT, and the
     // build adds the depth. No defer added here: these pages load in order
     // today and a refactor must not quietly change execution timing.
     scripts: (page.scripts || []).map((s) =>
-      `  <script src="${/^(https?:)?\/\//.test(s) || s.startsWith("/") ? s : root + s}"></script>`
-    ).join("\n"),
+      '  <script src="' +
+      (/^(https?:)?\/\//.test(s) || s.startsWith("/") ? s : root + s) +
+      '"></script>').join(NL),
     credits: page.credits ? " " + page.credits : "",
     content: body.trimEnd(),
-    // Inline scripts live after the footer on some pages. They were
-    // silently dropped when the body was cut at <footer, which would
-    // have broken the docs pages' data-load buttons and sprite gallery.
+    // Inline scripts live after the footer on some pages. Cutting the body at
+    // <footer dropped them, which would have broken the docs pages' data-load
+    // buttons and the sprite gallery.
     tail: (page.tail || "").trimEnd(),
   };
   return LAYOUT.replace(/\{\{(\w+)\}\}/g, (m, k) => {
-    if (!(k in fill)) throw new Error(`unknown slot {{${k}}} in _layout.html`);
+    if (!(k in fill)) throw new Error("unknown slot {{" + k + "}} in _layout.html");
     return fill[k];
   });
 }
@@ -106,18 +140,14 @@ for (const srcPath of pages()) {
   if (check) {
     let current = null;
     try { current = readFileSync(outPath, "utf8"); } catch { /* new page */ }
-    if (current !== html) {
-      differs++;
-      console.log(`  DIFFERS  ${outPath}`);
-    } else {
-      console.log(`  same     ${outPath}`);
-    }
+    if (current !== html) { differs++; console.log("  DIFFERS  " + outPath); }
+    else console.log("  same     " + outPath);
   } else {
     mkdirSync(dirname(outPath), { recursive: true });
     writeFileSync(outPath, html);
-    console.log(`  wrote    ${outPath}`);
+    console.log("  wrote    " + outPath);
   }
   built++;
 }
-console.log(`\n${built} page(s)` + (check ? `, ${differs} differing` : " written"));
+console.log(NL + built + " page(s)" + (check ? ", " + differs + " differing" : " written"));
 if (check && differs) process.exit(1);

@@ -32,10 +32,22 @@
       </a>
       <nav class="site-nav" aria-label="Primary">
         <a class="header-link" href="/">Playground</a>
-        <a class="header-link" href="/community/">Community</a>
-        <a class="header-link" href="/assets/">Assets</a>
-        <a class="header-link" href="/leaderboard/">Leaderboard</a>
-        <a class="header-link active" href="/about/">About</a>
+        <div class="nav-dd">
+          <a class="header-link" href="/community/">Community<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <div class="nav-dd-menu">
+            <a href="/assets/">Assets</a>
+            <a href="/leaderboard/">Leaderboard</a>
+          </div>
+        </div>
+        <div class="nav-dd">
+          <a class="header-link active" href="/about/">About<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <div class="nav-dd-menu">
+            <a href="/docs/">Docs</a>
+            <a href="/docs/guide/">Guide</a>
+            <a href="/docs/turtle/">Turtle guide</a>
+            <a href="/docs/game/">Game guide</a>
+          </div>
+        </div>
         <span id="pwl-account" class="pwl-account" data-root="../"></span>
       </nav>
     </div>

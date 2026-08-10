@@ -1,10 +1,16 @@
 {
-  "_comment": "The nav, defined once. Three docs pages were missing 'Assets' because it lived in 13 copies.",
+  "_comment": "The whole nav, dropdowns included. auth.js used to build this at runtime on every page load; now it is emitted at build time, so it is correct without JS and there is no flash of un-enhanced nav.",
   "links": [
-    { "text": "Playground",  "href": "/" },
-    { "text": "Community",   "href": "/community/" },
-    { "text": "Assets",      "href": "/assets/" },
-    { "text": "Leaderboard", "href": "/leaderboard/" },
-    { "text": "About",       "href": "/about/" }
+    { "text": "Playground", "href": "/" },
+    { "text": "Community", "href": "/community/", "menu": [
+      { "text": "Assets",      "href": "/assets/" },
+      { "text": "Leaderboard", "href": "/leaderboard/" }
+    ] },
+    { "text": "About", "href": "/about/", "menu": [
+      { "text": "Docs",         "href": "/docs/" },
+      { "text": "Guide",        "href": "/docs/guide/" },
+      { "text": "Turtle guide", "href": "/docs/turtle/" },
+      { "text": "Game guide",   "href": "/docs/game/" }
+    ] }
   ]
 }

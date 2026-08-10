@@ -439,89 +439,11 @@
     });
   }
 
-  const caret =
-    '<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-  // Mark whichever menu item is the page you are on, and light up the trigger
-  // when one of its items is active.
-  function markActive(dd) {
-    const here = location.pathname.replace(/index\.html$/, "");
-    let any = false;
-    dd.querySelectorAll(".nav-dd-menu a").forEach(function (a) {
-      if (a.pathname.replace(/index\.html$/, "") === here) { a.classList.add("active"); any = true; }
-    });
-    if (any) {
-      const t = dd.querySelector(".nav-dd-trigger, .header-link");
-      if (t) t.classList.add("active");
-    }
-  }
-
-  // Turn Community into a dropdown just like Docs: the trigger stays a link to
-  // the gallery, and the menu adds Assets and Leaderboard (opens on hover/focus).
-  function enhanceCommunityNav(nav, root) {
-    let community = null, assets = null, leaderboard = null;
-    nav.querySelectorAll("a.header-link").forEach(function (a) {
-      const t = a.textContent.trim();
-      if (t === "Community") community = a;
-      else if (t === "Assets") assets = a;
-      else if (t === "Leaderboard") leaderboard = a;
-    });
-    if (!community) return;
-    const wasActive = community.classList.contains("active");
-    const dd = document.createElement("div");
-    dd.className = "nav-dd";
-    dd.innerHTML =
-      '<a class="header-link' + (wasActive ? " active" : "") + '" href="' + root + 'community/">Community' +
-        caret +
-      "</a>" +
-      '<div class="nav-dd-menu">' +
-        '<a href="' + root + 'assets/">Assets</a>' +
-        '<a href="' + root + 'leaderboard/">Leaderboard</a>' +
-      "</div>";
-    community.replaceWith(dd);
-    if (assets) assets.remove();
-    if (leaderboard) leaderboard.remove();
-    markActive(dd);
-  }
-
-  // Turn the "About" header link into a dropdown: the trigger goes to the About
-  // page, and the menu holds all the docs (the reference plus the guides).
-  function enhanceAboutNav(nav, root) {
-    let aboutLink = null;
-    nav.querySelectorAll("a.header-link").forEach(function (a) {
-      if (a.textContent.trim() === "About") aboutLink = a;
-    });
-    if (!aboutLink) return;
-    const wasActive = aboutLink.classList.contains("active");
-    const dd = document.createElement("div");
-    dd.className = "nav-dd";
-    dd.innerHTML =
-      '<a class="header-link' + (wasActive ? " active" : "") + '" href="' + root + 'about/">About' +
-        caret +
-      "</a>" +
-      '<div class="nav-dd-menu">' +
-        '<a href="' + root + 'docs/">Docs</a>' +
-        '<a href="' + root + 'docs/guide/">Guide</a>' +
-        '<a href="' + root + 'docs/turtle/">Turtle guide</a>' +
-        '<a href="' + root + 'docs/game/">Game guide</a>' +
-      "</div>";
-    aboutLink.replaceWith(dd);
-    markActive(dd);
-  }
-
-  // Shared across every page so the nav markup itself does not have to be
-  // duplicated. Paths come from the account element's data-root.
-  function enhanceNav() {
-    const nav = document.querySelector(".site-nav");
-    if (!nav || nav.querySelector(".nav-dd")) return;
-    const acct = document.querySelector("#pwl-account, .pwl-account");
-    const root = (acct && acct.getAttribute("data-root")) || "";
-    enhanceCommunityNav(nav, root);
-    enhanceAboutNav(nav, root);
-  }
+  // The nav, dropdowns and active state included, is emitted by build.mjs
+  // from src/_nav.json. It used to be rebuilt here on every page load,
+  // which left it un-enhanced until JS ran and wrong for good without it.
 
   async function init() {
-    enhanceNav();
     render();               // paints the "Sign in" button (or nothing) immediately
     if (!sb) return;
     try {
