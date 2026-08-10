@@ -1,0 +1,10 @@
+{
+  "_comment": "The nav, defined once. Three docs pages were missing 'Assets' because it lived in 13 copies.",
+  "links": [
+    { "text": "Playground",  "href": "/" },
+    { "text": "Community",   "href": "/community/" },
+    { "text": "Assets",      "href": "/assets/" },
+    { "text": "Leaderboard", "href": "/leaderboard/" },
+    { "text": "About",       "href": "/about/" }
+  ]
+}
