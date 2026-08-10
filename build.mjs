@@ -28,7 +28,17 @@ import { dirname, join, relative, sep } from "node:path";
 
 const SRC = "src";
 const NL = "\n";
-const LAYOUT = readFileSync(join(SRC, "_layout.html"), "utf8");
+
+/* Everything is handled in LF and compared in LF.
+ *
+ * git's core.autocrlf hands out CRLF working files on Windows, but the nav and
+ * script blocks below are joined with \n, so the output came out MIXED: CRLF
+ * from the template, LF from the generated parts. --check then compared that
+ * against a pure-CRLF file on disk and reported all 13 pages as drifted every
+ * single time, which makes the check worthless. Normalise going in and compare
+ * normalised, so the answer is about content and never about line endings. */
+const lf = (s) => s.replace(/\r\n/g, "\n");
+const LAYOUT = lf(readFileSync(join(SRC, "_layout.html"), "utf8"));
 const NAV = JSON.parse(readFileSync(join(SRC, "_nav.json"), "utf8"));
 
 const CARET =
@@ -134,12 +144,12 @@ function outputFor(srcPath) {
 const check = process.argv.includes("--check");
 let built = 0, differs = 0;
 for (const srcPath of pages()) {
-  const [meta, body] = split(readFileSync(srcPath, "utf8"));
+  const [meta, body] = split(lf(readFileSync(srcPath, "utf8")));
   const outPath = outputFor(srcPath);
   const html = render(meta, body, outPath);
   if (check) {
     let current = null;
-    try { current = readFileSync(outPath, "utf8"); } catch { /* new page */ }
+    try { current = lf(readFileSync(outPath, "utf8")); } catch { /* new page */ }
     if (current !== html) { differs++; console.log("  DIFFERS  " + outPath); }
     else console.log("  same     " + outPath);
   } else {
