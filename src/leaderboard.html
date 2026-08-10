@@ -1,0 +1,33 @@
+<!--
+{
+  "title": "Leaderboard | PyWebLib",
+  "description": "The PyWebLib leaderboard: top creators ranked by the upvotes on the Python programs they have shared with the community.",
+  "active": "Leaderboard",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "leaderboard.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Top creators</p>
+        <h1>Leaderboard</h1>
+        <p class="lead">Ranked by total upvotes across everything they've shared. Publish a program from the <a href="../">Playground</a>, collect upvotes in the <a href="../community/">Community</a>, and climb.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <p class="community-notice" id="leaderboard-notice" hidden>
+        The leaderboard isn't switched on yet. It needs a Supabase project with Google sign-in.
+        See <strong>Community setup</strong> in the project README.
+      </p>
+
+      <div class="leaderboard" id="leaderboard-list"></div>
+    </div>
+  </main>
+
+  

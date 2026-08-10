@@ -5,7 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Program | PyWebLib</title>
   <meta name="description" content="Play a Python program shared on PyWebLib right in your browser: games and turtle drawings, no install. Open it in the Playground to tinker." />
-
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="stylesheet" href="../styles.css" />
   <!-- Open Graph / social preview. Static card shared by every /game link;
        per-program previews would need server-side rendering (not GitHub Pages). -->
   <meta property="og:type" content="website" />
@@ -21,28 +28,19 @@
   <meta name="twitter:title" content="Play this Python program in your browser | PyWebLib" />
   <meta name="twitter:description" content="Games and turtle drawings, real Python, nothing to install." />
   <meta name="twitter:image" content="https://play.pyweblib.org/game-card.png" />
-
-  <meta name="color-scheme" content="light" />
-  <meta name="theme-color" content="#4f46e5" />
-  <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
-  <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="../styles.css" />
 </head>
 <body>
   <header class="site-header">
     <div class="container header-inner">
-      <a href="../" class="logo">
+      <a href="/" class="logo">
         <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
         <span>PyWebLib</span>
       </a>
       <nav class="site-nav" aria-label="Primary">
-        <a class="header-link" href="../">Playground</a>
-        <a class="header-link" href="../community/">Community</a>
+        <a class="header-link" href="/">Playground</a>
+        <a class="header-link" href="/community/">Community</a>
         <a class="header-link" href="/assets/">Assets</a>
-        <a class="header-link" href="../leaderboard/">Leaderboard</a>
+        <a class="header-link" href="/leaderboard/">Leaderboard</a>
         <a class="header-link" href="/about/">About</a>
         <span id="pwl-account" class="pwl-account" data-root="../"></span>
       </nav>
@@ -59,7 +57,8 @@
   <footer class="site-footer">
     <div class="container">
       <p>PyWebLib: real Python in your browser, powered by
-        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.</p>
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.
+        &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
     </div>
   </footer>
 
@@ -72,5 +71,6 @@
   <script src="../pyrun.js"></script>
   <script src="../player.js"></script>
   <script src="../program.js"></script>
+
 </body>
 </html>

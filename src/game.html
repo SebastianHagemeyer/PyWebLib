@@ -1,0 +1,27 @@
+<!--
+{
+  "title": "Program | PyWebLib",
+  "description": "Play a Python program shared on PyWebLib right in your browser: games and turtle drawings, no install. Open it in the Playground to tinker.",
+  "active": "",
+  "head": "  <!-- Open Graph / social preview. Static card shared by every /game link;\n       per-program previews would need server-side rendering (not GitHub Pages). -->\n  <meta property=\"og:type\" content=\"website\" />\n  <meta property=\"og:site_name\" content=\"PyWebLib\" />\n  <meta property=\"og:url\" content=\"https://play.pyweblib.org/game/\" />\n  <meta property=\"og:title\" content=\"Play this Python program in your browser | PyWebLib\" />\n  <meta property=\"og:description\" content=\"Games and turtle drawings, real Python, nothing to install. Open it in the Playground to tinker.\" />\n  <meta property=\"og:image\" content=\"https://play.pyweblib.org/game-card.png\" />\n  <meta property=\"og:image:width\" content=\"1200\" />\n  <meta property=\"og:image:height\" content=\"630\" />\n  <meta property=\"og:image:alt\" content=\"PyWebLib: play this Python program in your browser.\" />\n  <meta name=\"twitter:card\" content=\"summary_large_image\" />\n  <meta name=\"twitter:title\" content=\"Play this Python program in your browser | PyWebLib\" />\n  <meta name=\"twitter:description\" content=\"Games and turtle drawings, real Python, nothing to install.\" />\n  <meta name=\"twitter:image\" content=\"https://play.pyweblib.org/game-card.png\" />",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "sprites.js",
+    "preview.js",
+    "runtime/pyrun-proto.js",
+    "pyrun.js",
+    "player.js",
+    "program.js"
+  ]
+}
+-->
+  <main>
+    <div class="container section">
+      <p class="community-notice" id="pg-notice" hidden></p>
+      <article class="pg-view" id="pg-view" hidden></article>
+    </div>
+  </main>
+
+  

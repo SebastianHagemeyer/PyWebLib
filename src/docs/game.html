@@ -1,38 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Game library guide | PyWebLib</title>
-  <meta name="description" content="A hands-on guide to the PyWebLib game library: the game loop, the built-in sprite table, moving, collisions, the mouse, spinning and mirroring, scores, and every example runnable in the Playground." />
-  <meta name="color-scheme" content="light" />
-  <meta name="theme-color" content="#4f46e5" />
-  <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
-  <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="../../styles.css" />
-
-</head>
-<body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="/" class="logo">
-        <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
-        <span>PyWebLib</span>
-      </a>
-      <nav class="site-nav" aria-label="Primary">
-        <a class="header-link" href="/">Playground</a>
-        <a class="header-link" href="/community/">Community</a>
-        <a class="header-link" href="/assets/">Assets</a>
-        <a class="header-link" href="/leaderboard/">Leaderboard</a>
-        <a class="header-link" href="/about/">About</a>
-        <span id="pwl-account" class="pwl-account" data-root="../../"></span>
-      </nav>
-    </div>
-  </header>
-
+<!--
+{
+  "title": "Game library guide | PyWebLib",
+  "description": "A hands-on guide to the PyWebLib game library: the game loop, the built-in sprite table, moving, collisions, the mouse, spinning and mirroring, scores, and every example runnable in the Playground.",
+  "active": "",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "sprites.js"
+  ],
+  "tail": "  <!-- Carry a code example over to the Playground: stash it, then navigate. -->\n  <script>\n    (function () {\n      document.addEventListener(\"click\", function (e) {\n        var btn = e.target.closest(\"[data-load]\");\n        if (!btn) return;\n        var pre = document.getElementById(btn.getAttribute(\"data-load\"));\n        if (!pre) return;\n        try {\n          localStorage.setItem(\"pyweblib-load\", pre.textContent.replace(/\\s+$/, \"\"));\n        } catch (err) { /* private mode: just navigate */ }\n        location.href = \"../../\";\n      });\n    })();\n  </script>\n  <script>\n    (function () {\n      var g = document.getElementById(\"sprite-gallery\");\n      var names = window.PWL_SPRITE_NAMES || [], svgs = window.PWL_SPRITES || [];\n      if (!g || !svgs.length) return;\n      for (var i = 0; i < svgs.length; i++) {\n        var cell = document.createElement(\"div\"); cell.className = \"sprite-cell\";\n        var num = document.createElement(\"span\"); num.className = \"sprite-cell-num\"; num.textContent = i;\n        var pic = document.createElement(\"div\"); pic.className = \"sprite-cell-pic\"; pic.innerHTML = svgs[i];\n        var nm = document.createElement(\"code\"); nm.className = \"sprite-cell-name\"; nm.textContent = '\"' + (names[i] || i) + '\"';\n        cell.appendChild(num); cell.appendChild(pic); cell.appendChild(nm);\n        g.appendChild(cell);\n      }\n    })();\n  </script>\n  <script>\n    // Highlight the guide's code blocks (Prism auto-highlight only catches\n    // <code> elements; these are bare <pre class=\"language-python\">).\n    if (window.Prism) {\n      document.querySelectorAll(\"pre.guide-code\").forEach(function (el) {\n        try { window.Prism.highlightElement(el); } catch (e) {}\n      });\n    }\n  </script>"
+}
+-->
   <main>
     <section class="page-hero">
       <div class="container">
@@ -245,58 +226,4 @@ game.save("plants", plants)        # not every frame
     </div>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p>PyWebLib: real Python in your browser, powered by
-        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.
-        &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
-    </div>
-  </footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
-  <script src="../../supabase-config.js"></script>
-  <script src="../../auth.js"></script>
-  <script src="../../sprites.js"></script>
-  <!-- Carry a code example over to the Playground: stash it, then navigate. -->
-  <script>
-    (function () {
-      document.addEventListener("click", function (e) {
-        var btn = e.target.closest("[data-load]");
-        if (!btn) return;
-        var pre = document.getElementById(btn.getAttribute("data-load"));
-        if (!pre) return;
-        try {
-          localStorage.setItem("pyweblib-load", pre.textContent.replace(/\s+$/, ""));
-        } catch (err) { /* private mode: just navigate */ }
-        location.href = "../../";
-      });
-    })();
-  </script>
-  <script>
-    (function () {
-      var g = document.getElementById("sprite-gallery");
-      var names = window.PWL_SPRITE_NAMES || [], svgs = window.PWL_SPRITES || [];
-      if (!g || !svgs.length) return;
-      for (var i = 0; i < svgs.length; i++) {
-        var cell = document.createElement("div"); cell.className = "sprite-cell";
-        var num = document.createElement("span"); num.className = "sprite-cell-num"; num.textContent = i;
-        var pic = document.createElement("div"); pic.className = "sprite-cell-pic"; pic.innerHTML = svgs[i];
-        var nm = document.createElement("code"); nm.className = "sprite-cell-name"; nm.textContent = '"' + (names[i] || i) + '"';
-        cell.appendChild(num); cell.appendChild(pic); cell.appendChild(nm);
-        g.appendChild(cell);
-      }
-    })();
-  </script>
-  <script>
-    // Highlight the guide's code blocks (Prism auto-highlight only catches
-    // <code> elements; these are bare <pre class="language-python">).
-    if (window.Prism) {
-      document.querySelectorAll("pre.guide-code").forEach(function (el) {
-        try { window.Prism.highlightElement(el); } catch (e) {}
-      });
-    }
-  </script>
-</body>
-</html>
+  

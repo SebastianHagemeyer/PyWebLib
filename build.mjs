@@ -48,7 +48,9 @@ function rootFor(outPath) {
 
 function nav(active) {
   return NAV.links.map((l) => {
-    const cls = l.href === active ? "header-link is-active" : "header-link";
+    // "active", not "is-active": auth.js reads classList.contains("active")
+    // when it rebuilds the nav, and would drop the state otherwise.
+    const cls = l.text === active ? "header-link active" : "header-link";
     return `        <a class="${cls}" href="${l.href}">${l.text}</a>`;
   }).join("\n");
 }
@@ -69,6 +71,10 @@ function render(page, body, outPath) {
     ).join("\n"),
     credits: page.credits ? " " + page.credits : "",
     content: body.trimEnd(),
+    // Inline scripts live after the footer on some pages. They were
+    // silently dropped when the body was cut at <footer, which would
+    // have broken the docs pages' data-load buttons and sprite gallery.
+    tail: (page.tail || "").trimEnd(),
   };
   return LAYOUT.replace(/\{\{(\w+)\}\}/g, (m, k) => {
     if (!(k in fill)) throw new Error(`unknown slot {{${k}}} in _layout.html`);

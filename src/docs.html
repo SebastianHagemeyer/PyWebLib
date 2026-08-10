@@ -1,0 +1,39 @@
+<!--
+{
+  "title": "Documentation | PyWebLib",
+  "description": "A friendly, searchable Python reference: variables, strings, lists, loops, functions, and the random, math, turtle and game libraries. Every entry has an example.",
+  "active": "",
+  "credits": "<a href=\"https://medv.io/codejar/\" target=\"_blank\" rel=\"noopener\">CodeJar</a> &amp;\n        <a href=\"https://prismjs.com\" target=\"_blank\" rel=\"noopener\">Prism</a>.",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Look it up</p>
+        <h1>Documentation</h1>
+        <p class="lead">A friendly cheat sheet for Python and the libraries built into PyWebLib. Search for anything, a keyword like "upper", "random" or "loop", and every entry comes with a tiny example you can try in the <a href="../">Playground</a>.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <div class="docs-searchbar">
+        <input type="search" id="docs-search" class="docs-search-input"
+               placeholder="Search: try &quot;upper&quot;, &quot;randint&quot;, &quot;range&quot;, &quot;list&quot;..."
+               autocomplete="off" spellcheck="false" aria-label="Search the documentation" />
+        <span class="docs-count" id="docs-count"></span>
+      </div>
+
+      <nav class="docs-jump" id="docs-jump" aria-label="Jump to a section"></nav>
+
+      <div id="docs-body"></div>
+      <p class="docs-empty" id="docs-empty" hidden>Nothing matched that. Try a shorter word, like "str" or "for".</p>
+    </div>
+  </main>
+
+  

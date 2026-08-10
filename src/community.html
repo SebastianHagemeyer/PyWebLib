@@ -1,0 +1,47 @@
+<!--
+{
+  "title": "Community | PyWebLib",
+  "description": "Browse Python programs shared by the PyWebLib community: turtle drawings, browser games and more. Upvote your favourites and open any one in the Playground.",
+  "active": "Community",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "sprites.js",
+    "preview.js",
+    "runtime/pyrun-proto.js",
+    "pyrun.js",
+    "player.js",
+    "community.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Made by the community</p>
+        <h1>Community</h1>
+        <p class="lead">Programs people have shared: turtle art, browser games and more. Upvote the ones you like, open any in the <a href="../">Playground</a> to tinker, or share your own.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <div class="community-toolbar" id="community-toolbar">
+        <div class="community-tabs" role="tablist" aria-label="Sort programs">
+          <button class="community-tab active" data-sort="top" role="tab">Top</button>
+          <button class="community-tab" data-sort="new" role="tab">New</button>
+        </div>
+        <a class="btn btn-primary" href="../">Share your own <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
+
+      <p class="community-notice" id="community-notice" hidden>
+        The community isn't switched on yet. It needs a Supabase project with Google sign-in.
+        See <strong>Community setup</strong> in the project README.
+      </p>
+
+      <div class="community-grid" id="community-grid"></div>
+      <nav class="cc-pager" id="cc-pager" aria-label="Pages" hidden></nav>
+    </div>
+  </main>
+
+  

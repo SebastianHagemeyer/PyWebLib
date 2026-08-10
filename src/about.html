@@ -1,46 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>About | PyWebLib</title>
-  <meta name="description" content="PyWebLib is a free place to write real Python in your browser (games, turtle drawings and more) and share it. No install, nothing to download." />
-  <meta name="color-scheme" content="light" />
-  <meta name="theme-color" content="#4f46e5" />
-  <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
-  <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="../styles.css" />
-  <style>
-    .about { max-width: 760px; }
-    .about h2 { margin: 1.7em 0 0.5em; font-size: 1.2rem; }
-    .about p, .about li { color: var(--text); line-height: 1.65; }
-    .about ul { margin: 0.4em 0 0.6em 1.2em; }
-    .about li { margin: 0.35em 0; }
-    .about a:not(.btn) { color: var(--primary); }
-    .about-cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 1.4em 0 0.4em; }
-  </style>
-</head>
-<body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="/" class="logo">
-        <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
-        <span>PyWebLib</span>
-      </a>
-      <nav class="site-nav" aria-label="Primary">
-        <a class="header-link" href="/">Playground</a>
-        <a class="header-link" href="/community/">Community</a>
-        <a class="header-link" href="/assets/">Assets</a>
-        <a class="header-link" href="/leaderboard/">Leaderboard</a>
-        <a class="header-link active" href="/about/">About</a>
-        <span id="pwl-account" class="pwl-account" data-root="../"></span>
-      </nav>
-    </div>
-  </header>
-
+<!--
+{
+  "title": "About | PyWebLib",
+  "description": "PyWebLib is a free place to write real Python in your browser (games, turtle drawings and more) and share it. No install, nothing to download.",
+  "active": "About",
+  "head": "  <style>\n    .about { max-width: 760px; }\n    .about h2 { margin: 1.7em 0 0.5em; font-size: 1.2rem; }\n    .about p, .about li { color: var(--text); line-height: 1.65; }\n    .about ul { margin: 0.4em 0 0.6em 1.2em; }\n    .about li { margin: 0.35em 0; }\n    .about a:not(.btn) { color: var(--primary); }\n    .about-cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 1.4em 0 0.4em; }\n  </style>",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "supabase-config.js",
+    "auth.js"
+  ]
+}
+-->
   <main>
     <section class="page-hero">
       <div class="container">
@@ -83,17 +53,4 @@
     </div>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p>PyWebLib: real Python in your browser, powered by
-        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.
-        &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
-    </div>
-  </footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="../supabase-config.js"></script>
-  <script src="../auth.js"></script>
-
-</body>
-</html>
+  
