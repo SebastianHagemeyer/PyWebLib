@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terms of Service | PyWebLib</title>
-  <meta name="description" content="The simple rules for using PyWebLib: be kind, share only what you own, and understand the tool is free and provided as is." />
+  <title>Settings | PyWebLib</title>
+  <meta name="description" content="Your PyWebLib settings: choose a light or dark theme, and manage your account." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#4f46e5" />
   <!-- Inline and blocking on purpose. The theme has to be on <html> before the
@@ -26,15 +26,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="stylesheet" href="../styles.css" />
-  <style>
-    .legal { max-width: 760px; }
-    .legal h2 { margin: 1.7em 0 0.5em; font-size: 1.2rem; }
-    .legal p, .legal li { color: var(--text); line-height: 1.65; }
-    .legal ul { margin: 0.4em 0 0.6em 1.2em; }
-    .legal li { margin: 0.35em 0; }
-    .legal a { color: var(--primary); }
-    .legal .muted { color: var(--muted); font-size: 0.9rem; margin-top: 2em; }
-  </style>
+
 </head>
 <body>
   <header class="site-header">
@@ -69,37 +61,62 @@
   <main>
     <section class="page-hero">
       <div class="container">
-        <p class="eyebrow">Terms</p>
-        <h1>Terms of Service</h1>
-        <p class="lead">PyWebLib is a free, educational tool for writing and sharing Python in your browser. By using it, you agree to these simple terms.</p>
+        <p class="eyebrow">Your account</p>
+        <h1>Settings</h1>
+        <p class="lead">Preferences are saved on this device, so they follow you
+          around the site but not onto a different computer.</p>
       </div>
     </section>
 
-    <div class="container section legal">
-      <h2>Be a good community member</h2>
-      <ul>
-        <li>Share only content you have the right to share.</li>
-        <li>Keep it friendly and suitable for a learning space used by kids: no hateful, harmful, adult, or abusive content.</li>
-        <li>Do not use the site to attack or spam others, or to try to break it or other people's use of it.</li>
-      </ul>
-      <p>We can remove content or accounts that break these rules.</p>
+    <div class="container section">
+      <!-- Which of these shows is decided by settings.js once auth has
+           reported in. Both start hidden so neither flashes up wrongly. -->
+      <div class="set-gate" id="set-loading">
+        <p class="muted">Checking your account…</p>
+      </div>
 
-      <h2>Your content</h2>
-      <p>You keep ownership of the programs and art you make. By publishing them to the community, you allow PyWebLib to store and display them to others. Private drafts stay private to you. You can delete your content at any time.</p>
+      <div class="set-gate" id="set-signedout" hidden>
+        <article class="set-card">
+          <h2>Sign in to change your settings</h2>
+          <p>Your settings live with your account. Sign in and this page fills in.</p>
+          <p><button type="button" class="btn btn-primary" data-pwl="signin">Sign in</button></p>
+        </article>
+      </div>
 
-      <h2>How your code runs</h2>
-      <p>Your Python runs inside your own browser (via Pyodide), not on our servers. You are responsible for the code you write and run.</p>
+      <div class="set-gate" id="set-body" hidden>
+        <article class="set-card">
+          <h2>Appearance</h2>
+          <p class="set-note">Follow your device, or pick one and stay on it.</p>
+          <div class="set-seg" id="theme-seg" role="radiogroup" aria-label="Theme">
+            <button type="button" class="set-seg-btn" data-theme-set="light" role="radio" aria-checked="false">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M12.8 3.2l-1.4 1.4M4.6 11.4l-1.4 1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Light
+            </button>
+            <button type="button" class="set-seg-btn" data-theme-set="dark" role="radio" aria-checked="false">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z" fill="currentColor"/></svg>
+              Dark
+            </button>
+            <button type="button" class="set-seg-btn" data-theme-set="system" role="radio" aria-checked="false">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.6" y="2.6" width="12.8" height="9" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 13.8h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              System
+            </button>
+          </div>
+          <p class="set-note" id="theme-state"></p>
+        </article>
 
-      <h2>The service is provided "as is"</h2>
-      <p>PyWebLib is free and offered without warranties of any kind. We do our best to keep it working, but we may change, pause, or discontinue features at any time, and we are not liable for any loss that arises from using it.</p>
-
-      <h2>Changes</h2>
-      <p>We may update these terms. The date below shows the latest version.</p>
-
-      <h2>Contact</h2>
-      <p>Questions: <a href="mailto:hello@qmarkapp.com">hello@qmarkapp.com</a></p>
-
-      <p class="muted">Last updated: 29 July 2026</p>
+        <article class="set-card">
+          <h2>Account</h2>
+          <dl class="set-rows">
+            <div class="set-row"><dt>Name</dt><dd id="set-name">—</dd></div>
+            <div class="set-row"><dt>Signed in as</dt><dd id="set-email">—</dd></div>
+          </dl>
+          <div class="set-actions">
+            <button type="button" class="btn btn-ghost" data-pwl="editname" id="set-rename">Edit name</button>
+            <a class="btn btn-ghost" href="/community/?mine=1">My programs</a>
+            <button type="button" class="btn btn-ghost" data-pwl="signout">Sign out</button>
+          </div>
+        </article>
+      </div>
     </div>
   </main>
 
@@ -115,6 +132,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="../supabase-config.js"></script>
   <script src="../auth.js"></script>
+  <script src="../settings.js"></script>
 
 </body>
 </html>

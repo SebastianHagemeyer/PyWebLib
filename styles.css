@@ -22,6 +22,41 @@
   --radius-sm: 8px;
 }
 
+/* ===== Dark theme =================================================== =====
+   data-theme is set by an inline script in <head> before this file paints, so
+   there is no flash. Only the shell flips: the code panels, console, game
+   canvas and card thumbnails are already dark in the light theme and stay
+   exactly as they are, which is why this is six tokens and not fifty.
+   ------------------------------------------------------------------------ */
+[data-theme="dark"] {
+  --bg: #0b1020;
+  --surface: #151b30;
+  --text: #e7eaf6;
+  --muted: #99a3c0;
+  --border: #28324e;
+  --success-bg: #12301f;
+  --danger-bg: #3a1c1c;
+  /* Shadows vanish on dark, so cards separate with a ring instead. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* The light surfaces that were written as literals rather than tokens. Each of
+   these is a pale panel that would stay white in dark mode. */
+[data-theme="dark"] .callout { background: #241f0f; border-color: #4a3d12; }
+[data-theme="dark"] .callout code { background: #33290f; }
+[data-theme="dark"] .key-points li { background: #141a2c; }
+[data-theme="dark"] .guide :not(pre) > code { background: #1c2440; }
+[data-theme="dark"] .community-notice { background: #241f0f; border-color: #4a3d12; }
+[data-theme="dark"] .community-card.is-draft { background: #241d10; border-color: #4a3a17; }
+[data-theme="dark"] .pwl-cap-note { background: #2a2210; }
+[data-theme="dark"] .indent-hint { background: #241f0f; border-color: #4a3d12; }
+[data-theme="dark"] .lb-top-2 .lb-rank { color: #b9c2d4; }
+
+/* The asset studio's drawing surface deliberately stays light. A sprite drawn
+   with a dark outline on a dark stage looks wrong the moment it is used, and
+   changing what artists draw against is a product decision, not a token. */
+
 * { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
@@ -1461,3 +1496,35 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-lib-count { margin-left: auto; font-size: 0.78rem; font-weight: 700; color: var(--muted); background: var(--bg); border-radius: 999px; padding: 1px 9px; }
 .asset-lib-group .asset-grid { padding: 0 16px 16px; }
 .asset-lib-group .cc-pager { margin: 0 16px 16px; }
+
+/* ===== Settings page ================================================ =====
+   Cards rather than a long form: two unrelated things (how it looks, who you
+   are) that should not read as one list. ------------------------------- */
+.set-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 24px; margin: 0 0 18px;
+  box-shadow: var(--shadow-sm); max-width: 640px;
+}
+.set-card h2 { margin: 0 0 6px; font-size: 1.1rem; }
+.set-card p { margin: 0 0 14px; color: var(--muted); }
+.set-note { font-size: 0.88rem; }
+
+.set-seg { display: inline-flex; gap: 4px; padding: 4px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 999px; flex-wrap: wrap; }
+.set-seg-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 15px; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--muted);
+  font: inherit; font-size: 0.9rem; font-weight: 600;
+  transition: background .15s, color .15s;
+}
+.set-seg-btn:hover { color: var(--text); }
+.set-seg-btn.is-on { background: var(--primary); color: #fff; }
+.set-seg-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+.set-rows { margin: 0 0 16px; }
+.set-row { display: flex; gap: 16px; padding: 9px 0; border-top: 1px solid var(--border); }
+.set-row:first-child { border-top: 0; }
+.set-row dt { flex: 0 0 130px; color: var(--muted); font-size: 0.9rem; }
+.set-row dd { margin: 0; color: var(--text); font-weight: 600; word-break: break-word; }
+.set-actions { display: flex; gap: 10px; flex-wrap: wrap; }

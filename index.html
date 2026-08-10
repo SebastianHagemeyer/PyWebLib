@@ -5,8 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PyWebLib: run Python games and turtle in your browser, no install</title>
   <meta name="description" content="PyWebLib is a free, open-source project that brings Python games and turtle drawing to the browser. Coloured output, inline input(), no install and nothing to download. Just open, code and play. Powered by Pyodide." />
-  <meta name="color-scheme" content="light" />
+  <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#4f46e5" />
+  <!-- Inline and blocking on purpose. The theme has to be on <html> before the
+       stylesheet paints, or a dark-mode visitor gets a white flash on every
+       single page load. Anything loaded with the other scripts is far too late.
+       Kept to the one decision; theme.js owns the rest. -->
+  <script>
+    try {
+      var t = localStorage.getItem("pwl-theme");
+      if (!t || t === "system") {
+        t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
@@ -144,6 +157,7 @@
     </div>
   </footer>
 
+  <script src="theme.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>

@@ -1,0 +1,73 @@
+<!--
+{
+  "title": "Settings | PyWebLib",
+  "description": "Your PyWebLib settings: choose a light or dark theme, and manage your account.",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "settings.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Your account</p>
+        <h1>Settings</h1>
+        <p class="lead">Preferences are saved on this device, so they follow you
+          around the site but not onto a different computer.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <!-- Which of these shows is decided by settings.js once auth has
+           reported in. Both start hidden so neither flashes up wrongly. -->
+      <div class="set-gate" id="set-loading">
+        <p class="muted">Checking your account…</p>
+      </div>
+
+      <div class="set-gate" id="set-signedout" hidden>
+        <article class="set-card">
+          <h2>Sign in to change your settings</h2>
+          <p>Your settings live with your account. Sign in and this page fills in.</p>
+          <p><button type="button" class="btn btn-primary" data-pwl="signin">Sign in</button></p>
+        </article>
+      </div>
+
+      <div class="set-gate" id="set-body" hidden>
+        <article class="set-card">
+          <h2>Appearance</h2>
+          <p class="set-note">Follow your device, or pick one and stay on it.</p>
+          <div class="set-seg" id="theme-seg" role="radiogroup" aria-label="Theme">
+            <button type="button" class="set-seg-btn" data-theme-set="light" role="radio" aria-checked="false">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M12.8 3.2l-1.4 1.4M4.6 11.4l-1.4 1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Light
+            </button>
+            <button type="button" class="set-seg-btn" data-theme-set="dark" role="radio" aria-checked="false">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z" fill="currentColor"/></svg>
+              Dark
+            </button>
+            <button type="button" class="set-seg-btn" data-theme-set="system" role="radio" aria-checked="false">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.6" y="2.6" width="12.8" height="9" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 13.8h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              System
+            </button>
+          </div>
+          <p class="set-note" id="theme-state"></p>
+        </article>
+
+        <article class="set-card">
+          <h2>Account</h2>
+          <dl class="set-rows">
+            <div class="set-row"><dt>Name</dt><dd id="set-name">—</dd></div>
+            <div class="set-row"><dt>Signed in as</dt><dd id="set-email">—</dd></div>
+          </dl>
+          <div class="set-actions">
+            <button type="button" class="btn btn-ghost" data-pwl="editname" id="set-rename">Edit name</button>
+            <a class="btn btn-ghost" href="/community/?mine=1">My programs</a>
+            <button type="button" class="btn btn-ghost" data-pwl="signout">Sign out</button>
+          </div>
+        </article>
+      </div>
+    </div>
+  </main>
