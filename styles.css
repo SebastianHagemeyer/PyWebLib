@@ -271,7 +271,12 @@ img { max-width: 100%; display: block; }
 
    The metrics below MUST match .sandbox-code (font, size, line-height and the
    vertical padding), or the numbers drift further from their lines the further
-   down you read. */
+   down you read.
+
+   The gutter is white-space: pre and the script feeds it blank rows opposite
+   wrapped lines. It must NOT wrap on its own: CodeJar puts pre-wrap on the
+   editor inline, so long lines there occupy several rows, and line-numbers.js
+   measures that and pads for it. */
 .has-gutter-host { position: relative; }
 .sandbox-gutter {
   position: absolute;

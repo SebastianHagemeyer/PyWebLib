@@ -14,10 +14,16 @@
  * rather than a wrapper around it, and the editor gains enough left padding to
  * sit clear of it.
  *
- * Alignment is only possible because .sandbox-code is white-space: pre. One
- * logical line is one visual line, so numbering is a count, not a measurement.
- * If that ever becomes pre-wrap this silently stops lining up, and it would
- * have to measure wrapped rows instead.
+ * Alignment is a MEASUREMENT, not a count. CodeJar sets white-space: pre-wrap
+ * as an inline style on the editor, which beats the stylesheet, so a long line
+ * wraps onto several visual rows rather than scrolling sideways. Numbering
+ * logical lines therefore drifts: every wrapped row pushes the code below it
+ * down a line while the numbers march on regardless, and by the bottom of a
+ * long file they point at the wrong thing entirely.
+ *
+ * So each logical line is measured for how many rows it actually occupies, and
+ * its number is followed by that many blank lines. The measuring is skipped
+ * whenever nothing wraps, which is the usual case.
  */
 (function () {
   "use strict";
@@ -36,14 +42,72 @@
 
   var editors = [];             // { code, gutter }
 
-  function countLines(code) {
+  function logicalLines(code) {
     // textContent, not innerText: innerText collapses and re-inserts newlines
     // by rendered layout, which is a different number from the one on screen.
     var t = code.textContent || "";
-    var n = t.split("\n").length;
+    var lines = t.split("\n");
     // A trailing newline leaves an empty last line not worth numbering.
-    if (n > 1 && t.charAt(t.length - 1) === "\n") n--;
-    return Math.max(n, 1);
+    if (lines.length > 1 && t.charAt(t.length - 1) === "\n") lines.pop();
+    return lines;
+  }
+
+  // Every text node in order, so a character offset into textContent can be
+  // turned back into a DOM position. Prism emits a flat run of token spans, so
+  // one logical line is spread across however many of them it happens to touch.
+  function textNodes(root) {
+    var out = [], w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false), n;
+    while ((n = w.nextNode())) out.push(n);
+    return out;
+  }
+  function posAt(nodes, index) {
+    var acc = 0;
+    for (var i = 0; i < nodes.length; i++) {
+      var len = nodes[i].nodeValue.length;
+      if (acc + len >= index) return { node: nodes[i], offset: index - acc };
+      acc += len;
+    }
+    var last = nodes[nodes.length - 1];
+    return last ? { node: last, offset: last.nodeValue.length } : null;
+  }
+
+  // How many visual rows each logical line occupies. Ones is the answer almost
+  // always, so that case is detected cheaply and the ranges are never built.
+  function rowsPerLine(code, lines) {
+    var ones = lines.map(function () { return 1; });
+    var cs = window.getComputedStyle(code);
+    var lineH = parseFloat(cs.lineHeight);
+    if (!lineH) return ones;
+    var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    var rowsTotal = Math.round((code.scrollHeight - padY) / lineH);
+    if (rowsTotal <= lines.length) return ones;     // nothing wrapped
+
+    var nodes = textNodes(code);
+    if (!nodes.length) return ones;
+    var out = [], at = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var start = at, end = at + lines[i].length;
+      at = end + 1;                                  // step over the newline
+      if (start === end) { out.push(1); continue; }  // an empty line is one row
+      var a = posAt(nodes, start), b = posAt(nodes, end);
+      if (!a || !b) { out.push(1); continue; }
+      var rows = 1;
+      try {
+        var range = document.createRange();
+        range.setStart(a.node, a.offset);
+        range.setEnd(b.node, b.offset);
+        var rects = range.getClientRects();
+        // A line can produce several rects on the SAME row, one per token span,
+        // so count distinct tops rather than rects.
+        var tops = {};
+        for (var r = 0; r < rects.length; r++) {
+          if (rects[r].width > 0 || rects[r].height > 0) tops[Math.round(rects[r].top)] = 1;
+        }
+        rows = Math.max(1, Object.keys(tops).length);
+      } catch (e) { /* leave it at one row */ }
+      out.push(rows);
+    }
+    return out;
   }
 
   // The gutter is positioned against .sandbox-editor, which also holds the
@@ -58,9 +122,15 @@
   function paintGutter(e) {
     if (!e.gutter) return;
     placeGutter(e);
-    var n = countLines(e.code);
+    var lines = logicalLines(e.code);
+    var rows = rowsPerLine(e.code, lines);
     var out = [];
-    for (var i = 1; i <= n; i++) out.push(i);
+    for (var i = 0; i < lines.length; i++) {
+      out.push(String(i + 1));
+      // Blank rows opposite the wrapped continuation of a long line, so the
+      // next number still sits beside the line it belongs to.
+      for (var r = 1; r < rows[i]; r++) out.push("");
+    }
     e.gutter.textContent = out.join("\n");
     // The gutter does not scroll on its own; it rides the editor's scroll.
     e.gutter.style.transform = "translateY(" + -e.code.scrollTop + "px)";
