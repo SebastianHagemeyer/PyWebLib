@@ -287,11 +287,6 @@ img { max-width: 100%; display: block; }
   width: 44px;
   padding: 14px 8px 14px 0;
   box-sizing: border-box;
-  text-align: right;
-  white-space: pre;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.95rem;
-  line-height: 1.55;
   color: #7b84ad;
   background: var(--code-bg);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -300,6 +295,17 @@ img { max-width: 100%; display: block; }
   pointer-events: none;        /* clicks belong to the editor underneath */
   overflow: hidden;
   z-index: 1;
+}
+/* The numbers themselves. The outer box stays put and clips; this is what moves
+   with the editor's scroll, so the gutter can never ride up over the toolbar.
+   Its metrics are the ones that must match .sandbox-code. */
+.sandbox-gutter-inner {
+  text-align: right;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  will-change: transform;
 }
 .sandbox-code.has-linenums { padding-left: 56px; }
 
@@ -451,10 +457,35 @@ img { max-width: 100%; display: block; }
   padding-top: 24px;
   border-top: 1.5px solid var(--border);
 }
+/* The whole snippet library is a drawer, shut by default. It is 47 snippets in
+   two collapsed groups, so open it was a wall of headings under the editor for
+   something you reach for occasionally rather than every visit. */
 .sandbox-examples-heading {
   margin: 0 0 4px;
   font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  user-select: none;
 }
+.sandbox-examples-heading::-webkit-details-marker { display: none; }
+.sandbox-examples-heading::marker { content: ""; }
+/* The twisty, drawn rather than borrowed from the default marker so it can turn. */
+.sandbox-examples-heading::before {
+  content: "";
+  width: 0; height: 0;
+  border-left: 7px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform .15s ease;
+  flex: none;
+}
+.sandbox-examples-drawer[open] > .sandbox-examples-heading { margin-bottom: 8px; }
+.sandbox-examples-drawer[open] > .sandbox-examples-heading::before { transform: rotate(90deg); }
+.sandbox-examples-heading:hover { color: var(--primary); }
 .sandbox-examples-sub {
   margin: 0 0 14px;
   color: var(--muted);

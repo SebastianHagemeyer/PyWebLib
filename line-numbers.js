@@ -131,9 +131,9 @@
       // next number still sits beside the line it belongs to.
       for (var r = 1; r < rows[i]; r++) out.push("");
     }
-    e.gutter.textContent = out.join("\n");
-    // The gutter does not scroll on its own; it rides the editor's scroll.
-    e.gutter.style.transform = "translateY(" + -e.code.scrollTop + "px)";
+    e.inner.textContent = out.join("\n");
+    // The gutter does not scroll on its own; its contents ride the editor's.
+    e.inner.style.transform = "translateY(" + -e.code.scrollTop + "px)";
   }
 
   function apply(e, on) {
@@ -157,9 +157,15 @@
     var gutter = document.createElement("div");
     gutter.className = "sandbox-gutter";
     gutter.setAttribute("aria-hidden", "true");
+    // The numbers live in an inner element. Scrolling moves THAT, while the
+    // outer box stays pinned over the code and clips it. Translating the box
+    // itself slid it up out of its slot and over the toolbar.
+    var inner = document.createElement("div");
+    inner.className = "sandbox-gutter-inner";
+    gutter.appendChild(inner);
     host.insertBefore(gutter, code);
 
-    var e = { code: code, gutter: gutter };
+    var e = { code: code, gutter: gutter, inner: inner };
     editors.push(e);
 
     // Typing changes the count; scrolling changes which numbers sit opposite

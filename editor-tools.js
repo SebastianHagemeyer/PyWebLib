@@ -604,8 +604,14 @@
     lintRefreshers.push(function () { clear(); if (hintsOn()) schedule(); });
   }
 
-  // A "Hints: on/off" button (in the editor toolbar) toggles the linter for good,
-  // persisted across sessions. Off clears any hint immediately.
+  // Hints are switched on the Settings page now, not in the editor toolbar, so
+  // this only has to react to the key changing. settings.js writes it directly
+  // (it cannot call in here: this file is not loaded there), which is why the
+  // key name is spelled out in both. Anything not exactly "off" is on, so the
+  // default with no key stored at all is on.
+  //
+  // The .sandbox-hints button is gone from the markup; the handler stays for any
+  // page that still has one, and costs nothing when there is none.
   function setupHintsToggle() {
     const btns = document.querySelectorAll(".sandbox-hints");
     function paint() {
@@ -618,6 +624,13 @@
         paint();
         lintRefreshers.forEach(function (fn) { fn(); });
       });
+    });
+    // Settings is its own page, so the usual path is a fresh load that simply
+    // reads the key. This covers the two-tabs case.
+    window.addEventListener("storage", function (ev) {
+      if (ev.key !== HINTS_KEY) return;
+      paint();
+      lintRefreshers.forEach(function (fn) { fn(); });
     });
     paint();
   }

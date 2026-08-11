@@ -84,6 +84,49 @@
     paintLines();
   }
 
+  // Editor hints. Same story again: a "how the site behaves" preference that
+  // used to be a button in the editor toolbar. The toolbar keeps the things you
+  // press while working (Maximise, Reset, Run). editor-tools.js owns the key and
+  // defaults it ON: anything that is not exactly "off" counts as on.
+  const HINTS_KEY = "pwl-editor-hints";
+  const hintsSeg = $("hints-seg");
+
+  function hintsMode() {
+    try { return localStorage.getItem(HINTS_KEY) === "off" ? "off" : "on"; }
+    catch (e) { return "on"; }
+  }
+  function paintHints() {
+    if (!hintsSeg) return;
+    const now = hintsMode();
+    hintsSeg.querySelectorAll("[data-hints-set]").forEach(function (b) {
+      const on = b.getAttribute("data-hints-set") === now;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-checked", on ? "true" : "false");
+    });
+  }
+  function setHints(mode) {
+    try { localStorage.setItem(HINTS_KEY, mode === "off" ? "off" : "on"); }
+    catch (e) { /* private browsing: the choice just will not stick */ }
+    paintHints();
+  }
+  if (hintsSeg) {
+    hintsSeg.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-hints-set]");
+      if (btn) setHints(btn.getAttribute("data-hints-set"));
+    });
+    hintsSeg.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const btns = [].slice.call(hintsSeg.querySelectorAll("[data-hints-set]"));
+      const i = btns.indexOf(document.activeElement);
+      if (i < 0) return;
+      e.preventDefault();
+      const next = btns[(i + (e.key === "ArrowRight" ? 1 : btns.length - 1)) % btns.length];
+      next.focus();
+      setHints(next.getAttribute("data-hints-set"));
+    });
+    paintHints();
+  }
+
   seg.addEventListener("click", function (e) {
     const btn = e.target.closest("[data-theme-set]");
     if (!btn || !PWL.theme) return;
