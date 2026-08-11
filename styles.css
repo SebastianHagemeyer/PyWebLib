@@ -182,6 +182,31 @@ img { max-width: 100%; display: block; }
   border-bottom: 1px solid var(--border);
   padding: 48px 0 36px;
 }
+
+/* A hero that tucks itself away. On pages you come to in order to DO something
+   (browse the gallery, draw a sprite) the standing explanation costs most of
+   the first screen, and you only need it once. So it collapses to a small "?"
+   and drops down when asked. Built on <details>, which brings keyboard support
+   and the right screen-reader semantics without any script. */
+.page-hero-tuck { padding: 0; }
+.hero-tuck { padding: 11px 0; }
+.hero-tuck[open] { padding: 32px 0 30px; }
+.hero-tuck > summary {
+  display: block;                 /* kills the default disclosure triangle */
+  width: 32px; height: 32px; margin: 0 auto;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--bg); color: var(--muted);
+  font-size: 0.95rem; font-weight: 800; line-height: 30px; text-align: center;
+  cursor: pointer; user-select: none;
+  transition: color .12s, border-color .12s;
+}
+.hero-tuck > summary::-webkit-details-marker { display: none; }
+.hero-tuck > summary::marker { content: ""; }
+.hero-tuck > summary:hover, .hero-tuck > summary:focus-visible {
+  color: var(--primary); border-color: var(--primary);
+}
+.hero-tuck[open] > summary { margin-bottom: 16px; }
+.hero-tuck > .eyebrow { margin-top: 0; }
 .page-hero h1 {
   font-size: clamp(1.8rem, 3.5vw, 2.6rem);
   margin: 8px 0 12px;
