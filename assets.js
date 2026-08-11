@@ -384,13 +384,17 @@
       render();
       return;
     }
+    const histLen = history.length;
     snapshot();
     const s = { type: tool, fill: color };
     if (tool === "line") { s.x1 = p.x; s.y1 = p.y; s.x2 = p.x; s.y2 = p.y; s.width = lineWidth; }
     else if (tool === "circle") { s.cx = p.x; s.cy = p.y; s.r = 0; }
     else if (tool === "ellipse") { s.cx = p.x; s.cy = p.y; s.rx = 0; s.ry = 0; }
     else { s.x = p.x; s.y = p.y; s.w = 0; s.h = 0; }
-    drawing = { startX: p.x, startY: p.y, shape: s };
+    // Where the pointer went down ON SCREEN, plus the history mark, so pointerup
+    // can tell a click from a drag and undo itself cleanly if it was a click.
+    drawing = { startX: p.x, startY: p.y, shape: s, histLen: histLen,
+                clientX: e.clientX, clientY: e.clientY };
     shapes.push(s);
     setSel([shapes.length - 1]);
     render();
@@ -441,18 +445,29 @@
   stage.addEventListener("pointerup", function (e) {
     if (drawing) {
       const s = drawing.shape;
-      // A plain CLICK (no real drag) drops a default-sized shape, so you can tap
-      // out a dot without measuring one. The bar for "that was a click" is
-      // deliberately low: at the old threshold a 4-unit drag was replaced by a
-      // 24-unit shape, a six-fold jump, so meaning to draw something small and
-      // twitching gave you a third of the canvas instead. Below the bar it is a
-      // click and you get the default; above it, you get exactly what you drew.
-      const tiny = (s.type === "line") ? (Math.abs(s.x2 - s.x1) + Math.abs(s.y2 - s.y1) < 1)
-        : (s.type === "circle") ? (s.r < 0.6)
-        : (s.type === "ellipse") ? (s.rx < 0.6 || s.ry < 0.6)
-        : (s.w < 1 || s.h < 1);
-      if (tiny) applyDefault(s);
-      pushRecent(s.fill);
+      // Drag draws. A click does NOT.
+      //
+      // This used to replace a too-small shape with a default-sized one, and the
+      // threshold was measured in art units. That could never work: the canvas is
+      // 64 units wide but is drawn hundreds of pixels wide, so one unit is many
+      // pixels, and a deliberate small drag came in under the bar and was blown
+      // up to a shape several times the size of the one you drew. Retuning the
+      // number just moved where it bit.
+      //
+      // The distance the POINTER moved is what separates a click from a drag, and
+      // that is a screen measurement, independent of zoom and canvas size. Under
+      // a few pixels is a click: throw the shape away and rewind the undo step it
+      // opened, so a stray click leaves no trace instead of dropping art on the
+      // canvas. Anything you actually drag, you keep at the size you drew it.
+      const moved = Math.hypot(e.clientX - drawing.clientX, e.clientY - drawing.clientY);
+      if (moved < CLICK_PX) {
+        const at = shapes.indexOf(s);
+        if (at >= 0) shapes.splice(at, 1);
+        history.length = drawing.histLen;   // it never happened
+        setSel([]);
+      } else {
+        pushRecent(s.fill);
+      }
       drawing = null;
       render();
     }
@@ -460,17 +475,10 @@
     try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
   });
 
-  // The size a click (rather than a drag) gives you. Kept to roughly a sixth of
-  // the 64-unit canvas: big enough to see and grab, small enough that a stray
-  // click is a nudge rather than something that fills the artboard.
-  function applyDefault(s) {
-    if (s.type === "line") { s.x2 = clamp(s.x1 + 14); s.y2 = s.y1; }
-    else if (s.type === "circle") { s.r = 6; }
-    else if (s.type === "ellipse") { s.rx = 7; s.ry = 5; }
-    else if (s.type === "triangle") { s.x -= 6; s.y -= 5; s.w = 12; s.h = 11; }
-    else { s.x -= 6; s.y -= 4; s.w = 12; s.h = 8; s.rx = 1; }
-    s.x = clamp(s.x); s.y = clamp(s.y);
-  }
+  // How far the pointer may travel and still count as a click rather than a
+  // drag. Roughly a fingertip's wobble, and the same number a browser uses to
+  // decide a click survived a small movement.
+  const CLICK_PX = 4;
 
   function finishPath() {
     if (pathPts.length >= 3) {
