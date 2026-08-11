@@ -330,6 +330,13 @@
     if (html != null) e.innerHTML = html;
     return e;
   }
+  // Prism comes from a CDN, so it may be missing (offline, blocked, slow). The
+  // snippet is already in the DOM as plain escaped text by then, so a failure
+  // here costs the colour and nothing else.
+  function hl(node) {
+    if (!window.Prism || !window.Prism.highlightElement) return;
+    try { window.Prism.highlightElement(node); } catch (e) {}
+  }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>]/g, function (c) {
       return c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;";
@@ -390,9 +397,18 @@
     var itemEls = [];
     sec.items.forEach(function (it) {
       var card = el("div", "docs-item");
-      card.appendChild(el("code", "docs-sig", esc(it.sig)));
+      // Every snippet on this page is Python, so highlight it the same way the
+      // guides and the editor do rather than leaving it as flat text. Prism is
+      // handed the escaped source and rewrites it in place.
+      var sig = el("code", "docs-sig language-python", esc(it.sig));
+      card.appendChild(sig);
+      hl(sig);
       card.appendChild(el("p", "docs-desc", esc(it.desc)));
-      if (it.ex) card.appendChild(el("pre", "docs-ex", esc(it.ex)));
+      if (it.ex) {
+        var ex = el("pre", "docs-ex language-python", esc(it.ex));
+        card.appendChild(ex);
+        hl(ex);
+      }
       card._hay = (it.sig + " " + it.desc + " " + (it.ex || "")).toLowerCase();
       grid.appendChild(card);
       itemEls.push(card);

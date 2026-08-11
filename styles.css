@@ -1227,12 +1227,27 @@ body.sandbox-maxed { overflow: hidden; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.86rem; line-height: 1.55; overflow-x: auto; white-space: pre;
 }
-.guide-code .token.keyword, .guide-code .token.class-name  { color: #c792ea; }
-.guide-code .token.string, .guide-code .token.attr-value   { color: #c3e88d; }
-.guide-code .token.number, .guide-code .token.boolean      { color: #f78c6c; }
-.guide-code .token.comment                                 { color: #8b92b0; font-style: italic; }
-.guide-code .token.operator, .guide-code .token.punctuation { color: #89ddff; }
-.guide-code .token.function, .guide-code .token.builtin    { color: #82aaff; }
+/* One Python palette for every snippet on the site: the guides, and the
+   signature and example on each reference card. Both sit on --code-bg, which is
+   dark in either theme, so these colours do not need a light variant. */
+.guide-code .token.keyword, .guide-code .token.class-name,
+.docs-ex .token.keyword, .docs-ex .token.class-name,
+.docs-sig .token.keyword, .docs-sig .token.class-name       { color: #c792ea; }
+.guide-code .token.string, .guide-code .token.attr-value,
+.docs-ex .token.string, .docs-ex .token.attr-value,
+.docs-sig .token.string, .docs-sig .token.attr-value        { color: #c3e88d; }
+.guide-code .token.number, .guide-code .token.boolean,
+.docs-ex .token.number, .docs-ex .token.boolean,
+.docs-sig .token.number, .docs-sig .token.boolean           { color: #f78c6c; }
+.guide-code .token.comment,
+.docs-ex .token.comment,
+.docs-sig .token.comment                    { color: #8b92b0; font-style: italic; }
+.guide-code .token.operator, .guide-code .token.punctuation,
+.docs-ex .token.operator, .docs-ex .token.punctuation,
+.docs-sig .token.operator, .docs-sig .token.punctuation     { color: #89ddff; }
+.guide-code .token.function, .guide-code .token.builtin,
+.docs-ex .token.function, .docs-ex .token.builtin,
+.docs-sig .token.function, .docs-sig .token.builtin         { color: #82aaff; }
 
 .callout {
   background: #fff7e8; border-left: 4px solid #ffbe0b;
