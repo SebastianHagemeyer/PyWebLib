@@ -2568,10 +2568,50 @@ del _pyrun_install_game3d
   const TURTLE_OP_CAP = 4000;
   function rec(op) {
     const r = active && active.turtleRec;
-    if (!r || r.ops.length >= TURTLE_OP_CAP) return;
+    if (!r) return;
+    flushSeg(r);                 // any other op ends the straight run in progress
+    if (r.ops.length >= TURTLE_OP_CAP) return;
     r.ops.push(op);
   }
-  function rnd(v) { return Math.round(Number(v)) || 0; }
+  // One decimal, not whole units. A thumbnail is scaled to fit its card, so a
+  // small drawing is magnified, and half a unit of error goes with it.
+  function rnd(v) { const n = Math.round(Number(v) * 10) / 10; return n || 0; }
+
+  // Straight runs are recorded as ONE segment.
+  //
+  // The turtle animates a single forward() by walking it in up to 40 short
+  // steps. Recording each step separately meant every intermediate point got
+  // snapped to the grid, which bent a straight diagonal into a visible
+  // staircase on the community card. (The live canvas never showed it: that
+  // draws the unrounded numbers.) Holding the current run and extending it
+  // while the next step carries straight on means only the real corners are
+  // ever rounded, and the op count drops by roughly the step count with it,
+  // so a long drawing is far less likely to hit the cap.
+  function recSeg(x1, y1, x2, y2, color, width) {
+    const r = active && active.turtleRec;
+    if (!r) return;
+    const p = r.pend;
+    if (p && p.c === color && p.w === width &&
+        Math.abs(p.x2 - x1) < 1e-9 && Math.abs(p.y2 - y1) < 1e-9) {
+      const ax = p.x2 - p.x1, ay = p.y2 - p.y1;
+      const bx = x2 - x1, by = y2 - y1;
+      // Same heading (the cross product vanishes) and not doubling back.
+      const scale = Math.hypot(ax, ay) * Math.hypot(bx, by);
+      if (Math.abs(ax * by - ay * bx) <= 1e-9 * (scale + 1) && ax * bx + ay * by >= 0) {
+        p.x2 = x2; p.y2 = y2;
+        return;
+      }
+    }
+    flushSeg(r);
+    r.pend = { x1: x1, y1: y1, x2: x2, y2: y2, c: color, w: width };
+  }
+  function flushSeg(r) {
+    const p = r && r.pend;
+    if (!p) return;
+    r.pend = null;
+    if (r.ops.length >= TURTLE_OP_CAP) return;
+    r.ops.push({ k: "s", a: [rnd(p.x1), rnd(p.y1), rnd(p.x2), rnd(p.y2)], c: p.c, w: p.w });
+  }
 
   const TURTLE_IO = {
     animateOk: function () { return jspiSupported(); },
@@ -2586,7 +2626,8 @@ del _pyrun_install_game3d
       c.moveTo(tx(c, x1), ty(c, y1));
       c.lineTo(tx(c, x2), ty(c, y2));
       c.stroke();
-      rec({ k: "s", a: [rnd(x1), rnd(y1), rnd(x2), rnd(y2)], c: String(color), w: Number(width) || 2 });
+      recSeg(Number(x1), Number(y1), Number(x2), Number(y2),
+             String(color), Number(width) || 2);
     },
     fillPoly: function (flatPoints, color) {
       const c = turtleCtx();
@@ -2632,7 +2673,8 @@ del _pyrun_install_game3d
       if (!c) return;
       const L = turtleLogical(c.canvas);
       c.clearRect(0, 0, L.w, L.h);
-      if (active && active.turtleRec) active.turtleRec.ops = [];   // clear() wipes the recording too
+      // clear() wipes the recording, the half-finished straight run included.
+      if (active && active.turtleRec) { active.turtleRec.ops = []; active.turtleRec.pend = null; }
     },
     sprite: function (x, y, heading, visible) {
       const c = spriteCtx();
@@ -2669,6 +2711,9 @@ del _pyrun_install_game3d
     const code = (window.PWL && window.PWL.runningCode) || "";
     if (!/(^|\n)\s*(import\s+turtle|from\s+turtle\s+import)/.test(code)) return;
     const drawing = runner.turtleRec;
+    // The last straight run is still being extended when the program ends, so
+    // commit it before reading, or the final stroke goes missing from the card.
+    if (drawing) flushSeg(drawing);
     if (!drawing || !drawing.ops.length) return;   // nothing was drawn: no thumbnail
     const cv = runner.turtleCtx.canvas;
     // The turtle's background (from bgcolor()) or the default dark stage, so a
@@ -3072,7 +3117,7 @@ del _pyrun_install_game3d
     function clearOut() { output.innerHTML = ""; }
 
     function resetTurtle() {
-      runner.turtleRec = { ops: [], bg: "" };   // fresh op recording for the thumbnail
+      runner.turtleRec = { ops: [], bg: "", pend: null };   // fresh op recording for the thumbnail
       if (!runner.turtleCtx) return;
       const c = runner.turtleCtx;
       // Size this run's buffers up front, so nothing has to be resized (and
