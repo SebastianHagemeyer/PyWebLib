@@ -179,14 +179,78 @@
       return '<line x1="' + rnd(s.x1) + '" y1="' + rnd(s.y1) + '" x2="' + rnd(s.x2) + '" y2="' + rnd(s.y2) + '" stroke="' + s.fill + '" stroke-width="' + rnd(s.width || 4) + '" stroke-linecap="round"/>';
     if (s.type === "triangle")
       return '<polygon points="' + rnd(s.x + s.w / 2) + ',' + rnd(s.y) + ' ' + rnd(s.x) + ',' + rnd(s.y + s.h) + ' ' + rnd(s.x + s.w) + ',' + rnd(s.y + s.h) + '" fill="' + s.fill + '"/>';
-    if (s.type === "path")
-      return '<path d="' + s.points.map(function (pt, i) { return (i ? "L" : "M") + rnd(pt[0]) + " " + rnd(pt[1]); }).join(" ") + ' Z" fill="' + s.fill + '"/>';
+    if (s.type === "path") {
+      // Two kinds of path share one shape, so freehand inherits the bounding
+      // box, dragging, stretching and mirroring the polygon tool already has.
+      //   s.smooth  curves through the points (the Draw tool)
+      //   s.closed  false leaves it open and strokes it instead of filling
+      const open = s.closed === false;
+      const d = s.smooth ? curveThrough(s.points, !open) : s.points
+        .map(function (pt, i) { return (i ? "L" : "M") + rnd(pt[0]) + " " + rnd(pt[1]); }).join(" ");
+      const tail = open
+        ? '" fill="none" stroke="' + s.fill + '" stroke-width="' + rnd(s.width || 3) +
+          '" stroke-linecap="round" stroke-linejoin="round"/>'
+        : ' Z" fill="' + s.fill + '"/>';
+      return '<path d="' + d + tail;
+    }
     if (s.type === "raw")
       // A piece of an imported SVG kept verbatim (curves, strokes, clips and all),
       // positioned/stretched by a matrix wrapper so we never touch its geometry.
       return '<g transform="matrix(' + s.m.map(function (v) { return Math.round(v * 100000) / 100000; }).join(" ") + ')">' + s.markup + '</g>';
     return "";
   }
+  // ---- Freehand: raw pointer track -> a few points -> real curves ----------
+  // Thinning first, then curving. Ramer-Douglas-Peucker drops any point that
+  // already sits on the line between its neighbours, which is most of them: a
+  // pointer reports far more positions than a shape needs, and every one kept
+  // is jitter faithfully preserved and bytes in the published SVG.
+  function simplify(pts, tol) {
+    if (pts.length < 3) return pts.slice();
+    const keep = new Array(pts.length).fill(false);
+    keep[0] = keep[pts.length - 1] = true;
+    const stack = [[0, pts.length - 1]];
+    while (stack.length) {
+      const seg = stack.pop(), a = seg[0], b = seg[1];
+      const ax = pts[a][0], ay = pts[a][1];
+      const dx = pts[b][0] - ax, dy = pts[b][1] - ay;
+      const len = Math.hypot(dx, dy);
+      let worst = -1, worstD = tol;
+      for (let i = a + 1; i < b; i++) {
+        // Perpendicular distance to the chord, or to the endpoint if the chord
+        // has no length (a stroke that came back on itself).
+        const px = pts[i][0] - ax, py = pts[i][1] - ay;
+        const d = len ? Math.abs(px * dy - py * dx) / len : Math.hypot(px, py);
+        if (d > worstD) { worstD = d; worst = i; }
+      }
+      if (worst >= 0) { keep[worst] = true; stack.push([a, worst], [worst, b]); }
+    }
+    return pts.filter(function (_, i) { return keep[i]; });
+  }
+
+  // Catmull-Rom through the kept points, written out as the cubic Beziers SVG
+  // actually speaks. For a segment p1->p2 the control points are a sixth of the
+  // way along each neighbour's span, which is the standard uniform conversion
+  // and passes exactly through every point rather than near them.
+  function curveThrough(pts, closed) {
+    if (pts.length < 3) {
+      return pts.map(function (p, i) { return (i ? "L" : "M") + rnd(p[0]) + " " + rnd(p[1]); }).join(" ");
+    }
+    const n = pts.length;
+    const at = function (i) {
+      if (closed) return pts[(i + n) % n];
+      return pts[Math.max(0, Math.min(n - 1, i))];
+    };
+    let d = "M" + rnd(pts[0][0]) + " " + rnd(pts[0][1]);
+    const last = closed ? n : n - 1;
+    for (let i = 0; i < last; i++) {
+      const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+      d += " C" + rnd(p1[0] + (p2[0] - p0[0]) / 6) + " " + rnd(p1[1] + (p2[1] - p0[1]) / 6) +
+           " " + rnd(p2[0] - (p3[0] - p1[0]) / 6) + " " + rnd(p2[1] - (p3[1] - p1[1]) / 6) +
+           " " + rnd(p2[0]) + " " + rnd(p2[1]);
+    }
+    return d;
+  }
+
   function toSvg(list) {
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' + (list || shapes).map(shapeSvg).join("") + "</svg>";
   }
@@ -200,7 +264,12 @@
     if (s.type === "path") {
       const xs = s.points.map(function (p) { return p[0]; }), ys = s.points.map(function (p) { return p[1]; });
       const x = Math.min.apply(null, xs), y = Math.min.apply(null, ys);
-      return { x: x, y: y, w: Math.max.apply(null, xs) - x, h: Math.max.apply(null, ys) - y };
+      // An open path is STROKED, so half the pen hangs outside the points on
+      // every side. Without that the selection box cuts through the drawing.
+      const pad = s.closed === false ? (s.width || 3) / 2 : 0;
+      return { x: x - pad, y: y - pad,
+               w: Math.max.apply(null, xs) - x + pad * 2,
+               h: Math.max.apply(null, ys) - y + pad * 2 };
     }
     if (s.type === "raw") {
       // Axis-aligned bounds of the base box pushed through the piece's matrix.
@@ -320,6 +389,13 @@
                  '" fill="none" stroke="#d9861f" stroke-width="0.7" stroke-dasharray="1 1.2" vector-effect="non-scaling-stroke" pointer-events="none"/>';
         }
       }
+      if (freehand && freehand.pts.length > 1) {
+        // The raw track, in the real colour, so what you see under the pointer
+        // is what you are about to get. The curve fitting happens on release.
+        svg += '<polyline points="' + freehand.pts.map(function (p) { return rnd(p[0]) + "," + rnd(p[1]); }).join(" ") +
+               '" fill="none" stroke="' + color + '" stroke-width="' + rnd(lineWidth) +
+               '" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>';
+      }
       if (pathPts.length) {   // the path being drawn: open line + dots
         svg += '<polyline points="' + pathPts.map(function (p) { return rnd(p[0]) + "," + rnd(p[1]); }).join(" ") +
                '" fill="none" stroke="#4f46e5" stroke-width="0.8" vector-effect="non-scaling-stroke"/>';
@@ -344,6 +420,7 @@
   }
 
   let drawing = null;   // { startX, startY, shape } while drawing
+  let freehand = null;  // { pts, clientX, clientY } while the Draw tool is down
   let dragging = null;  // { lastX, lastY } while moving a selection
   let resizing = null;  // { h, orig } while dragging a resize handle
   let panning = null;   // { sx, sy, vx, vy } while dragging the view around
@@ -363,6 +440,17 @@
       // Click to drop points; click the first (red) dot, or press Enter, to finish.
       if (pathPts.length >= 3 && Math.hypot(p.x - pathPts[0][0], p.y - pathPts[0][1]) < 4) finishPath();
       else { pathPts.push([clamp(p.x), clamp(p.y)]); render(); }
+      return;
+    }
+    if (tool === "draw") {
+      // Freehand. Collect the raw track now and turn it into a curve on
+      // release, so the drawing keeps up with the pointer.
+      // travel accumulates how far the pointer actually went, which is NOT the
+      // distance from start to finish: a closed shape ends where it began, so
+      // measuring displacement would score every loop as a click and bin it.
+      freehand = { pts: [[clamp(p.x), clamp(p.y)]], travel: 0,
+                   lastX: e.clientX, lastY: e.clientY };
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
       return;
     }
     if (tool === "select") {
@@ -401,6 +489,19 @@
   });
 
   stage.addEventListener("pointermove", function (e) {
+    if (freehand) {
+      const p = toStage(e);
+      freehand.travel += Math.hypot(e.clientX - freehand.lastX, e.clientY - freehand.lastY);
+      freehand.lastX = e.clientX; freehand.lastY = e.clientY;
+      const last = freehand.pts[freehand.pts.length - 1];
+      // Drop points the pointer barely moved for: they add nothing to the
+      // shape and the thinning pass would only throw them away anyway.
+      if (Math.hypot(p.x - last[0], p.y - last[1]) >= 0.25) {
+        freehand.pts.push([clamp(p.x), clamp(p.y)]);
+        render();
+      }
+      return;
+    }
     if (panning) {
       // Move the view by the drag, in art units, so the art follows the pointer.
       const r = stage.getBoundingClientRect();
@@ -443,6 +544,29 @@
   });
 
   stage.addEventListener("pointerup", function (e) {
+    if (freehand) {
+      const raw = freehand.pts;
+      const moved = freehand.travel;
+      freehand = null;
+      // Same rule as every other tool: a click is not a drawing.
+      if (moved >= CLICK_PX && raw.length >= 3) {
+        // Finish where you started (within a few units) and it becomes a filled
+        // shape; leave it open and it stays a stroke of the current width.
+        const closed = Math.hypot(raw[raw.length - 1][0] - raw[0][0],
+                                  raw[raw.length - 1][1] - raw[0][1]) < 4;
+        const pts = simplify(raw, 0.35);
+        if (pts.length >= (closed ? 3 : 2)) {
+          snapshot();
+          shapes.push({ type: "path", points: pts, fill: color, smooth: true,
+                        closed: closed, width: lineWidth });
+          setSel([shapes.length - 1]);
+          pushRecent(color);
+        }
+      }
+      render();
+      try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
+      return;
+    }
     if (drawing) {
       const s = drawing.shape;
       // Drag draws. A click does NOT.
@@ -950,7 +1074,7 @@
     if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(1.5); return; }
     if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1 / 1.5); return; }
     if (e.key === "0") { e.preventDefault(); resetView(); return; }
-    const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path", i: "eyedrop", h: "pan" }[e.key.toLowerCase()];
+    const k = { v: "select", r: "rect", c: "circle", e: "ellipse", l: "line", t: "triangle", p: "path", d: "draw", i: "eyedrop", h: "pan" }[e.key.toLowerCase()];
     if (k) { const btn = document.querySelector('[data-tool="' + k + '"]'); if (btn) btn.click(); }
   });
 
