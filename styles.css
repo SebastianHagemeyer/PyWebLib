@@ -261,6 +261,43 @@ img { max-width: 100%; display: block; }
   font-size: 0.85rem;
   opacity: 0.85;
 }
+/* ---------------------------------------------------------------------------
+   Editor line numbers (line-numbers.js)
+   ---------------------------------------------------------------------------
+   The gutter is a sibling laid over the editor's left edge, not a wrapper: the
+   editor is contenteditable, CodeJar owns the caret and Prism rehighlights it
+   in place, so it must not be moved in the DOM. The editor gains left padding
+   instead, and the numbers ride its scroll via a transform.
+
+   The metrics below MUST match .sandbox-code (font, size, line-height and the
+   vertical padding), or the numbers drift further from their lines the further
+   down you read. */
+.has-gutter-host { position: relative; }
+.sandbox-gutter {
+  position: absolute;
+  /* top and height come from line-numbers.js, measured off the code element's
+     own box: this is positioned against .sandbox-editor, which also holds the
+     toolbar, so top:0 would sit the numbers on top of the filename. */
+  left: 0;
+  width: 44px;
+  padding: 14px 8px 14px 0;
+  box-sizing: border-box;
+  text-align: right;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #7b84ad;
+  background: var(--code-bg);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;        /* clicks belong to the editor underneath */
+  overflow: hidden;
+  z-index: 1;
+}
+.sandbox-code.has-linenums { padding-left: 56px; }
+
 .sandbox-code {
   display: block;
   flex: 1;
@@ -1595,6 +1632,12 @@ body.sandbox-maxed { overflow: hidden; }
 .set-card h2 { margin: 0 0 6px; font-size: 1.1rem; }
 .set-card p { margin: 0 0 14px; color: var(--muted); }
 .set-note { font-size: 0.88rem; }
+/* A second setting inside one card, so it needs a rule above it to separate the
+   two rather than reading as more of the first one. */
+.set-card h2.set-sub {
+  margin-top: 22px; padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
 
 .set-seg { display: inline-flex; gap: 4px; padding: 4px; background: var(--bg);
   border: 1px solid var(--border); border-radius: 999px; flex-wrap: wrap; }

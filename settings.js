@@ -41,6 +41,49 @@
     }
   }
 
+  // Line numbers. The same "set it once, per device" shape as the theme, so it
+  // lives here rather than as a button in the editor toolbar. line-numbers.js
+  // is not loaded on this page, so this writes the key directly; the key name
+  // is the contract between the two files and is spelled out in both.
+  const LINENUM_KEY = "pwl-linenums";
+  const lineSeg = $("linenum-seg");
+
+  function lineMode() {
+    try { return localStorage.getItem(LINENUM_KEY) === "on" ? "on" : "off"; }
+    catch (e) { return "off"; }
+  }
+  function paintLines() {
+    if (!lineSeg) return;
+    const now = lineMode();
+    lineSeg.querySelectorAll("[data-linenum-set]").forEach(function (b) {
+      const on = b.getAttribute("data-linenum-set") === now;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-checked", on ? "true" : "false");
+    });
+  }
+  function setLines(mode) {
+    try { localStorage.setItem(LINENUM_KEY, mode === "on" ? "on" : "off"); }
+    catch (e) { /* private browsing: the choice just will not stick */ }
+    paintLines();
+  }
+  if (lineSeg) {
+    lineSeg.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-linenum-set]");
+      if (btn) setLines(btn.getAttribute("data-linenum-set"));
+    });
+    lineSeg.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const btns = [].slice.call(lineSeg.querySelectorAll("[data-linenum-set]"));
+      const i = btns.indexOf(document.activeElement);
+      if (i < 0) return;
+      e.preventDefault();
+      const next = btns[(i + (e.key === "ArrowRight" ? 1 : btns.length - 1)) % btns.length];
+      next.focus();
+      setLines(next.getAttribute("data-linenum-set"));
+    });
+    paintLines();
+  }
+
   seg.addEventListener("click", function (e) {
     const btn = e.target.closest("[data-theme-set]");
     if (!btn || !PWL.theme) return;
