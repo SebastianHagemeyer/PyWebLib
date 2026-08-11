@@ -146,61 +146,7 @@
         "    turtle.left(60)\n"
     },
     {
-      title: "Chaos game fractal",
-      cat: "Turtle",
-      desc: "Pick a corner at random, hop half way to it, leave a dot. Do it 15,000 times and the Sierpinski triangle is just there. Nothing in the code draws a triangle.",
-      code:
-        "# The chaos game: a fractal that falls out of pure randomness.\n" +
-        "#\n" +
-        "# Pick a corner at random, hop part of the way toward it, leave a dot,\n" +
-        "# repeat. Nothing below draws a triangle. The triangle is what the\n" +
-        "# randomness leaves behind.\n" +
-        "#\n" +
-        "# Pairs worth trying:  3 corners, hop 0.5    the Sierpinski triangle\n" +
-        "#                      4 corners, hop 0.5    fills in solid\n" +
-        "#                      5 corners, hop 0.618\n" +
-        "#                      6 corners, hop 0.667\n" +
-        "import turtle, random, math, time\n" +
-        "\n" +
-        'corners = int(input("How many corners? (try 3) ") or 3)\n' +
-        'hop = float(input("How far to hop each time? (try 0.5) ") or 0.5)\n' +
-        "corners = max(3, min(8, corners))\n" +
-        "DOTS = 15000\n" +
-        "\n" +
-        "turtle.speed(0)        # 0 means no animation delay, so it plots flat out\n" +
-        "turtle.hideturtle()\n" +
-        "turtle.penup()\n" +
-        'turtle.bgcolor("#0b1020")\n' +
-        "\n" +
-        "# The corners, spaced evenly around a circle, starting at the top.\n" +
-        "R = 170\n" +
-        "points = []\n" +
-        "for i in range(corners):\n" +
-        "    angle = math.pi / 2 + i * 2 * math.pi / corners\n" +
-        "    points.append((R * math.cos(angle), R * math.sin(angle)))\n" +
-        "\n" +
-        'colors = ["#22d3a5", "#4ea8ff", "#ff5c8a", "#ffc857",\n' +
-        '          "#b48cff", "#5be3c0", "#ff8f4e", "#7ef0ff"]\n' +
-        "\n" +
-        "x, y = 0.0, 0.0\n" +
-        "for i in range(DOTS):\n" +
-        "    c = random.randrange(corners)          # the corner we jump at\n" +
-        "    cx, cy = points[c]\n" +
-        "    x = x + (cx - x) * hop                 # hop that far toward it\n" +
-        "    y = y + (cy - y) * hop\n" +
-        "    if abs(x) > 3000 or abs(y) > 3000:     # a hop above 1 flings points away,\n" +
-        "        x, y = 0.0, 0.0                    # so drop back to the middle\n" +
-        "    if i > 10:                             # skip the first few, before it settles\n" +
-        "        turtle.goto(x, y)\n" +
-        "        turtle.dot(2, colors[c % len(colors)])   # coloured by its corner\n" +
-        "    if i % 400 == 0:\n" +
-        "        time.sleep(0.001)                  # let the browser paint what is there\n" +
-        "\n" +
-        'print(DOTS, "dots, and not one of them was told where the triangle goes.")\n' +
-        'print("Change the corners or the hop, then hit Run again.")\n'
-    },
-    {
-      title: "Chaos game, live",
+      title: "Chaos Game",
       cat: "Tech Demo",
       desc: "A fractal you steer while it draws. Arrows change the shape, S saves a clean PNG of just the fractal. Built on game.plot(), which stamps marks that stay put instead of being redrawn every frame.",
       code:
