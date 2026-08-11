@@ -146,6 +146,50 @@
         "    turtle.left(60)\n"
     },
     {
+      title: "Fractal tree",
+      cat: "Turtle",
+      desc: "A tree drawn by a function that calls itself. Twelve lines, and no two runs of the numbers give the same tree. The gentlest introduction to recursion there is.",
+      code:
+        "# A tree that draws itself.\n" +
+        "#\n" +
+        "# Look at branch(): near the bottom it calls branch(). A function that calls\n" +
+        "# itself is recursion, and it is how you draw something with no fixed number\n" +
+        "# of parts. Each branch is just a smaller tree growing off the last one.\n" +
+        "import turtle\n" +
+        "\n" +
+        'COLORS = ["#6b4a2f", "#7d5a37", "#3f8f5a", "#4bb06b", "#5be3c0", "#22d3a5"]\n' +
+        "\n" +
+        "turtle.speed(0)              # 0 means no drawing delay, so it appears at once\n" +
+        "turtle.hideturtle()\n" +
+        'turtle.bgcolor("#0b1020")\n' +
+        "turtle.penup()\n" +
+        "turtle.goto(0, -160)         # start near the bottom of the window\n" +
+        "turtle.left(90)              # and point straight up\n" +
+        "turtle.pendown()\n" +
+        "\n" +
+        "\n" +
+        "def branch(length, depth):\n" +
+        "    if depth == 0:           # out of levels: stop splitting\n" +
+        "        return\n" +
+        "    turtle.pensize(depth)\n" +
+        "    turtle.pencolor(COLORS[-depth])   # trunk gets COLORS[-6], twigs COLORS[-1]\n" +
+        "    turtle.forward(length)\n" +
+        "\n" +
+        "    turtle.left(24)\n" +
+        "    branch(length * 0.74, depth - 1)     # the whole left half of the tree\n" +
+        "    turtle.right(48)\n" +
+        "    branch(length * 0.74, depth - 1)     # then the whole right half\n" +
+        "    turtle.left(24)\n" +
+        "\n" +
+        "    turtle.penup()           # pen UP for the walk back, or the trip home\n" +
+        "    turtle.backward(length)  # redraws this branch in the last twig's colour\n" +
+        "    turtle.pendown()\n" +
+        "\n" +
+        "\n" +
+        "branch(95, 6)\n" +
+        'print("A tree from 12 lines. Change 0.74 or the 24 and run it again.")\n'
+    },
+    {
       title: "Chaos Game",
       cat: "Tech Demo",
       desc: "A fractal you steer while it draws. Arrows change the shape, S saves a clean PNG of just the fractal. Built on game.plot(), which stamps marks that stay put instead of being redrawn every frame.",
