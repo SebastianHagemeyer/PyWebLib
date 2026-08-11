@@ -320,7 +320,10 @@ img { max-width: 100%; display: block; }
   line-height: 1.55;
   outline: none;
   overflow: auto;
-  white-space: pre;
+  /* No white-space here on purpose. CodeJar sets pre-wrap as an INLINE style on
+     this element, which beats anything written here, so a rule declaring "pre"
+     did nothing except read as though long lines never wrap. They do, and
+     line-numbers.js measures the wrapped rows to stay aligned with them. */
   tab-size: 4;
   -moz-tab-size: 4;
   caret-color: var(--accent);
