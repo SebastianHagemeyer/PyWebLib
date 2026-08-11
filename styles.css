@@ -50,9 +50,13 @@
 /* The light surfaces that were written as literals rather than tokens. Each of
    these is a pale panel that would stay white in dark mode. */
 [data-theme="dark"] .callout { background: #241f0f; border-color: #4a3d12; }
-[data-theme="dark"] .callout code { background: #33290f; }
+/* Both of these darken the chip an inline <code> sits on. They have to set the
+   TEXT as well: the light-theme rule pairs a pale chip with near-black ink, and
+   flipping only the chip left dark ink on a dark chip, which is invisible. It
+   showed up worst in the sprite gallery, where the whole label is a <code>. */
+[data-theme="dark"] .callout code { background: #33290f; color: #f0e2c0; }
 [data-theme="dark"] .key-points li { background: #141a2c; }
-[data-theme="dark"] .guide :not(pre) > code { background: #1c2440; }
+[data-theme="dark"] .guide :not(pre) > code { background: #1c2440; color: #dbe3ff; }
 [data-theme="dark"] .community-notice { background: #241f0f; border-color: #4a3d12; }
 [data-theme="dark"] .community-card.is-draft { background: #241d10; border-color: #4a3a17; }
 [data-theme="dark"] .pwl-cap-note { background: #2a2210; }
@@ -778,14 +782,51 @@ body.pwl-game-fs .game-fs-exit {
   text-decoration: none;
 }
 .docs-chip:hover { border-color: var(--primary); background: var(--bg); }
+
+/* Colour families (docs.js tags each section and chip with a data-fam).
+   Sections are grouped into five so the page can be scanned by colour without
+   turning into a paint chart. --sec is used for RULES AND BORDERS ONLY: put it
+   behind text and one of the two themes always ends up unreadable. */
+[data-fam]         { --sec: var(--primary); }
+[data-fam="core"]  { --sec: #4e8cff; }   /* the language itself */
+[data-fam="data"]  { --sec: #17a673; }   /* numbers, text, collections */
+[data-fam="lib"]   { --sec: #9061e8; }   /* standard libraries */
+[data-fam="draw"]  { --sec: #e05a9b; }   /* turtle and the game modules */
+[data-fam="error"] { --sec: #e0503f; }   /* when it goes wrong */
+[data-theme="dark"] [data-fam="core"]  { --sec: #6fa6ff; }
+[data-theme="dark"] [data-fam="data"]  { --sec: #2fd39a; }
+[data-theme="dark"] [data-fam="lib"]   { --sec: #b08cff; }
+[data-theme="dark"] [data-fam="draw"]  { --sec: #ff86bd; }
+[data-theme="dark"] [data-fam="error"] { --sec: #ff7d6d; }
+
+/* A wash behind the chip rather than colour ON the text: these accents sit
+   around 3:1 on white, fine for a border, not for 13px type. */
+.docs-chip[data-fam] {
+  border-color: color-mix(in srgb, var(--sec) 55%, transparent);
+  background: color-mix(in srgb, var(--sec) 12%, var(--surface));
+}
+.docs-chip[data-fam]:hover {
+  border-color: var(--sec);
+  background: color-mix(in srgb, var(--sec) 24%, var(--surface));
+}
+/* --primary is the same dark purple in both themes, so these chips were dark
+   ink on a dark surface long before the tint arrived (2.2:1). The dark accents
+   are bright, so in dark mode the text can carry the family colour itself. */
+[data-theme="dark"] .docs-chip[data-fam] { color: var(--sec); }
 .docs-section { margin: 0 0 30px; scroll-margin-top: 84px; }
 .docs-section[hidden] { display: none; }
-.docs-section-title { margin: 0 0 4px; color: var(--primary-dark); }
+.docs-section-title {
+  margin: 0 0 4px; color: var(--primary-dark);
+  border-left: 5px solid var(--sec); padding-left: 11px;
+}
+.docs-section-blurb { padding-left: 16px; }
 .docs-section-blurb { margin: 0 0 14px; color: var(--muted); }
 .docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 .docs-item {
   background: var(--surface);
   border: 1px solid var(--border);
+  /* After the shorthand, or it resets the colour straight back to grey. */
+  border-left: 3px solid var(--sec);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   padding: 12px 14px;

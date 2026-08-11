@@ -336,6 +336,20 @@
     });
   }
 
+  // Colour families. Twenty-three sections is a wall of grey to scan, but
+  // twenty-three colours is worse, so sections are grouped into five and each
+  // group carries one accent. The accent is only ever used for rules and
+  // borders, never for text on a tint, so neither theme can produce something
+  // unreadable. Anything not listed falls back to the site's own primary.
+  var FAMILY = {
+    io: "core", sandbox: "core", vars: "core", if: "core", loops: "core",
+    functions: "core", builtins: "core",
+    maths: "data", strings: "data", lists: "data", dicts: "data", tuples: "data",
+    random: "lib", math: "lib", string: "lib", statistics: "lib", time: "lib",
+    turtle: "draw", game: "draw", game3d: "draw",
+    errors: "error"
+  };
+
   var body = document.getElementById("docs-body");
   var jump = document.getElementById("docs-jump");
   var search = document.getElementById("docs-search");
@@ -346,14 +360,18 @@
   var sectionEls = [];
 
   DOCS.forEach(function (sec) {
+    var fam = FAMILY[sec.id] || "core";
+
     // Jump link
     var chip = el("a", "docs-chip");
     chip.href = "#sec-" + sec.id;
     chip.textContent = sec.name;
+    chip.dataset.fam = fam;
     jump.appendChild(chip);
 
     var wrap = el("section", "docs-section");
     wrap.id = "sec-" + sec.id;
+    wrap.dataset.fam = fam;
     var h2 = el("h2", "docs-section-title");
     h2.textContent = sec.name;
     wrap.appendChild(h2);
