@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multiplayer guide | PyWebLib</title>
+  <meta name="description" content="Play together in the browser with import net: join a room, share your sprite, and see everyone else move. A full bomb-tag game, the rule that stops players disagreeing, and what a classroom actually costs." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#4f46e5" />
+  <!-- Inline and blocking on purpose. The theme has to be on <html> before the
+       stylesheet paints, or a dark-mode visitor gets a white flash on every
+       single page load. Anything loaded with the other scripts is far too late.
+       Kept to the one decision; theme.js owns the rest. -->
+  <script>
+    try {
+      var t = localStorage.getItem("pwl-theme");
+      if (!t || t === "system") {
+        t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="stylesheet" href="../../styles.css" />
+
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="/">Playground</a>
+        <div class="nav-dd">
+          <a class="header-link" href="/community/">Community<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <div class="nav-dd-menu">
+            <a href="/assets/">Assets</a>
+            <a href="/leaderboard/">Leaderboard</a>
+          </div>
+        </div>
+        <div class="nav-dd">
+          <a class="header-link active" href="/about/">About<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <div class="nav-dd-menu">
+            <a href="/docs/">Docs</a>
+            <a href="/docs/guide/">Guide</a>
+            <a href="/docs/turtle/">Turtle guide</a>
+            <a href="/docs/game/">Game guide</a>
+            <a class="active" href="/docs/net/">Multiplayer guide</a>
+          </div>
+        </div>
+        <span id="pwl-account" class="pwl-account" data-root="../../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Docs &middot; Guide</p>
+        <h1>Playing together</h1>
+        <p class="lead">Type <code>import net</code> next to <code>import game</code> and your sprite shows up on your friends' screens. Everyone who joins the same <strong>room name</strong> plays together: no server to run, no accounts, no setup. This page builds a real game of bomb tag from six lines up. Every example has a <strong>Try it</strong> button.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <nav class="guide-jump" aria-label="On this page">
+          <a href="#first">Your first room</a>
+          <a href="#others">Everyone else</a>
+          <a href="#values">Sharing one fact</a>
+          <a href="#bomb">Bomb tag</a>
+          <a href="#decides">Who decides?</a>
+          <a href="#reference">Every call</a>
+          <a href="#cost">What it costs</a>
+          <a href="#limits">What it cannot do</a>
+        </nav>
+
+        <section id="first">
+          <h2>Your first room</h2>
+          <p>Two lines turn a normal game into a multiplayer one. <code>net.join()</code> picks the room, and <code>net.me()</code> tells everyone where you are.</p>
+          <pre class="guide-code language-python" id="ex-first">import game, net
+
+net.join("my-first-room")        # anyone with this name plays with you
+
+game.window(480, 360)
+me = game.sprite("car", 0, 0, 44)
+
+while game.playing():
+    if game.pressed("left"):  me.x -= 5
+    if game.pressed("right"): me.x += 5
+    if game.pressed("up"):    me.y += 5
+    if game.pressed("down"):  me.y -= 5
+
+    net.me(me)       # show my car to everyone
+    net.others()     # ...and put their cars on my screen
+
+    game.frame(30)</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-first">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout"><strong>How to test it on your own.</strong> Open PyWebLib in a <strong>second browser tab</strong> and run the same code there. Each tab is a separate player, so you can drive both and watch them move on each other's screens. Pick a room name nobody else will guess, or you may find a stranger already driving around in it.</p>
+        </section>
+
+        <section id="others">
+          <h2>Everyone else</h2>
+          <p><code>net.others()</code> hands you a list of the other players. Each one already <em>has a sprite</em>, created, moved and (when they leave) removed for you. You do not build it and you do not tidy it up.</p>
+          <pre class="guide-code language-python">for p in net.others():
+    print(p.name, "is at", p.x, p.y)
+
+    if me.touches(p):            # collisions work exactly like a sprite
+        game.game_over("Crash!")</pre>
+          <p>A player is a normal thing to poke at:</p>
+          <ul class="key-points">
+            <li><code>p.id</code> &mdash; who they are, and it never changes while they are playing.</li>
+            <li><code>p.name</code> &mdash; what to call them on screen.</li>
+            <li><code>p.x</code>, <code>p.y</code> &mdash; where they are.</li>
+            <li><code>p.sprite</code> &mdash; the sprite drawing them, if you want to fiddle with it.</li>
+            <li><code>me.touches(p)</code> &mdash; the same collision check you already know.</li>
+          </ul>
+          <p>You can send extra facts about yourself, and read them back off everybody else:</p>
+          <pre class="guide-code language-python">net.me(me, hp=3, ready=True)     # ride along with my position
+
+for p in net.others():
+    if p.get("hp", 0) &lt;= 0:
+        print(p.name, "is out!")</pre>
+        </section>
+
+        <section id="values">
+          <h2>Sharing one fact</h2>
+          <p>Positions are per player. Sometimes the whole room needs to agree on <em>one</em> thing: who has the bomb, whose turn it is, what the score is. That is <code>net.set()</code> and <code>net.get()</code>.</p>
+          <pre class="guide-code language-python">net.set("bomb", net.id)          # I have the bomb
+
+if net.get("bomb") == net.id:
+    print("Run!")</pre>
+          <p>It holds anything you could <code>print</code>: text, numbers, <code>True</code>/<code>False</code>, lists and dictionaries. The rule is <strong>last write wins</strong> &mdash; if two players write the same key at the same moment, one of them quietly loses. The next section is about making sure that never happens.</p>
+        </section>
+
+        <section id="bomb">
+          <h2>Bomb tag</h2>
+          <p>Everything above, as a real game. Drive into somebody to hand them the bomb.</p>
+          <pre class="guide-code language-python" id="ex-bomb">import game, net, random
+
+net.join("bomb-tag")
+
+game.window(480, 360)
+game.background("#101828")
+me = game.sprite("car", random.randint(-180, 180), random.randint(-110, 110), 44)
+info = game.label("", 0, 150, 16)
+
+while game.playing():
+    if game.pressed("left"):  me.x -= 5
+    if game.pressed("right"): me.x += 5
+    if game.pressed("up"):    me.y += 5
+    if game.pressed("down"):  me.y -= 5
+    me.x = max(-220, min(220, me.x))
+    me.y = max(-160, min(160, me.y))
+
+    players = net.others()
+    holder = net.get("bomb")
+
+    # Nobody has the bomb yet? The player with the smallest id takes it. Every
+    # browser works that out the same way, so no one has to be the referee.
+    if holder is None and net.online():
+        ids = [p.id for p in players] + [net.id]
+        if net.id == min(ids):
+            net.set("bomb", net.id)
+
+    mine = (holder == net.id)
+    want = "💣" if mine else "car"
+    if me.content != want:
+        me.content = want
+
+    # Only whoever HOLDS the bomb ever writes down who has it next, so two
+    # players can never disagree about where it is.
+    if mine:
+        for p in players:
+            if me.touches(p):
+                net.set("bomb", p.id)
+                break
+
+    net.me(me)
+
+    if not net.online():
+        info.content = "Connecting..."
+    elif mine:
+        info.content = "You have the bomb! Run into someone."
+    else:
+        info.content = "Players: " + str(net.count()) + " - keep away from the bomb!"
+    game.frame(30)</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-bomb">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p>Ideas to take it further: a countdown that ends the game for whoever is holding it, a short cooldown so the bomb cannot bounce straight back, a score kept in <code>net.set("scores", ...)</code>, or making the bomb holder faster than everyone else.</p>
+        </section>
+
+        <section id="decides">
+          <h2>Who decides?</h2>
+          <p>This is the one genuinely new idea in multiplayer, and bomb tag shows it twice.</p>
+          <p>Every browser is running its own copy of your program. They cannot all be in charge of the same fact, or they will disagree &mdash; two players would each think they had passed the bomb on. So for every shared fact, decide <strong>who is allowed to write it</strong>:</p>
+          <ul class="key-points">
+            <li><strong>Give one player the pen.</strong> Only the player <em>holding</em> the bomb writes who gets it next. Everyone else only reads. There is nothing to disagree about, because only one browser ever writes.</li>
+            <li><strong>Or let everyone work it out identically.</strong> Nobody owns the bomb at the start, so the rule is "smallest id takes it". Every browser sorts the same list of ids and reaches the same answer without anyone being asked.</li>
+          </ul>
+          <p class="callout"><strong>The trap to avoid.</strong> Writing a shared value every frame from every player, like <code>net.set("scores", ...)</code> in the main loop for everybody. They will fight, the value will flicker, and it costs a fortune in messages. Let one player own each key.</p>
+        </section>
+
+        <section id="reference">
+          <h2>Every call</h2>
+          <ul class="key-points">
+            <li><code>net.join(room, name=None, rate=10)</code> &mdash; join a room. Returns straight away and connects in the background. <code>rate</code> is how many times a second your position may be sent (1&ndash;20); lower is cheaper and usually still looks fine.</li>
+            <li><code>net.me(sprite, **extras)</code> &mdash; publish my position and skin. Call it once per frame. Standing still costs nothing.</li>
+            <li><code>net.others()</code> &mdash; the other players, each with a sprite already on screen.</li>
+            <li><code>net.set(key, value)</code> / <code>net.get(key, default=None)</code> &mdash; one fact the whole room shares.</li>
+            <li><code>net.id</code> &mdash; my player id. Fixed for this browser tab.</li>
+            <li><code>net.count()</code> &mdash; how many players are here, me included.</li>
+            <li><code>net.online()</code> &mdash; <code>True</code> once I am actually in the room.</li>
+            <li><code>net.status()</code> &mdash; <code>"offline"</code>, <code>"joining"</code>, <code>"joined"</code>, or <code>"unavailable"</code> when this copy of PyWebLib has no multiplayer backend set up.</li>
+            <li><code>net.room()</code> &mdash; the room name I ended up in (tidied: spaces and punctuation become dashes).</li>
+            <li><code>net.leave()</code> &mdash; leave, and take everyone else's sprites off my screen.</li>
+          </ul>
+        </section>
+
+        <section id="cost">
+          <h2>What it costs</h2>
+          <p>Worth knowing before you point a whole class at it. Rooms run on Supabase Realtime, which charges <strong>per message received, not per message sent</strong>: one update in a room of four counts as five messages, because four people get a copy. Traffic grows with the <em>square</em> of the room size.</p>
+          <p>PyWebLib already does the two things that matter most. Updates are <strong>throttled</strong> to <code>rate</code> a second no matter how fast your loop runs, and an unchanged position is <strong>not resent</strong>, so a parked car is nearly free. Measured: 121 calls to <code>net.me()</code> in a second while moving became 21 messages; parked, it became 2.</p>
+          <p>Rough numbers for a 40-minute lesson with everyone moving the whole time, on the free tier's 2 million messages a month:</p>
+          <ul class="key-points">
+            <li><strong>One room of 4</strong> &mdash; about 400k messages. Fine.</li>
+            <li><strong>Eight rooms of 4</strong> (a class of 32) &mdash; about 3.2M. Over the free month, in one lesson.</li>
+            <li><strong>One room of 30</strong> &mdash; about 23M. Do not do this.</li>
+          </ul>
+          <p>So: <strong>small rooms</strong>, and drop <code>rate</code> to 4 or 5 for anything that is not twitchy. A class needs a paid plan; a club of six does not.</p>
+        </section>
+
+        <section id="limits">
+          <h2>What it cannot do</h2>
+          <ul class="key-points">
+            <li><strong>It is not cheat-proof.</strong> Every browser is trusted, so a determined student can write whatever position they like. That is fine for tag and terrible for anything competitive.</li>
+            <li><strong>Rooms are public.</strong> Anyone who guesses the name can join. Pick an odd one.</li>
+            <li><strong>No history.</strong> A room remembers nothing: join late and you see the room as it is now, not what happened before. Scores that must survive belong in <code>game.save()</code> or a published game's leaderboard.</li>
+            <li><strong>Up to 24 players</strong> are reported in a room, and everyone is dropped about four seconds after they go quiet.</li>
+            <li><strong>It needs the community backend.</strong> On a copy of PyWebLib without Supabase configured, <code>net.status()</code> returns <code>"unavailable"</code> and every call quietly does nothing, so a program written with <code>net</code> still runs &mdash; alone.</li>
+          </ul>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.
+        &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
+    </div>
+  </footer>
+
+  <script src="../../theme.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="../../supabase-config.js"></script>
+  <script src="../../auth.js"></script>
+  <!-- Carry a code example over to the Playground: stash it, then navigate. -->
+  <script>
+    (function () {
+      document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-load]");
+        if (!btn) return;
+        var pre = document.getElementById(btn.getAttribute("data-load"));
+        if (!pre) return;
+        try {
+          localStorage.setItem("pyweblib-load", pre.textContent.replace(/\s+$/, ""));
+        } catch (err) { /* private mode: just navigate */ }
+        location.href = "../../";
+      });
+    })();
+  </script>
+  <script>
+    if (window.Prism) {
+      document.querySelectorAll("pre.guide-code").forEach(function (el) {
+        try { window.Prism.highlightElement(el); } catch (e) {}
+      });
+    }
+  </script>
+</body>
+</html>

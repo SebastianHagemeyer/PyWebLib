@@ -28,6 +28,93 @@
   // Click-to-load snippets. Each gets a card at the bottom of the page.
   const EXAMPLES = [
     {
+      title: "Play together",
+      desc: "Move a car and see everyone else in the room move too. Open a second tab to be player two.",
+      cat: "Multiplayer",
+      code:
+        "# Multiplayer: everyone running this sees everyone else move.\n" +
+        "# Open this page in a SECOND TAB to be your own second player.\n" +
+        "import game, net\n" +
+        "\n" +
+        "net.join(\"pyweblib-demo\")        # same room name = same game\n" +
+        "\n" +
+        "game.window(480, 360)\n" +
+        "me = game.sprite(\"car\", 0, 0, 44)\n" +
+        "info = game.label(\"\", 0, 150, 16)\n" +
+        "\n" +
+        "while game.playing():\n" +
+        "    if game.pressed(\"left\"):  me.x -= 5\n" +
+        "    if game.pressed(\"right\"): me.x += 5\n" +
+        "    if game.pressed(\"up\"):    me.y += 5\n" +
+        "    if game.pressed(\"down\"):  me.y -= 5\n" +
+        "\n" +
+        "    net.me(me)         # show my car to everybody else\n" +
+        "    net.others()       # ...and put their cars on my screen\n" +
+        "\n" +
+        "    if net.online():\n" +
+        "        info.content = \"Players here: \" + str(net.count())\n" +
+        "    else:\n" +
+        "        info.content = \"Connecting...\"\n" +
+        "    game.frame(30)\n"
+    },
+    {
+      title: "Bomb tag",
+      desc: "Drive into another player to pass them the bomb. Whoever holds it decides who gets it next.",
+      cat: "Multiplayer",
+      code:
+        "# Bomb tag. Drive into another player to pass them the bomb.\n" +
+        "# Open a SECOND TAB to play against yourself, or share the room name.\n" +
+        "import game, net, random\n" +
+        "\n" +
+        "net.join(\"bomb-tag\")\n" +
+        "\n" +
+        "game.window(480, 360)\n" +
+        "game.background(\"#101828\")\n" +
+        "me = game.sprite(\"car\", random.randint(-180, 180), random.randint(-110, 110), 44)\n" +
+        "info = game.label(\"\", 0, 150, 16)\n" +
+        "\n" +
+        "while game.playing():\n" +
+        "    if game.pressed(\"left\"):  me.x -= 5\n" +
+        "    if game.pressed(\"right\"): me.x += 5\n" +
+        "    if game.pressed(\"up\"):    me.y += 5\n" +
+        "    if game.pressed(\"down\"):  me.y -= 5\n" +
+        "    me.x = max(-220, min(220, me.x))\n" +
+        "    me.y = max(-160, min(160, me.y))\n" +
+        "\n" +
+        "    players = net.others()\n" +
+        "    holder = net.get(\"bomb\")\n" +
+        "\n" +
+        "    # Nobody has the bomb yet? The player with the smallest id takes it. Every\n" +
+        "    # browser works that out the same way, so no one has to be the referee.\n" +
+        "    if holder is None and net.online():\n" +
+        "        ids = [p.id for p in players] + [net.id]\n" +
+        "        if net.id == min(ids):\n" +
+        "            net.set(\"bomb\", net.id)\n" +
+        "\n" +
+        "    mine = (holder == net.id)\n" +
+        "    want = \"💣\" if mine else \"car\"\n" +
+        "    if me.content != want:\n" +
+        "        me.content = want\n" +
+        "\n" +
+        "    # Only whoever HOLDS the bomb ever writes down who has it next, so two\n" +
+        "    # players can never disagree about where it is.\n" +
+        "    if mine:\n" +
+        "        for p in players:\n" +
+        "            if me.touches(p):\n" +
+        "                net.set(\"bomb\", p.id)\n" +
+        "                break\n" +
+        "\n" +
+        "    net.me(me)\n" +
+        "\n" +
+        "    if not net.online():\n" +
+        "        info.content = \"Connecting...\"\n" +
+        "    elif mine:\n" +
+        "        info.content = \"You have the bomb! Run into someone.\"\n" +
+        "    else:\n" +
+        "        info.content = \"Players: \" + str(net.count()) + \" - keep away from the bomb!\"\n" +
+        "    game.frame(30)\n"
+    },
+    {
       title: "Say hello",
       desc: "Your very first program: print a few messages.",
       code:
@@ -1996,7 +2083,7 @@ while game.playing():
     // rather than a wall of cards you scroll past.
     { name: "Stock Python", open: false, subOpen: false, cats: ["Basic", "Intermediate"] },
     { name: "PyWebLib", open: true, subOpen: false,
-      cats: ["Turtle", "Basic Games", "Advanced Games", "3D", "Tech Demo", "Coloured Text"] }
+      cats: ["Turtle", "Basic Games", "Multiplayer", "Advanced Games", "3D", "Tech Demo", "Coloured Text"] }
   ];
 
   // Work out which category a snippet belongs in. An explicit ex.cat wins;

@@ -2,9 +2,17 @@
  * Shared protocol between the main thread and the Pyodide worker, for the
  * non-JSPI (Safari/Firefox) runtime. One SharedArrayBuffer carries control
  * futexes, live input state (keys/mouse/playing) the worker reads synchronously,
- * and a byte region for a submitted input() line. Loaded in BOTH contexts
- * (script tag on the page, importScripts in the worker), so it hangs itself off
- * `self`.
+ * a byte region for a submitted input() line, and a second byte region holding
+ * the multiplayer room snapshot. Loaded in BOTH contexts (script tag on the
+ * page, importScripts in the worker), so it hangs itself off `self`.
+ *
+ * WHY THE ROOM SNAPSHOT LIVES HERE. A worker parked in Atomics.wait cannot run
+ * its message handler, so postMessage can't deliver anything mid-run: the
+ * Python game loop never unwinds the stack, so the event queue never gets a
+ * turn. That is already why keys and the mouse are read out of this buffer
+ * rather than round-tripped. Other players' positions arrive the same way: the
+ * main thread owns the WebSocket and writes each new snapshot in here, and the
+ * worker reads it synchronously from inside net.others().
  */
 (function (g) {
   "use strict";
@@ -18,13 +26,21 @@
     MX: 4, MY: 5, MDOWN: 6, MCLICKS: 7, MIN: 8,
     INLEN: 9,        // number of UTF-8 bytes of the submitted input line
     RESTART: 10,     // 1 = the game asked to restart (game_over(retry=True))
+    NETLEN: 11,      // number of UTF-8 bytes of the room snapshot in the NET region
+    NETSEQ: 12,      // seqlock: odd while the snapshot is being written, even once settled
     KEYS: 16,        // key states live at KEYS .. KEYS+NKEYS-1 (1 = down)
     NKEYS: 48
   };
   const CTRL_INTS = 128;                 // 512 bytes of Int32 control
   const STR_OFF = CTRL_INTS * 4;         // input-string byte region starts here
   const STR_MAX = 8192;
-  const TOTAL_BYTES = STR_OFF + STR_MAX;
+  // Room snapshot: every player's position and the shared values, as JSON. 64 KB
+  // is far more than a classroom needs (a player costs well under 200 bytes) and
+  // net.js caps what it writes, so a huge room degrades by dropping players
+  // rather than by overrunning the buffer.
+  const NET_OFF = STR_OFF + STR_MAX;
+  const NET_MAX = 65536;
+  const TOTAL_BYTES = NET_OFF + NET_MAX;
 
   // Map a key name (as game.pressed() uses) to a slot in the KEYS region.
   function keyIndex(name) {
@@ -42,6 +58,8 @@
     CTRL_INTS: CTRL_INTS,
     STR_OFF: STR_OFF,
     STR_MAX: STR_MAX,
+    NET_OFF: NET_OFF,
+    NET_MAX: NET_MAX,
     TOTAL_BYTES: TOTAL_BYTES,
     keyIndex: keyIndex,
     // Build the shared buffer + views. `interrupt` is a separate 1-byte shared
@@ -51,12 +69,14 @@
       const intB = new SharedArrayBuffer(1);
       return {
         sab: sab, ctrl: new Int32Array(sab, 0, CTRL_INTS), str: new Uint8Array(sab, STR_OFF, STR_MAX),
+        net: new Uint8Array(sab, NET_OFF, NET_MAX),
         interrupt: intB, interruptView: new Uint8Array(intB)
       };
     },
     attach: function (sab, interrupt) {
       return {
         sab: sab, ctrl: new Int32Array(sab, 0, CTRL_INTS), str: new Uint8Array(sab, STR_OFF, STR_MAX),
+        net: new Uint8Array(sab, NET_OFF, NET_MAX),
         interrupt: interrupt, interruptView: new Uint8Array(interrupt)
       };
     }
