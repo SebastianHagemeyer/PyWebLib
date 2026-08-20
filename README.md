@@ -48,15 +48,20 @@ while game.playing():
     game.frame(30)
 ```
 
-Rooms run on [Supabase Realtime](https://supabase.com/docs/guides/realtime)
-broadcast, which is a hosted WebSocket relay rather than the database, so
-multiplayer adds no table, no schema and no row-level-security policy. Sending
-is throttled (5 updates a second by default) and deduplicated, so a parked
-sprite is nearly free. Traffic still grows with the *square* of the room size
-and Supabase bills per recipient, so keep rooms small: a few friends fit in the
-free tier, a weekly class does not. The [cost notes](https://play.pyweblib.org/docs/net/#cost)
-have the numbers, and the transport sits behind `PWL.net` in `net.js` so it can
-be swapped for a cheaper relay without touching a line of Python.
+Two relays are supported and the right one is picked automatically:
+
+- **A Cloudflare Worker** (`worker/`, one `npx wrangler deploy`). Preferred.
+  Only messages arriving *in* are billed, so cost grows with the number of
+  players rather than its square: a room of 16 relays 960 messages and pays for
+  64. Several classes a week fit inside the free plan.
+- **[Supabase Realtime](https://supabase.com/docs/guides/realtime) broadcast**
+  otherwise, needing no server at all. It bills per recipient, so a room of four
+  costs five messages per update and a weekly class costs money.
+
+Sending is throttled (5 updates a second by default) and deduplicated either
+way, so a parked sprite is nearly free. Everything above the socket is shared,
+so swapping relays changes no Python and no student code &mdash; see the
+[cost notes](https://play.pyweblib.org/docs/net/#cost) for the numbers.
 
 ## Turtle drawing (`import turtle`)
 

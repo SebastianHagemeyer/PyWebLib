@@ -192,10 +192,15 @@ while game.playing():
             <li><strong>One room of 30</strong> &mdash; do not. The square is brutal: it is more traffic than the whole rest of this list put together.</li>
           </ul>
 
-          <h3>The cheaper shape, if it grows</h3>
-          <p>A relay does not have to bill you for the fan-out. On a <a href="https://developers.cloudflare.com/durable-objects/" target="_blank" rel="noopener">Cloudflare Durable Object</a>, only messages arriving <em>in</em> are charged, and incoming WebSocket messages are counted at 20:1 on top of that. The square disappears and the numbers stop mattering: <strong>five classes a week fits inside Cloudflare's free tier</strong> (100,000 requests and 13,000 GB-s a day), and so would four lessons in a single day. Only a genuinely public, all-day game needs their $5 plan.</p>
-          <p>The trade is that it is a small server you write and deploy, against Supabase needing no code at all. The transport lives entirely in <code>net.js</code> behind <code>PWL.net</code>, so swapping it changes no Python, no student code and nothing on this page except these numbers.</p>
-          <p class="callout"><strong>Two levers, in order.</strong> Keep <strong>rooms small</strong> &mdash; that is the squared term, and it dominates everything else. Then drop <code>rate</code> to 4 or 5 for anything that is not twitchy. Doing both is the difference between free and a bill.</p>
+          <h3>On the Cloudflare relay</h3>
+          <p>A relay does not have to bill you for the fan-out. PyWebLib ships one as a <a href="https://developers.cloudflare.com/durable-objects/" target="_blank" rel="noopener">Cloudflare Durable Object</a> (in <code>worker/</code>, one command to deploy). Only messages arriving <em>in</em> are charged, and incoming WebSocket messages are counted 20:1 on top of that, so the squared term disappears. Measured against the real code, relaying ten rounds of updates:</p>
+          <ul class="key-points">
+            <li><strong>Room of 4</strong> &mdash; 36 messages relayed, <strong>12</strong> billed. Supabase would bill 48.</li>
+            <li><strong>Room of 16</strong> &mdash; 960 relayed, <strong>64</strong> billed. Supabase would bill 1024.</li>
+          </ul>
+          <p>The free plan allows 100,000 requests and 13,000 GB-s a day, and a class day costs roughly 17k and 3.1k. <strong>Five classes a week is free</strong>, and so is four lessons in a single day. Only a public, all-day game needs the $5 plan.</p>
+          <p>The trade is that it is a small server you deploy, against Supabase needing no code at all. Which one is running is picked automatically, and you can check with <code>PWL.net.transport()</code> in the browser console. Your Python never knows the difference.</p>
+          <p class="callout"><strong>Two levers, in order.</strong> Keep <strong>rooms small</strong> &mdash; on Supabase that is the squared term and it dominates everything else. Then drop <code>rate</code> to 4 or 5 for anything that is not twitchy. Doing both is the difference between free and a bill.</p>
         </section>
 
         <section id="limits">

@@ -1,27 +1,34 @@
 /*
  * PyWebLib multiplayer transport: the JS half of `import net`.
  *
- * WHAT THIS IS. A room is a Supabase Realtime BROADCAST channel. That is a
- * hosted WebSocket relay, not the database: nothing here touches Postgres, so
- * there is no table, no schema and no row-level-security policy behind
- * multiplayer. Same project as the leaderboard, different feature.
+ * WHAT A ROOM IS. Everyone who joins the same room name is connected to one
+ * relay that copies each player's updates to the others. Two relays are
+ * supported and they are chosen automatically:
  *
- * WHY ITS OWN CLIENT. supabase-config.js builds the client that sign-in and the
- * leaderboard share, and its realtime default is 10 events/second, which a game
- * loop sits right on top of. Multiplayer gets its own client at a higher rate so
- * a busy room cannot throttle sign-in, and so nothing here can disturb an
- * in-flight auth request.
+ *   1. A Cloudflare Worker (see worker/), if RELAY_URL below is filled in.
+ *      PREFERRED. Only messages arriving IN are billed, so the fan-out back to
+ *      the room is free and cost grows with the number of players rather than
+ *      its SQUARE. Several classes a week fit inside the Workers free plan.
  *
- * WHAT IT COSTS. Supabase bills broadcast PER RECIPIENT: one message into a room
- * of four counts as five (one sent, four received). That is why sending is
- * throttled AND deduplicated here rather than in Python; a parked car is free,
- * and a moving one costs at most `rate` messages a second. Read the numbers in
- * docs/net/ before opening a room to a whole class.
+ *   2. Supabase Realtime broadcast, otherwise. Needs no server at all, which is
+ *      why it is the fallback: a fork of PyWebLib that never deploys the Worker
+ *      still gets working multiplayer. It bills PER RECIPIENT, though, so one
+ *      update in a room of four costs five messages and a class costs money.
+ *
+ * Everything except the socket itself is shared between the two: the throttle,
+ * the dedupe, the roster, the timeout sweep and the snapshot. A transport only
+ * has to connect, send and report status, so a third one would be ~40 lines and
+ * no change anywhere else. Python never learns which is in use.
+ *
+ * WHY SENDING IS THROTTLED AND DEDUPED HERE rather than in Python: it is the
+ * one place both transports benefit, and on Supabase it is the difference
+ * between free and a bill. A parked sprite sends one heartbeat every 1.5s; a
+ * moving one sends at most `rate` a second no matter how fast the game loop is.
  *
  * Public surface, all consumed by pyrun.js's NET_IO:
  *
  *   PWL.net.join(room, opts)   join (or re-join) a room; idempotent
- *   PWL.net.leave()            drop the channel and forget every peer
+ *   PWL.net.leave()            drop the connection and forget every peer
  *   PWL.net.publish(state)     set MY player state; sent throttled + deduped
  *   PWL.net.setShared(k, v)    set a room-wide value (last write wins)
  *   PWL.net.snapshotJson()     the whole room as JSON, cached between changes
@@ -33,23 +40,30 @@
 
   const PWL = (window.PWL = window.PWL || {});
 
+  /* ---- THE ONE THING TO CONFIGURE ---------------------------------------
+   * Your deployed relay, e.g. "https://pyweblib-rooms.you.workers.dev".
+   * Empty means "fall back to Supabase Realtime". Deploy instructions are in
+   * worker/README.md; it is one `npx wrangler deploy`. */
+  const RELAY_URL = PWL.netRelayUrl || "";
+
   // ---- Tunables -----------------------------------------------------------
-  // 5, not 10. Cost grows with the SQUARE of the room size (see the header), and
-  // at a 30 fps game loop the difference between 5 and 10 updates a second is
-  // hard to see while the bill for it is exactly double. Games that really need
-  // it can still ask: net.join(room, rate=15).
+  // 5, not 10. On the Supabase path cost grows with the SQUARE of the room
+  // size, and at a 30 fps game loop the difference between 5 and 10 updates a
+  // second is hard to see while the bill for it is exactly double. Games that
+  // really need it can still ask: net.join(room, rate=15).
   const DEFAULT_RATE = 5;       // outbound player updates per second, max
   const HEARTBEAT_MS = 1500;    // resend an unchanged state at least this often
   const PEER_TIMEOUT_MS = 4000; // drop a peer we have not heard from since
   const MAX_PEERS = 24;         // most players one room will report
-  const MAX_STATE_BYTES = 2048; // cap on one player's serialised state
-  const MAX_SHARED_BYTES = 2048;// cap on one shared value
+  // 1024, so that a legal state still fits inside the Worker's 1400-byte
+  // per-message cap once it is wrapped in the envelope and the player id.
+  const MAX_STATE_BYTES = 1024;
+  const MAX_SHARED_BYTES = 1024;// cap on one shared value
   const MAX_SHARED_KEYS = 32;   // most shared values one room will hold
-  const EVENTS_PER_SECOND = 20; // realtime client's own rate limit
+  const EVENTS_PER_SECOND = 20; // Supabase realtime client's own rate limit
 
   // ---- State --------------------------------------------------------------
-  let client = null;            // our dedicated Supabase client
-  let channel = null;           // the joined channel, or null
+  let transport = null;         // the active transport, or null
   let roomName = "";            // sanitised room name we are in
   let state = "offline";        // offline | joining | joined | unavailable
   let rate = DEFAULT_RATE;
@@ -84,7 +98,8 @@
   })();
 
   /* Room names come from student code, so they are normalised to something a
-   * channel name can hold and something a classmate can retype from memory. */
+   * channel name can hold and something a classmate can retype from memory.
+   * The Worker validates against the same shape. */
   function cleanRoom(name) {
     const s = String(name == null ? "" : name).toLowerCase()
       .replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -99,23 +114,149 @@
     return "Player " + myId.slice(0, 3).toUpperCase();
   }
 
-  function ensureClient() {
-    if (client) return client;
-    if (!PWL.supabaseUrl || !PWL.supabaseKey) return null;
-    if (!window.supabase || typeof window.supabase.createClient !== "function") return null;
-    try {
-      client = window.supabase.createClient(PWL.supabaseUrl, PWL.supabaseKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-        realtime: { params: { eventsPerSecond: EVENTS_PER_SECOND } }
-      });
-    } catch (e) { client = null; }
-    return client;
+  // =========================================================================
+  // Transports. Each one implements: connect(room, handlers), send(event,
+  // payload), close(). handlers is { onStatus(state), onMessage(event, data) }.
+  // =========================================================================
+
+  /* The Worker relay. A plain WebSocket, plus reconnect: a classroom wifi blip
+   * should cost a second of staleness, not end the game. */
+  function cloudflareTransport(baseUrl) {
+    let ws = null, room = "", h = null, attempt = 0, timer = null, done = false;
+
+    function url() {
+      return baseUrl.replace(/^http/, "ws").replace(/\/+$/, "") + "/room/" + room;
+    }
+
+    function open() {
+      if (done) return;
+      let sock;
+      try { sock = new WebSocket(url()); } catch (e) { h.onStatus("unavailable"); return; }
+      ws = sock;
+      sock.onopen = function () {
+        if (done) { try { sock.close(); } catch (e) {} return; }
+        attempt = 0;
+        h.onStatus("joined");
+      };
+      sock.onmessage = function (ev) {
+        let m;
+        try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (m && m.e) h.onMessage(m.e, m.d);
+      };
+      sock.onclose = function () {
+        if (done || ws !== sock) return;
+        h.onStatus("joining");
+        retry();
+      };
+      // onerror is followed by onclose, so reconnecting is handled there; this
+      // only exists so the very first failure does not look like a clean close.
+      sock.onerror = function () { if (!done && attempt === 0) h.onStatus("joining"); };
+    }
+
+    function retry() {
+      if (done) return;
+      // 0.5s, 1s, 2s, 4s, then every 8s. A room is worth waiting for.
+      const wait = Math.min(8000, 500 * Math.pow(2, attempt++));
+      clearTimeout(timer);
+      timer = setTimeout(open, wait);
+    }
+
+    return {
+      name: "cloudflare",
+      // The relay hands a newcomer everyone's last state itself, so net.js does
+      // not have to make the existing players re-broadcast on every join.
+      serverSyncsNewPeers: true,
+      connect: function (r, handlers) {
+        room = r; h = handlers; done = false; attempt = 0;
+        h.onStatus("joining");
+        open();
+      },
+      send: function (event, payload) {
+        if (!ws || ws.readyState !== 1) return;
+        try { ws.send(JSON.stringify({ e: event, d: payload })); } catch (e) {}
+      },
+      close: function () {
+        done = true;
+        clearTimeout(timer);
+        if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+      }
+    };
   }
+
+  /* Supabase Realtime broadcast. Its own client, because the one in
+   * supabase-config.js is shared with sign-in and the leaderboard and defaults
+   * to 10 events/second, which a game loop sits right on top of. */
+  function supabaseTransport() {
+    let client = null, channel = null;
+
+    function ensureClient() {
+      if (client) return client;
+      if (!PWL.supabaseUrl || !PWL.supabaseKey) return null;
+      if (!window.supabase || typeof window.supabase.createClient !== "function") return null;
+      try {
+        client = window.supabase.createClient(PWL.supabaseUrl, PWL.supabaseKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+          realtime: { params: { eventsPerSecond: EVENTS_PER_SECOND } }
+        });
+      } catch (e) { client = null; }
+      return client;
+    }
+
+    return {
+      name: "supabase",
+      serverSyncsNewPeers: false,
+      connect: function (room, h) {
+        const sb = ensureClient();
+        if (!sb) { h.onStatus("unavailable"); return; }
+        h.onStatus("joining");
+        try {
+          channel = sb.channel("pwl-room-" + room, {
+            config: { broadcast: { self: false, ack: false } }
+          });
+          ["p", "x", "bye"].forEach(function (ev) {
+            channel.on("broadcast", { event: ev }, function (m) { h.onMessage(ev, m.payload); });
+          });
+          channel.subscribe(function (status) {
+            if (status === "SUBSCRIBED") h.onStatus("joined");
+            else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") h.onStatus("unavailable");
+          });
+        } catch (e) {
+          channel = null;
+          h.onStatus("unavailable");
+        }
+      },
+      send: function (event, payload) {
+        if (!channel) return;
+        try { channel.send({ type: "broadcast", event: event, payload: payload }); } catch (e) {}
+      },
+      close: function () {
+        if (!channel) return;
+        try { channel.unsubscribe(); } catch (e) {}
+        try { if (client) client.removeChannel(channel); } catch (e) {}
+        channel = null;
+      }
+    };
+  }
+
+  function pickTransport() {
+    if (RELAY_URL) return cloudflareTransport(RELAY_URL);
+    if (PWL.supabaseUrl && PWL.supabaseKey) return supabaseTransport();
+    return null;
+  }
+
+  // =========================================================================
+  // Room logic, shared by every transport.
+  // =========================================================================
 
   function setState(next) {
     if (state === next) return;
     state = next;
     snapshotDirty = true;
+    if (next === "joined") {
+      startSweep();
+      flush(true);                                    // announce ourselves
+      if (Object.keys(shared).length) rawSend("x", { i: myId, v: shared });
+    }
     emit();
   }
 
@@ -167,8 +308,8 @@
 
   // ---- Sending ------------------------------------------------------------
   function rawSend(event, payload) {
-    if (!channel || state !== "joined") return;
-    try { channel.send({ type: "broadcast", event: event, payload: payload }); } catch (e) {}
+    if (!transport || state !== "joined") return;
+    transport.send(event, payload);
   }
 
   /* Send my state if it has actually changed (or `force`, for the heartbeat).
@@ -185,8 +326,8 @@
   }
 
   /* Coalesce to at most `rate` sends a second. Python calls net.me() every
-   * frame; at 30 fps and rate 10 that is two of every three calls collapsing
-   * into the next window instead of becoming traffic. */
+   * frame; at 30 fps and rate 5 that is five of every six calls collapsing into
+   * the next window instead of becoming traffic. */
   function schedule() {
     if (pending || state !== "joined") return;
     const wait = Math.max(0, (1000 / rate) - (Date.now() - lastSentAt));
@@ -207,10 +348,11 @@
       state: payload.s && typeof payload.s === "object" ? payload.s : {},
       seen: Date.now()
     });
-    // A player we have not seen before has just appeared, so tell them what we
-    // know: our own position lands on their next frame instead of after their
-    // first timeout, and the shared values stop being invisible to late joiners.
-    if (!existing) {
+    // On a relay that does not remember the room, a player we have not seen
+    // before has just appeared and knows nothing: tell them where we are and
+    // what the shared values say, or they wait a whole timeout to find out.
+    // The Worker does this itself, so there it would be pure waste.
+    if (!existing && transport && !transport.serverSyncsNewPeers) {
       flush(true);
       if (Object.keys(shared).length) rawSend("x", { i: myId, v: shared });
     }
@@ -237,6 +379,15 @@
     if (peers.delete(String(payload.i))) { snapshotDirty = true; emit(); }
   }
 
+  const HANDLERS = {
+    onStatus: setState,
+    onMessage: function (event, data) {
+      if (event === "p") onPlayer(data);
+      else if (event === "x") onShared(data);
+      else if (event === "bye") onBye(data);
+    }
+  };
+
   // ---- Public API ---------------------------------------------------------
   function join(room, opts) {
     const want = cleanRoom(room);
@@ -244,50 +395,27 @@
     rate = Math.max(1, Math.min(20, Number(opts.rate) || DEFAULT_RATE));
     myName = opts.name ? String(opts.name).slice(0, 24) : defaultName();
 
-    // Already here: re-joining every time a student presses Run would burn the
-    // channel-join rate limit and blink everyone's car off the screen.
-    if (channel && want === roomName && (state === "joined" || state === "joining")) {
+    // Already here: re-connecting every time a student presses Run would blink
+    // everyone's car off the screen (and on Supabase, burn the join rate limit).
+    if (transport && want === roomName && (state === "joined" || state === "joining")) {
       snapshotDirty = true;
       emit();
       return;
     }
     leave();
 
-    const sb = ensureClient();
-    if (!sb) { setState("unavailable"); return; }
-
+    transport = pickTransport();
+    if (!transport) { setState("unavailable"); return; }
     roomName = want;
-    setState("joining");
-    try {
-      channel = sb.channel("pwl-room-" + roomName, {
-        config: { broadcast: { self: false, ack: false } }
-      });
-      channel.on("broadcast", { event: "p" }, function (m) { onPlayer(m.payload); });
-      channel.on("broadcast", { event: "x" }, function (m) { onShared(m.payload); });
-      channel.on("broadcast", { event: "bye" }, function (m) { onBye(m.payload); });
-      channel.subscribe(function (status) {
-        if (status === "SUBSCRIBED") {
-          setState("joined");
-          startSweep();
-          flush(true);                                  // announce ourselves
-          if (Object.keys(shared).length) rawSend("x", { i: myId, v: shared });
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          setState("unavailable");
-        }
-      });
-    } catch (e) {
-      channel = null;
-      setState("unavailable");
-    }
+    transport.connect(want, HANDLERS);
   }
 
   function leave() {
-    if (channel) {
+    if (transport) {
       rawSend("bye", { i: myId });
-      try { channel.unsubscribe(); } catch (e) {}
-      try { if (client) client.removeChannel(channel); } catch (e) {}
+      transport.close();
     }
-    channel = null;
+    transport = null;
     roomName = "";
     peers.clear();
     for (const k in shared) delete shared[k];
@@ -302,8 +430,8 @@
 
   function publish(next) {
     if (!next || typeof next !== "object") return;
-    // A runaway state object would be rejected by the server (256 KB) or just
-    // waste the room's quota; drop the overflow here where it is diagnosable.
+    // A runaway state object would be rejected by the relay or just waste the
+    // room's quota; drop the overflow here where it is diagnosable.
     let json;
     try { json = JSON.stringify(next); } catch (e) { return; }
     if (json.length > MAX_STATE_BYTES) return;
@@ -311,11 +439,11 @@
     schedule();
   }
 
-  /* The snapshot has to stay inside the worker's shared-memory region, and
-   * peers are already bounded by MAX_PEERS and MAX_STATE_BYTES. Shared values
-   * are the other half of that budget: without these two caps one net.set() of
-   * a big string would truncate the snapshot mid-JSON and every player's room
-   * would freeze on the last parseable copy. */
+  /* The snapshot has to stay inside the worker runtime's shared-memory region,
+   * and peers are already bounded by MAX_PEERS and MAX_STATE_BYTES. Shared
+   * values are the other half of that budget: without these two caps one
+   * net.set() of a big string would truncate the snapshot mid-JSON and every
+   * player's room would freeze on the last parseable copy. */
   function setShared(key, value) {
     const k = String(key).slice(0, 32);
     if (shared[k] === value) return;
@@ -330,15 +458,15 @@
     emit();
   }
 
-  /* Clearing between runs drops the ghosts but KEEPS the socket: pressing Run
-   * should not cost a reconnect, and the room is the same room. */
+  /* Clearing between runs drops the ghosts but KEEPS the connection: pressing
+   * Run should not cost a reconnect, and the room is the same room. */
   function resetRun() {
     myState = null;
     lastSentJson = "";
     snapshotDirty = true;
   }
 
-  window.addEventListener("pagehide", function () { if (channel) rawSend("bye", { i: myId }); });
+  window.addEventListener("pagehide", function () { if (transport) rawSend("bye", { i: myId }); });
 
   PWL.net = {
     id: myId,
@@ -348,7 +476,10 @@
     setShared: setShared,
     resetRun: resetRun,
     state: function () { return state; },
-    available: function () { return !!(PWL.supabaseUrl && PWL.supabaseKey); },
+    // Which relay is in use, or "" before the first join. Handy in the console
+    // for checking a deploy actually took effect.
+    transport: function () { return transport ? transport.name : (RELAY_URL ? "cloudflare" : "supabase"); },
+    available: function () { return !!(RELAY_URL || (PWL.supabaseUrl && PWL.supabaseKey)); },
     snapshotJson: function () {
       if (snapshotDirty) rebuild();
       return snapshotJson;

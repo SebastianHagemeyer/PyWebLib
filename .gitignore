@@ -14,3 +14,7 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Cloudflare relay (worker/): wrangler's local state and any deps it pulls
+node_modules/
+.wrangler/
