@@ -1435,13 +1435,14 @@ def _pyrun_install_net():
                 if gone.sprite is not None:
                     gone.sprite.remove()
 
-    def join(room, name=None, rate=10):
+    def join(room, name=None, rate=5):
         # Join a room. Everyone who runs join() with the SAME room name plays
         # together, so pick something your friends can retype:
         #   net.join("year9-bombers")
         # It returns straight away and connects in the background; net.online()
         # tells you when you are in. rate is how many times a second your
-        # position may go out (1 to 20). Lower is cheaper and still looks fine.
+        # position may go out (1 to 20). The default 5 looks smooth at 30 fps and
+        # costs half of what 10 does; raise it only for something twitchy.
         _io.join(str(room), "" if name is None else str(name), int(rate))
         _S["raw"] = None
         return True
@@ -2827,7 +2828,7 @@ del _pyrun_install_net
     available: function () { const n = pwlNet(); return !!(n && n.available()); },
     join: function (room, name, rate) {
       const n = pwlNet();
-      if (n) n.join(String(room), { name: String(name || ""), rate: Number(rate) || 10 });
+      if (n) n.join(String(room), { name: String(name || ""), rate: Number(rate) || 5 });
     },
     leave: function () { const n = pwlNet(); if (n) n.leave(); },
     publish: function (json) {

@@ -136,7 +136,7 @@ const GAME3D_IO = {
 const NET_IO = {
   myId: function () { return netId; },
   available: function () { return netAvailable; },
-  join: function (room, name, rate) { post("n", "join", [String(room), String(name), Number(rate) || 10]); },
+  join: function (room, name, rate) { post("n", "join", [String(room), String(name), Number(rate) || 5]); },
   leave: function () { post("n", "leave", []); },
   publish: function (json) { post("n", "publish", [String(json)]); },
   setShared: function (key, json) { post("n", "setShared", [String(key), String(json)]); },

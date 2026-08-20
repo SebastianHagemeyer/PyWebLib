@@ -34,7 +34,11 @@
   const PWL = (window.PWL = window.PWL || {});
 
   // ---- Tunables -----------------------------------------------------------
-  const DEFAULT_RATE = 10;      // outbound player updates per second, max
+  // 5, not 10. Cost grows with the SQUARE of the room size (see the header), and
+  // at a 30 fps game loop the difference between 5 and 10 updates a second is
+  // hard to see while the bill for it is exactly double. Games that really need
+  // it can still ask: net.join(room, rate=15).
+  const DEFAULT_RATE = 5;       // outbound player updates per second, max
   const HEARTBEAT_MS = 1500;    // resend an unchanged state at least this often
   const PEER_TIMEOUT_MS = 4000; // drop a peer we have not heard from since
   const MAX_PEERS = 24;         // most players one room will report

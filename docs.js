@@ -303,7 +303,7 @@
       items: [
         { sig: 'import net', desc: "Turn on multiplayer. Use it next to import game.", ex: 'import game, net' },
         { sig: 'net.join(room)', desc: "Join a room. Anyone who joins the SAME name plays with you. It returns straight away and connects in the background.", ex: 'net.join("year9-bombers")' },
-        { sig: 'net.join(room, name=, rate=)', desc: "name is what others see you called. rate is how many times a second your position may be sent (1-20). Lower is cheaper and usually still looks fine.", ex: 'net.join("race", name="Sam", rate=5)' },
+        { sig: 'net.join(room, name=, rate=)', desc: "name is what others see you called. rate is how many times a second your position may be sent (1-20). The default 5 looks smooth at 30 fps and costs half what 10 does; raise it only for something twitchy.", ex: 'net.join("race", name="Sam", rate=8)' },
         { sig: 'net.me(sprite)', desc: "Show this sprite to everyone else in the room. Call it once per frame, at the end of your loop. Standing still costs nothing: unchanged positions are not resent.", ex: 'net.me(car)' },
         { sig: 'net.me(sprite, **extras)', desc: "Send extra facts about yourself along with your position. Others read them back with p.get().", ex: 'net.me(car, hp=3, ready=True)' },
         { sig: 'net.others()', desc: "The list of other players. Each one already has a sprite, created, moved and removed for you.", ex: 'for p in net.others():\n    if car.touches(p):\n        game.game_over("Crash!")' },

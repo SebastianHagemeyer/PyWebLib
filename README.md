@@ -51,10 +51,12 @@ while game.playing():
 Rooms run on [Supabase Realtime](https://supabase.com/docs/guides/realtime)
 broadcast, which is a hosted WebSocket relay rather than the database, so
 multiplayer adds no table, no schema and no row-level-security policy. Sending
-is throttled and deduplicated, so a parked sprite is nearly free. Traffic still
-grows with the *square* of the room size and Supabase bills per recipient, so
-keep rooms small and read the cost notes in the guide before pointing a whole
-class at it.
+is throttled (5 updates a second by default) and deduplicated, so a parked
+sprite is nearly free. Traffic still grows with the *square* of the room size
+and Supabase bills per recipient, so keep rooms small: a few friends fit in the
+free tier, a weekly class does not. The [cost notes](https://play.pyweblib.org/docs/net/#cost)
+have the numbers, and the transport sits behind `PWL.net` in `net.js` so it can
+be swapped for a cheaper relay without touching a line of Python.
 
 ## Turtle drawing (`import turtle`)
 

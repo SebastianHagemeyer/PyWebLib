@@ -164,7 +164,7 @@ while game.playing():
         <section id="reference">
           <h2>Every call</h2>
           <ul class="key-points">
-            <li><code>net.join(room, name=None, rate=10)</code> &mdash; join a room. Returns straight away and connects in the background. <code>rate</code> is how many times a second your position may be sent (1&ndash;20); lower is cheaper and usually still looks fine.</li>
+            <li><code>net.join(room, name=None, rate=5)</code> &mdash; join a room. Returns straight away and connects in the background. <code>rate</code> is how many times a second your position may be sent (1&ndash;20). The default 5 looks smooth at 30 fps and costs half what 10 does; raise it only for something twitchy.</li>
             <li><code>net.me(sprite, **extras)</code> &mdash; publish my position and skin. Call it once per frame. Standing still costs nothing.</li>
             <li><code>net.others()</code> &mdash; the other players, each with a sprite already on screen.</li>
             <li><code>net.set(key, value)</code> / <code>net.get(key, default=None)</code> &mdash; one fact the whole room shares.</li>
@@ -179,15 +179,23 @@ while game.playing():
 
         <section id="cost">
           <h2>What it costs</h2>
-          <p>Worth knowing before you point a whole class at it. Rooms run on Supabase Realtime, which charges <strong>per message received, not per message sent</strong>: one update in a room of four counts as five messages, because four people get a copy. Traffic grows with the <em>square</em> of the room size.</p>
-          <p>PyWebLib already does the two things that matter most. Updates are <strong>throttled</strong> to <code>rate</code> a second no matter how fast your loop runs, and an unchanged position is <strong>not resent</strong>, so a parked car is nearly free. Measured: 121 calls to <code>net.me()</code> in a second while moving became 21 messages; parked, it became 2.</p>
-          <p>Rough numbers for a 40-minute lesson with everyone moving the whole time, on the free tier's 2 million messages a month:</p>
+          <p>Worth knowing before you point a whole class at it. The pages themselves are free to host; the only thing that costs money is relaying the messages.</p>
+          <p>PyWebLib already does the two things that matter most. Updates are <strong>throttled</strong> to <code>rate</code> a second no matter how fast your loop runs, and an unchanged position is <strong>not resent</strong>, so a parked car is nearly free. Measured at the default <code>rate=5</code>: 123 calls to <code>net.me()</code> in a second while moving became <strong>11 messages</strong>; parked, it became <strong>2</strong>.</p>
+
+          <h3>On Supabase (what this ships with)</h3>
+          <p>Supabase charges <strong>per message received, not per message sent</strong>: one update in a room of four counts as five, because four people get a copy. So traffic grows with the <em>square</em> of the room size, and room size matters far more than tick rate. Roughly, with everyone moving most of the time, against the free tier's 2 million messages a month:</p>
           <ul class="key-points">
-            <li><strong>One room of 4</strong> &mdash; about 400k messages. Fine.</li>
-            <li><strong>Eight rooms of 4</strong> (a class of 32) &mdash; about 3.2M. Over the free month, in one lesson.</li>
-            <li><strong>One room of 30</strong> &mdash; about 23M. Do not do this.</li>
+            <li><strong>You and three friends, a couple of hours a week</strong> &mdash; about 1.7M. Free.</li>
+            <li><strong>A code club: three rooms of four, an hour a week</strong> &mdash; about 2.6M. Needs the $25 plan.</li>
+            <li><strong>One class a week</strong> (eight rooms of four) &mdash; about 5.8M, so about $27.</li>
+            <li><strong>Five classes a week</strong> &mdash; about 29M, so about $84.</li>
+            <li><strong>One room of 30</strong> &mdash; do not. The square is brutal: it is more traffic than the whole rest of this list put together.</li>
           </ul>
-          <p>So: <strong>small rooms</strong>, and drop <code>rate</code> to 4 or 5 for anything that is not twitchy. A class needs a paid plan; a club of six does not.</p>
+
+          <h3>The cheaper shape, if it grows</h3>
+          <p>A relay does not have to bill you for the fan-out. On a <a href="https://developers.cloudflare.com/durable-objects/" target="_blank" rel="noopener">Cloudflare Durable Object</a>, only messages arriving <em>in</em> are charged, and incoming WebSocket messages are counted at 20:1 on top of that. The square disappears and the numbers stop mattering: <strong>five classes a week fits inside Cloudflare's free tier</strong> (100,000 requests and 13,000 GB-s a day), and so would four lessons in a single day. Only a genuinely public, all-day game needs their $5 plan.</p>
+          <p>The trade is that it is a small server you write and deploy, against Supabase needing no code at all. The transport lives entirely in <code>net.js</code> behind <code>PWL.net</code>, so swapping it changes no Python, no student code and nothing on this page except these numbers.</p>
+          <p class="callout"><strong>Two levers, in order.</strong> Keep <strong>rooms small</strong> &mdash; that is the squared term, and it dominates everything else. Then drop <code>rate</code> to 4 or 5 for anything that is not twitchy. Doing both is the difference between free and a bill.</p>
         </section>
 
         <section id="limits">
