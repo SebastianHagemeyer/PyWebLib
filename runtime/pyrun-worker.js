@@ -7,7 +7,9 @@
  *      with Atomics.wait on a SharedArrayBuffer instead of stack-switching.
  * Draw calls are posted to the main thread, which replays them through the
  * existing TURTLE_IO / GAME_IO. Live input (keys, mouse, playing) is read
- * straight out of the shared buffer.
+ * straight out of the shared buffer, and so is the multiplayer room: this
+ * worker cannot receive a postMessage while it is parked in Atomics.wait, so
+ * the main thread writes each new room snapshot into the buffer instead.
  */
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
 importScripts(PYODIDE_URL + "pyodide.js", "./pyrun-proto.js");
@@ -17,6 +19,10 @@ let mem = null;                 // { ctrl, str, interruptView, ... } from PRProt
 const assetRatios = {};         // asset id -> width/height, pushed from the main thread
 const assetInks = {};            // asset id -> "fx,fy,fw,fh" artwork box, likewise
 let savedState = {};            // logical save key -> blob, seeded by "saveSnapshot" at run start
+let netId = "solo";             // my multiplayer player id, handed over at init
+let netAvailable = false;       // is a multiplayer backend configured at all?
+let netSeqSeen = -1;            // last settled snapshot counter we decoded
+let netCache = "";              // ...and the JSON we decoded from it
 const CTRL = self.PRProto.CTRL;
 const dec = new TextDecoder();
 
@@ -123,6 +129,38 @@ const GAME3D_IO = {
   draw: function (json) { post("d", "draw", [String(json)]); }
 };
 
+// Multiplayer (import net). Sending is fire-and-forget to the main thread,
+// which owns the socket. READING is the interesting half: a worker stuck in
+// Atomics.wait never runs its message handler, so the room cannot be delivered
+// by postMessage and is read out of the shared buffer instead.
+const NET_IO = {
+  myId: function () { return netId; },
+  available: function () { return netAvailable; },
+  join: function (room, name, rate) { post("n", "join", [String(room), String(name), Number(rate) || 5]); },
+  leave: function () { post("n", "leave", []); },
+  publish: function (json) { post("n", "publish", [String(json)]); },
+  setShared: function (key, json) { post("n", "setShared", [String(key), String(json)]); },
+  reset: function () { post("n", "reset", []); },
+  /* The read side of the seqlock in pyrun.js: the writer makes the counter odd
+   * while the bytes are changing and even once they have settled. An odd count,
+   * or a count that moved while we were copying, means we caught a half-written
+   * snapshot, so we keep the last good one — one stale frame beats handing
+   * Python a torn string to parse. */
+  snapshot: function () {
+    const before = Atomics.load(mem.ctrl, CTRL.NETSEQ);
+    if (before % 2 !== 0) return netCache;          // a write is in flight
+    if (before === netSeqSeen) return netCache;     // nothing new since last time
+    const len = Atomics.load(mem.ctrl, CTRL.NETLEN);
+    if (len <= 0) { netSeqSeen = before; netCache = ""; return netCache; }
+    const copy = new Uint8Array(Math.min(len, mem.net.length));
+    copy.set(mem.net.subarray(0, copy.length));
+    if (Atomics.load(mem.ctrl, CTRL.NETSEQ) !== before) return netCache;   // it moved: torn
+    netCache = dec.decode(copy);
+    netSeqSeen = before;
+    return netCache;
+  }
+};
+
 const SANDBOX_IO = {
   readLine: function (prompt) { return blockInput(prompt); },
   sleepMs: function (seconds) { blockSleep(seconds * 1000); },
@@ -135,7 +173,8 @@ const RESET_PY =
   "import sys\n" +
   "if 'turtle' in sys.modules: sys.modules['turtle']._reset_all()\n" +
   "if 'game' in sys.modules: sys.modules['game']._reset_all()\n" +
-  "if 'game3d' in sys.modules: sys.modules['game3d']._reset_all()\n";
+  "if 'game3d' in sys.modules: sys.modules['game3d']._reset_all()\n" +
+  "if 'net' in sys.modules: sys.modules['net']._reset_all()\n";
 
 self.onmessage = async function (e) {
   const msg = e.data;
@@ -145,6 +184,8 @@ self.onmessage = async function (e) {
     if (msg.type === "saveSnapshot") { savedState = msg.data || {}; return; }
     if (msg.type === "init") {
       mem = self.PRProto.attach(msg.sab, msg.interrupt);
+      netId = String(msg.netId || "solo");
+      netAvailable = !!msg.netAvailable;
       pyodide = await loadPyodide({ indexURL: PYODIDE_URL });
       pyodide.setInterruptBuffer(mem.interruptView);
       pyodide.setStdout({ batched: function (s) { post("s", "stdout", [s]); } });
@@ -153,6 +194,7 @@ self.onmessage = async function (e) {
       pyodide.registerJsModule("_turtle_io", TURTLE_IO);
       pyodide.registerJsModule("_game_io", GAME_IO);
       pyodide.registerJsModule("_game3d_io", GAME3D_IO);
+      pyodide.registerJsModule("_net_io", NET_IO);
       // The swap that removes the JSPI requirement: run_sync just returns its
       // argument, because the blocking already happened inside the _io call.
       pyodide.runPython("import pyodide.ffi as _f\n_f.run_sync = lambda x: x\n");

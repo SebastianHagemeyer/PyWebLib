@@ -26,6 +26,43 @@ sprite table are in the [game guide](https://play.pyweblib.org/docs/game/).
   <img src="assets/game-ball.gif" width="250" alt="A bouncing ball, smooth (getting pygame into a browser takes extra steps and tooling like pygbag)" />
 </p>
 
+## Multiplayer in six lines (`import net`)
+
+Everyone who joins the same **room name** plays together. There is no server to
+run and no account to make: `net.me()` shows your sprite to the room, and
+`net.others()` puts everyone else's on your screen, creating and removing their
+sprites for you. Full walkthrough in the
+[multiplayer guide](https://play.pyweblib.org/docs/net/).
+
+```python
+import game, net
+
+net.join("year9-bombers")        # same room name = same game
+me = game.sprite("car", 0, 0, 44)
+
+while game.playing():
+    if game.pressed("left"):  me.x -= 5
+    if game.pressed("right"): me.x += 5
+    net.me(me)                   # show me to everyone
+    net.others()                 # ...and everyone to me
+    game.frame(30)
+```
+
+Two relays are supported and the right one is picked automatically:
+
+- **A Cloudflare Worker** (`worker/`, one `npx wrangler deploy`). Preferred.
+  Only messages arriving *in* are billed, so cost grows with the number of
+  players rather than its square: a room of 16 relays 960 messages and pays for
+  64. Several classes a week fit inside the free plan.
+- **[Supabase Realtime](https://supabase.com/docs/guides/realtime) broadcast**
+  otherwise, needing no server at all. It bills per recipient, so a room of four
+  costs five messages per update and a weekly class costs money.
+
+Sending is throttled (5 updates a second by default) and deduplicated either
+way, so a parked sprite is nearly free. Everything above the socket is shared,
+so swapping relays changes no Python and no student code &mdash; see the
+[cost notes](https://play.pyweblib.org/docs/net/#cost) for the numbers.
+
 ## Turtle drawing (`import turtle`)
 
 The classic turtle pen, right in the browser. Forward, turn, change colour,
@@ -39,8 +76,9 @@ walkthrough in the [turtle guide](https://play.pyweblib.org/docs/turtle/).
 
 PyWebLib is deliberately small and self-contained:
 
-- **Static only.** A handful of text files (HTML, one JS file, CSS) plus a favicon. No build step, no server, no database, no accounts.
+- **Static only.** A handful of text files (HTML, one JS file, CSS) plus a favicon. No build step and no server of our own to run.
 - **Client-side Python.** Pyodide loads once from a CDN (about 10 MB, cached afterwards) and runs entirely in the browser tab.
+- **Optional backend.** Sign-in, publishing, the leaderboard and `import net` talk to a hosted Supabase project. Leave it unconfigured and the site still runs: those features hide themselves, and `net` reports `"unavailable"` while every call quietly does nothing.
 - **Made for teaching and tinkering.** Drop it on any static host, share a link, and learners can edit code and press Run.
 
 It is not a full IDE or a hosted notebook. There is no shared file system, no package server, and no persistence beyond your own browser's local storage.
@@ -67,6 +105,7 @@ There are more in the snippet gallery at the bottom of the page: FizzBuzz, Fibon
 - Coloured output: `print("hi", col="#ff0")` (or `color=`); any CSS colour works.
 - A `clear()` builtin to wipe the panel and animate frame by frame.
 - Interruptible: a Stop button cancels long loops and sleeps. `Ctrl+Enter` runs.
+- Multiplayer rooms with `import net`: share a sprite, share a value, no server to run.
 - Snippet gallery: click a card to load an example.
 - Autosave: your code is kept in `localStorage`.
 

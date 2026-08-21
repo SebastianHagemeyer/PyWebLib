@@ -298,6 +298,31 @@
       ]
     },
     {
+      name: "net library (multiplayer)", id: "net",
+      blurb: "Play together. Everyone who joins the same room name sees each other move. Full walkthrough in the multiplayer guide.",
+      items: [
+        { sig: 'import net', desc: "Turn on multiplayer. Use it next to import game.", ex: 'import game, net' },
+        { sig: 'net.join(room)', desc: "Join a room. Anyone who joins the SAME name plays with you. It returns straight away and connects in the background.", ex: 'net.join("year9-bombers")' },
+        { sig: 'net.join(room, name=, rate=)', desc: "name is what others see you called. rate is how many times a second your position may be sent (1-20). The default 5 looks smooth at 30 fps and costs half what 10 does; raise it only for something twitchy.", ex: 'net.join("race", name="Sam", rate=8)' },
+        { sig: 'net.me(sprite)', desc: "Show this sprite to everyone else in the room. Call it once per frame, at the end of your loop. Standing still costs nothing: unchanged positions are not resent.", ex: 'net.me(car)' },
+        { sig: 'net.me(sprite, **extras)', desc: "Send extra facts about yourself along with your position. Others read them back with p.get().", ex: 'net.me(car, hp=3, ready=True)' },
+        { sig: 'net.others()', desc: "The list of other players. Each one already has a sprite, created, moved and removed for you.", ex: 'for p in net.others():\n    if car.touches(p):\n        game.game_over("Crash!")' },
+        { sig: 'player.id', desc: "Who a player is. It does not change while they are playing.", ex: 'if net.get("bomb") == p.id:\n    print(p.name, "has it")' },
+        { sig: 'player.name', desc: "What to call them on screen.", ex: 'game.label(p.name, p.x, p.y + 30, 12)' },
+        { sig: 'player.x / player.y', desc: "Where that player is.", ex: 'print(p.name, "is at", p.x, p.y)' },
+        { sig: 'player.sprite', desc: "The sprite drawing that player, if you want to change it yourself.", ex: 'p.sprite.color = "#ff0044"' },
+        { sig: 'player.get(key, default)', desc: "Read an extra fact they sent with net.me().", ex: 'if p.get("hp", 0) <= 0:\n    print(p.name, "is out!")' },
+        { sig: 'net.set(key, value)', desc: "One fact the whole room shares: who has the bomb, whose turn it is. LAST WRITE WINS, so let only ONE player write each key.", ex: 'net.set("bomb", net.id)' },
+        { sig: 'net.get(key, default)', desc: "Read a shared value. None until somebody has set it.", ex: 'if net.get("bomb") == net.id:\n    print("Run!")' },
+        { sig: 'net.id', desc: "My own player id. Fixed for this browser tab, so a second tab is a second player.", ex: 'if net.get("turn") == net.id:\n    my_go()' },
+        { sig: 'net.count()', desc: "How many players are in the room, me included.", ex: 'game.label("Players: " + str(net.count()), 0, 150, 16)' },
+        { sig: 'net.online()', desc: "True once I am really in the room and can be seen. Joining takes a moment.", ex: 'if not net.online():\n    info.content = "Connecting..."' },
+        { sig: 'net.status()', desc: 'One of "offline", "joining", "joined", or "unavailable" when this copy of PyWebLib has no multiplayer backend set up.', ex: 'print(net.status())' },
+        { sig: 'net.room()', desc: "The room name I ended up in. Spaces and punctuation become dashes.", ex: 'print("You are in", net.room())' },
+        { sig: 'net.leave()', desc: "Leave the room and take everyone else's sprites off my screen.", ex: 'net.leave()' },
+      ]
+    },
+    {
       name: "game3d library", id: "game3d",
       blurb: 'Start with "import game3d" for games in real 3D: shapes in space, a camera you can move, and the same game loop you already know. It is new and deliberately small, so expect shapes and colours rather than models and textures. Coordinates are x right, y up, z towards you, measured in steps rather than pixels, so a box of size 1 is one step wide. Keyboard only for now, so it suits a computer rather than a phone. Try the 3D snippets on the Playground.',
       items: [

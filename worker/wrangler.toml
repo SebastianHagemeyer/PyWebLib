@@ -1,0 +1,25 @@
+# PyWebLib multiplayer relay.
+#
+# Deploy:  cd worker && npx wrangler deploy
+# Then put the URL it prints into net.js (RELAY_URL) or set PWL.netRelayUrl.
+#
+# This runs on the Workers FREE plan: Durable Objects have been available there
+# since April 2025, provided they are SQLite-backed (new_sqlite_classes below).
+# A relay stores almost nothing, so that restriction costs us nothing.
+
+name = "pyweblib-rooms"
+main = "src/index.js"
+compatibility_date = "2025-04-08"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+# SQLite-backed, which is what makes this free-plan eligible. Key-value backed
+# Durable Objects are Paid-plan only.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[observability]
+enabled = true

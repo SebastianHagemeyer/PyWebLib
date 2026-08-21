@@ -36,4 +36,10 @@
 
   PWL.supabase = client;          // the Supabase CLIENT (null until configured)
   PWL.configured = !!client;      // has the community backend been set up?
+  // net.js builds its OWN client from these, because multiplayer needs a higher
+  // realtime event rate than the default and must not share a socket with
+  // sign-in and the leaderboard. Only set when the project is real, so
+  // net.js has a single truthy check to make.
+  PWL.supabaseUrl = looksReal ? SUPABASE_URL : "";
+  PWL.supabaseKey = looksReal ? SUPABASE_ANON_KEY : "";
 })();

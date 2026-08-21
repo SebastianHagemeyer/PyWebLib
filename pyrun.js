@@ -1270,6 +1270,299 @@ _pyrun_install_game3d()
 del _pyrun_install_game3d
 `;
 
+  /* ---- import net: play together ----------------------------------------
+   *
+   * The Python half. Its JS half is NET_IO below, which forwards to PWL.net
+   * (net.js) for the actual WebSocket, and mirrors the room into the shared
+   * buffer so the worker runtime can read it without a round trip. */
+  const PY_INSTALL_NET = `
+def _pyrun_install_net():
+    import sys, json, types
+    import _net_io as _io
+
+    # Everything the module knows about the room right now, refreshed from one
+    # JSON snapshot the JS side keeps up to date. Parsing is skipped whenever
+    # that string has not changed, so calling net.others() every frame at 30 fps
+    # costs a string compare on all but the frames where something moved.
+    _S = {"raw": None, "status": "offline", "shared": {}, "room": "", "name": ""}
+    _peers = {}
+    _mine = {"sprite": None, "values": {}}
+
+    class Peer:
+        # One other player in the room. You never build one of these: net.others()
+        # hands them to you, already carrying a sprite that has been created,
+        # moved and (when they leave) removed for you.
+        def __init__(self, pid, name):
+            self.id = pid
+            self.name = name
+            self.x = 0
+            self.y = 0
+            self.sprite = None
+            self._values = {}
+            self._skin = None
+
+        def get(self, key, default=None):
+            # A custom value the other player sent with net.me(hp=3):
+            #   if enemy.get("hp", 0) <= 0: ...
+            return self._values.get(str(key), default)
+
+        def __getattr__(self, name):
+            # Anything Peer does not define itself is read off its sprite, so
+            # peer.touches(other), peer.size and peer.angle all work, and so does
+            # my_car.touches(peer) (which asks the peer for its collision box).
+            # __dict__ rather than getattr, or this would recurse for ever while
+            # __init__ is still running.
+            spr = self.__dict__.get("sprite")
+            if spr is not None:
+                try:
+                    return getattr(spr, name)
+                except AttributeError:
+                    pass
+            raise AttributeError(name)
+
+        def __repr__(self):
+            return "<player " + str(self.name) + ">"
+
+    def _game():
+        # Imported lazily: net is useful on its own, and a program that never
+        # touches the game module should not drag it in.
+        return sys.modules.get("game")
+
+    def _skin_of(spr):
+        # The smallest description another browser needs in order to draw a copy
+        # of this sprite. Keys are one letter because every one of them is paid
+        # for once per player per update.
+        out = {}
+        if spr is None:
+            return out
+        out["z"] = getattr(spr, "size", 40)
+        out["a"] = round(float(getattr(spr, "angle", 0) or 0), 1)
+        aid = getattr(spr, "asset", None)
+        if aid is not None:
+            out["as"] = aid
+            return out
+        content = getattr(spr, "content", "")
+        if content != "" and content is not None:
+            out["k"] = content
+        else:
+            # A box, a circle or a label: no skin to name, so send its shape.
+            out["w"] = getattr(spr, "w", 40)
+            out["h"] = getattr(spr, "h", 40)
+            out["c"] = getattr(spr, "color", "#ffffff")
+        return out
+
+    def _shape_of(st):
+        # What kind of sprite this state describes. Changing it (a car picking up
+        # the bomb and becoming a bomb) has to rebuild the sprite, not just move
+        # it, so the answer is compared against the last one.
+        if "as" in st:
+            return ("as", st.get("as"))
+        if "k" in st:
+            return ("k", st.get("k"))
+        return ("box", None)
+
+    def _apply(peer, st):
+        g = _game()
+        if g is None:
+            return
+        shape = _shape_of(st)
+        x, y = st.get("x", 0), st.get("y", 0)
+        if peer.sprite is None or peer._skin != shape:
+            if peer.sprite is not None:
+                peer.sprite.remove()
+            if shape[0] == "as":
+                peer.sprite = g.sprite(shape[1], x, y, st.get("z", 40), asset=True)
+            elif shape[0] == "k":
+                peer.sprite = g.sprite(shape[1], x, y, st.get("z", 40))
+            else:
+                peer.sprite = g.box(x, y, st.get("w", 40), st.get("h", 40),
+                                    st.get("c", "#ffffff"))
+            peer._skin = shape
+        s = peer.sprite
+        s.x = x
+        s.y = y
+        s.angle = st.get("a", 0)
+        if "z" in st:
+            s.size = st["z"]
+        if shape[0] == "box" and "c" in st:
+            s.color = st["c"]
+
+    def _sync():
+        raw = _io.snapshot()
+        raw = "" if raw is None else str(raw)
+        if raw == _S["raw"]:
+            return
+        _S["raw"] = raw
+        if not raw:
+            return
+        try:
+            snap = json.loads(raw)
+        except ValueError:
+            return
+        _S["status"] = snap.get("state", "offline")
+        _S["room"] = snap.get("room", "")
+        _S["name"] = snap.get("name", "")
+        # Shared values travel as JSON text so a list or a dict survives the trip
+        # intact; decode them once here rather than on every net.get().
+        decoded = {}
+        for k, v in (snap.get("shared") or {}).items():
+            try:
+                decoded[k] = json.loads(v)
+            except (ValueError, TypeError):
+                decoded[k] = v
+        _S["shared"] = decoded
+
+        seen = set()
+        for p in snap.get("peers") or []:
+            pid = str(p.get("i", ""))
+            if not pid:
+                continue
+            seen.add(pid)
+            peer = _peers.get(pid)
+            if peer is None:
+                peer = Peer(pid, str(p.get("n", pid)))
+                _peers[pid] = peer
+            peer.name = str(p.get("n", pid))
+            st = p.get("s") or {}
+            peer.x = st.get("x", 0)
+            peer.y = st.get("y", 0)
+            peer._values = st.get("v") or {}
+            _apply(peer, st)
+        # Whoever stopped talking has left: take their sprite off the screen.
+        for pid in list(_peers.keys()):
+            if pid not in seen:
+                gone = _peers.pop(pid)
+                if gone.sprite is not None:
+                    gone.sprite.remove()
+
+    def join(room, name=None, rate=5):
+        # Join a room. Everyone who runs join() with the SAME room name plays
+        # together, so pick something your friends can retype:
+        #   net.join("year9-bombers")
+        # It returns straight away and connects in the background; net.online()
+        # tells you when you are in. rate is how many times a second your
+        # position may go out (1 to 20). The default 5 looks smooth at 30 fps and
+        # costs half of what 10 does; raise it only for something twitchy.
+        _io.join(str(room), "" if name is None else str(name), int(rate))
+        _S["raw"] = None
+        return True
+
+    def leave():
+        # Leave the room and drop every other player's sprite.
+        for pid in list(_peers.keys()):
+            gone = _peers.pop(pid)
+            if gone.sprite is not None:
+                gone.sprite.remove()
+        _io.leave()
+        _S["raw"] = None
+        _S["status"] = "offline"
+
+    def me(sprite=None, **values):
+        # Tell everyone else where you are. Pass the sprite that IS you and it
+        # is copied onto every other screen, skin and all:
+        #   net.me(car)
+        # Extra keywords ride along for the others to read with peer.get():
+        #   net.me(car, hp=3)
+        # Call it once per frame; sending is throttled and unchanged positions
+        # are not resent, so standing still is free.
+        if sprite is not None:
+            _mine["sprite"] = sprite
+        spr = _mine["sprite"]
+        st = _skin_of(spr)
+        if spr is not None:
+            st["x"] = round(float(getattr(spr, "x", 0) or 0), 1)
+            st["y"] = round(float(getattr(spr, "y", 0) or 0), 1)
+        # x= and y= override the sprite, and let you play without one at all.
+        if "x" in values:
+            st["x"] = round(float(values.pop("x")), 1)
+        if "y" in values:
+            st["y"] = round(float(values.pop("y")), 1)
+        if values:
+            _mine["values"].update(values)
+        if _mine["values"]:
+            st["v"] = _mine["values"]
+        try:
+            _io.publish(json.dumps(st))
+        except (TypeError, ValueError):
+            pass
+
+    def others():
+        # Every other player in the room, each with a sprite already on screen:
+        #   for p in net.others():
+        #       if car.touches(p): game.game_over("Crash!")
+        _sync()
+        return [_peers[k] for k in sorted(_peers.keys())]
+
+    def _set_value(key, value):
+        # Put a value everyone in the room can read. Last write wins, so let ONE
+        # player own each value: in bomb tag only whoever holds the bomb ever
+        # writes it, and then there is nothing to disagree about.
+        #   net.set("bomb", p.id)
+        try:
+            _io.setShared(str(key), json.dumps(value))
+        except (TypeError, ValueError):
+            return
+        _S["raw"] = None
+
+    def _get_value(key, default=None):
+        # Read a shared value (None until somebody has set it).
+        _sync()
+        return _S["shared"].get(str(key), default)
+
+    def online():
+        # True once you are actually in the room and can be seen.
+        _sync()
+        return _S["status"] == "joined"
+
+    def status():
+        # "offline", "joining", "joined", or "unavailable" when this copy of
+        # PyWebLib has no multiplayer backend configured.
+        _sync()
+        return _S["status"]
+
+    def count():
+        # How many players are in the room, you included.
+        _sync()
+        return len(_peers) + (1 if _S["status"] == "joined" else 0)
+
+    def room():
+        _sync()
+        return _S["room"]
+
+    def _reset_all():
+        # A fresh Run starts with no ghosts. The socket stays open on purpose:
+        # pressing Run should not cost a reconnect, and it is the same room.
+        for pid in list(_peers.keys()):
+            _peers.pop(pid)
+        _mine["sprite"] = None
+        _mine["values"] = {}
+        _S["raw"] = None
+        _io.reset()
+
+    mod = types.ModuleType("net")
+    mod.__doc__ = "Play together: share your sprite with everyone in a room."
+    mod.join = join
+    mod.leave = leave
+    mod.me = me
+    mod.others = others
+    mod.set = _set_value
+    mod.get = _get_value
+    mod.online = online
+    mod.status = status
+    mod.count = count
+    mod.room = room
+    mod.Peer = Peer
+    mod._reset_all = _reset_all
+    # Your own player id, fixed for this browser tab. Two tabs are two players,
+    # which is how you test multiplayer on one laptop.
+    mod.id = str(_io.myId())
+    mod.available = lambda: bool(_io.available())
+    sys.modules["net"] = mod
+
+_pyrun_install_net()
+del _pyrun_install_net
+`;
+
   // ---- JS side of the game: canvas drawing + keyboard, dispatched to active -
   let gameKeys = {};
   let gamePlaying = true;
@@ -2485,6 +2778,76 @@ del _pyrun_install_game3d
   };
   window.addEventListener("resize", function () { if (lastG3dScene && THREE && g3dRenderer) renderG3d(lastG3dScene); });
 
+  // ---- JS side of `import net`: rooms, and the bridge into the worker -----
+  //
+  // The socket itself lives in net.js (PWL.net) so that multiplayer stays out
+  // of this file and can be swapped for another transport without touching a
+  // line of Python. Everything here is either forwarding, or the shared-buffer
+  // mirror the worker runtime needs.
+  //
+  // A page that never loaded net.js still runs: every call degrades to a no-op
+  // and net.status() reports "unavailable", which is the same thing a student
+  // sees when the community backend is not configured at all.
+  const netEnc = new TextEncoder();
+  let netMirrorHooked = false;
+
+  /* Copy the current room into the shared buffer for the worker.
+   *
+   * Guarded by a seqlock, because the worker reads this while we write it and
+   * neither side can hold a mutex: the counter goes ODD before the bytes change
+   * and EVEN after, so a reader that sees an odd count (or a different one
+   * either side of its read) knows it caught a half-written snapshot and keeps
+   * the copy it already had. A dropped update costs one frame of staleness; a
+   * torn one would be a JSON parse error in the middle of a game. */
+  function writeNetSnapshot() {
+    if (!workerMem || !workerMem.net || !window.PWL || !window.PWL.net) return;
+    const K = window.PRProto.CTRL;
+    let bytes;
+    try { bytes = netEnc.encode(window.PWL.net.snapshotJson()); } catch (e) { return; }
+    const n = Math.min(bytes.length, workerMem.net.length);
+    Atomics.add(workerMem.ctrl, K.NETSEQ, 1);          // -> odd: write in progress
+    workerMem.net.set(bytes.subarray(0, n));
+    Atomics.store(workerMem.ctrl, K.NETLEN, n);
+    Atomics.add(workerMem.ctrl, K.NETSEQ, 1);          // -> even: settled
+  }
+
+  /* Start mirroring once, when the worker runtime first spins up. On the JSPI
+   * runtime there is no worker and no mirror: NET_IO.snapshot() reads PWL.net
+   * directly. */
+  function hookNetMirror() {
+    if (netMirrorHooked || !window.PWL || !window.PWL.net) return;
+    netMirrorHooked = true;
+    window.PWL.net.onChange(writeNetSnapshot);
+    writeNetSnapshot();
+  }
+
+  function pwlNet() { return (window.PWL && window.PWL.net) || null; }
+
+  const NET_IO = {
+    myId: function () { const n = pwlNet(); return n ? n.id : "solo"; },
+    available: function () { const n = pwlNet(); return !!(n && n.available()); },
+    join: function (room, name, rate) {
+      const n = pwlNet();
+      if (n) n.join(String(room), { name: String(name || ""), rate: Number(rate) || 5 });
+    },
+    leave: function () { const n = pwlNet(); if (n) n.leave(); },
+    publish: function (json) {
+      const n = pwlNet();
+      if (!n) return;
+      let obj;
+      try { obj = JSON.parse(String(json)); } catch (e) { return; }
+      n.publish(obj);
+    },
+    // Values arrive already JSON-encoded from Python, so a list or a dict
+    // survives the trip and the dedupe in net.js is a plain string compare.
+    setShared: function (key, json) {
+      const n = pwlNet();
+      if (n) n.setShared(String(key), String(json));
+    },
+    snapshot: function () { const n = pwlNet(); return n ? n.snapshotJson() : ""; },
+    reset: function () { const n = pwlNet(); if (n) n.resetRun(); }
+  };
+
   // ---- JS side of the turtle: canvas drawing, dispatched to `active` ------
 
   function turtleCtx() {
@@ -2859,13 +3222,16 @@ del _pyrun_install_game3d
     sharedWorkerReady = new Promise(function (resolve, reject) {
       try {
         workerMem = window.PRProto.make();
+        hookNetMirror();          // the room now has somewhere to be mirrored to
         const w = new Worker(WORKER_URL);
         w.onmessage = onWorkerMessage;
         w.onerror = function (ev) { reject(new Error("worker failed: " + (ev && ev.message || "load error"))); };
         workerReadyResolve = resolve;
         w.postMessage({
           type: "init", sab: workerMem.sab, interrupt: workerMem.interrupt,
-          installs: [PY_INSTALL_INPUT, PY_PATCH_SLEEP, PY_INSTALL_INTERRUPT, PY_INSTALL_CLEAR, PY_INSTALL_COLOR_PRINT, PY_INSTALL_TURTLE, PY_INSTALL_GAME, PY_INSTALL_GAME3D]
+          installs: [PY_INSTALL_INPUT, PY_PATCH_SLEEP, PY_INSTALL_INTERRUPT, PY_INSTALL_CLEAR, PY_INSTALL_COLOR_PRINT, PY_INSTALL_TURTLE, PY_INSTALL_GAME, PY_INSTALL_GAME3D, PY_INSTALL_NET],
+          netId: (window.PWL && window.PWL.net) ? window.PWL.net.id : "",
+          netAvailable: !!(window.PWL && window.PWL.net && window.PWL.net.available())
         });
         sharedWorker = w;
       } catch (e) { reject(e); }
@@ -2892,6 +3258,8 @@ del _pyrun_install_game3d
       else if (m.io === "g") {
         if (m.op === "reset") { GAME_IO.reset(); zeroInputState(); }
         else if (GAME_IO[m.op]) GAME_IO[m.op].apply(null, a);
+      } else if (m.io === "n") {          // multiplayer (import net)
+        if (NET_IO[m.op]) NET_IO[m.op].apply(null, a);
       } else if (m.io === "d") {          // 3D (import game3d)
         if (m.op === "reset") { GAME3D_IO.reset(); zeroInputState(); }
         else if (GAME3D_IO[m.op]) GAME3D_IO[m.op].apply(null, a);
@@ -2967,6 +3335,7 @@ del _pyrun_install_game3d
       py.registerJsModule("_turtle_io", TURTLE_IO);
       py.registerJsModule("_game_io", GAME_IO);
       py.registerJsModule("_game3d_io", GAME3D_IO);
+      py.registerJsModule("_net_io", NET_IO);
       const useJspi = jspiSupported();
       await py.runPythonAsync(useJspi ? PY_INSTALL_INPUT : PY_DISABLE_INPUT);
       if (useJspi) await py.runPythonAsync(PY_PATCH_SLEEP);
@@ -2976,6 +3345,7 @@ del _pyrun_install_game3d
       await py.runPythonAsync(PY_INSTALL_TURTLE);
       await py.runPythonAsync(PY_INSTALL_GAME);
       await py.runPythonAsync(PY_INSTALL_GAME3D);
+      await py.runPythonAsync(PY_INSTALL_NET);
       appendToActive("Python ready. Running your code…", "info");
       pyodide = py;
       return py;
@@ -3162,7 +3532,9 @@ del _pyrun_install_game3d
             "if 'game' in sys.modules:\n" +
             "    sys.modules['game']._reset_all()\n" +
             "if 'game3d' in sys.modules:\n" +
-            "    sys.modules['game3d']._reset_all()\n"
+            "    sys.modules['game3d']._reset_all()\n" +
+            "if 'net' in sys.modules:\n" +
+            "    sys.modules['net']._reset_all()\n"
           );
           resetTurtle();
           // Run in a FRESH namespace each time, so variables from a previous
