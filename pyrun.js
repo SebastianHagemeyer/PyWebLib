@@ -1277,7 +1277,7 @@ del _pyrun_install_game3d
    * buffer so the worker runtime can read it without a round trip. */
   const PY_INSTALL_NET = `
 def _pyrun_install_net():
-    import sys, json, types
+    import sys, json, types, time
     import _net_io as _io
 
     # Everything the module knows about the room right now, refreshed from one
@@ -1295,11 +1295,18 @@ def _pyrun_install_net():
         def __init__(self, pid, name):
             self.id = pid
             self.name = name
+            # .x/.y are where this player is DRAWN, which is what you want for
+            # collisions: you should be tagged by the car you can see, not by
+            # where the last packet said it was going. _tx/_ty are that packet.
             self.x = 0
             self.y = 0
             self.sprite = None
             self._values = {}
             self._skin = None
+            self._tx = 0
+            self._ty = 0
+            self._ta = 0
+            self._ra = 0
 
         def get(self, key, default=None):
             # A custom value the other player sent with net.me(hp=3):
@@ -1362,12 +1369,19 @@ def _pyrun_install_net():
         return ("box", None)
 
     def _apply(peer, st):
+        x, y = st.get("x", 0), st.get("y", 0)
+        # Where the packet says this player is. The sprite is eased toward it by
+        # _tween() rather than dropped on it, which is the whole of the
+        # smoothing: see the note above _tween.
+        peer._tx, peer._ty, peer._ta = x, y, st.get("a", 0)
         g = _game()
         if g is None:
+            # No game module, so no sprite to ease: report the packet as-is.
+            peer.x, peer.y = x, y
             return
         shape = _shape_of(st)
-        x, y = st.get("x", 0), st.get("y", 0)
-        if peer.sprite is None or peer._skin != shape:
+        fresh = peer.sprite is None or peer._skin != shape
+        if fresh:
             if peer.sprite is not None:
                 peer.sprite.remove()
             if shape[0] == "as":
@@ -1378,14 +1392,64 @@ def _pyrun_install_net():
                 peer.sprite = g.box(x, y, st.get("w", 40), st.get("h", 40),
                                     st.get("c", "#ffffff"))
             peer._skin = shape
+            # A sprite that has only just appeared starts AT the target. Easing
+            # it in would slide every newcomer across the screen from wherever
+            # the last sprite happened to be, and a car that picks up the bomb
+            # is a new sprite too.
+            peer.x, peer.y, peer._ra = x, y, peer._ta
         s = peer.sprite
-        s.x = x
-        s.y = y
-        s.angle = st.get("a", 0)
+        s.x = peer.x
+        s.y = peer.y
+        s.angle = peer._ra
         if "z" in st:
             s.size = st["z"]
         if shape[0] == "box" and "c" in st:
             s.color = st["c"]
+
+    # ---- Smoothing ----------------------------------------------------------
+    # Positions arrive rate times a second (5 by default) while the game draws
+    # 30 or 60 frames in that time. Putting each packet straight onto the sprite
+    # is what makes everyone else look like they are teleporting: they sit still
+    # for six frames and then jump. So a packet sets a TARGET, and the sprite
+    # eases toward it here, once per frame.
+    #
+    # Exponential smoothing on a half-life rather than a fixed step per frame,
+    # for two reasons: the ease then looks the same whether the game runs at 30
+    # fps or 60, and calling net.others() twice in one frame cannot advance it
+    # twice (the second call has dt of nearly zero and so does nearly nothing).
+    _HALF_LIFE = 0.07      # seconds to close half the remaining gap
+    _SNAP = 180.0          # further off than this is a teleport, not a move
+    _last_tween = [None]
+
+    def _tween():
+        now = time.time()
+        prev = _last_tween[0]
+        _last_tween[0] = now
+        if prev is None:
+            return
+        dt = now - prev
+        if dt <= 0:
+            return
+        k = 1.0 - 0.5 ** (dt / _HALF_LIFE)
+        for peer in _peers.values():
+            spr = peer.sprite
+            if spr is None:
+                continue
+            dx = peer._tx - peer.x
+            dy = peer._ty - peer.y
+            if dx * dx + dy * dy > _SNAP * _SNAP:
+                # A respawn or a wrap round the edge of the screen. Easing that
+                # would drag the player across the whole window, so jump.
+                peer.x, peer.y, peer._ra = peer._tx, peer._ty, peer._ta
+            else:
+                peer.x += dx * k
+                peer.y += dy * k
+                # Shortest way round, so 350 -> 10 turns 20 degrees, not 340.
+                da = (peer._ta - peer._ra + 180.0) % 360.0 - 180.0
+                peer._ra += da * k
+            spr.x = peer.x
+            spr.y = peer.y
+            spr.angle = peer._ra
 
     def _sync():
         raw = _io.snapshot()
@@ -1424,8 +1488,6 @@ def _pyrun_install_net():
                 _peers[pid] = peer
             peer.name = str(p.get("n", pid))
             st = p.get("s") or {}
-            peer.x = st.get("x", 0)
-            peer.y = st.get("y", 0)
             peer._values = st.get("v") or {}
             _apply(peer, st)
         # Whoever stopped talking has left: take their sprite off the screen.
@@ -1491,6 +1553,7 @@ def _pyrun_install_net():
         #   for p in net.others():
         #       if car.touches(p): game.game_over("Crash!")
         _sync()
+        _tween()
         return [_peers[k] for k in sorted(_peers.keys())]
 
     def _set_value(key, value):

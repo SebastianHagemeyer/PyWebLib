@@ -90,13 +90,13 @@
 net.join("my-first-room")        # anyone with this name plays with you
 
 game.window(480, 360)
-me = game.sprite("car", 0, 0, 44)
+me = game.sprite("car", 240, 180, 44)
 
 while game.playing():
     if game.pressed("left"):  me.x -= 5
     if game.pressed("right"): me.x += 5
-    if game.pressed("up"):    me.y += 5
-    if game.pressed("down"):  me.y -= 5
+    if game.pressed("up"):    me.y -= 5
+    if game.pressed("down"):  me.y += 5
 
     net.me(me)       # show my car to everyone
     net.others()     # ...and put their cars on my screen
@@ -149,16 +149,30 @@ net.join("bomb-tag")
 
 game.window(480, 360)
 game.background("#101828")
-me = game.sprite("car", random.randint(-180, 180), random.randint(-110, 110), 44)
-info = game.label("", 0, 150, 16)
+me = game.sprite("car", random.randint(60, 420), random.randint(60, 300), 44)
+info = game.label("", 240, 24, 16)
+
+COOLDOWN = 30        # frames you must hold it for: 1 second at 30 fps
+KNOCKBACK = 46       # pixels the two of you are shoved apart on a tag
+
+def back_off(x, y):
+    # Push me away from a point. Without this the two cars are still touching
+    # the instant the bomb changes hands, so it would come straight back.
+    dx, dy = me.x - x, me.y - y
+    gap = (dx * dx + dy * dy) ** 0.5
+    if gap < 1:                  # dead centre on top of each other
+        dx, dy, gap = 1.0, 0.0, 1.0
+    me.x += dx / gap * KNOCKBACK
+    me.y += dy / gap * KNOCKBACK
+
+cooldown = 0
+had_bomb = False
 
 while game.playing():
     if game.pressed("left"):  me.x -= 5
     if game.pressed("right"): me.x += 5
-    if game.pressed("up"):    me.y += 5
-    if game.pressed("down"):  me.y -= 5
-    me.x = max(-220, min(220, me.x))
-    me.y = max(-160, min(160, me.y))
+    if game.pressed("up"):    me.y -= 5
+    if game.pressed("down"):  me.y += 5
 
     players = net.others()
     holder = net.get("bomb")
@@ -171,29 +185,47 @@ while game.playing():
             net.set("bomb", net.id)
 
     mine = (holder == net.id)
+
+    # Just been handed it? Jump back off whoever tagged me and start the
+    # cooldown, so it cannot bounce between two cars that are touching.
+    if mine and not had_bomb:
+        cooldown = COOLDOWN
+        for p in players:
+            if me.touches(p):
+                back_off(p.x, p.y)
+                break
+    had_bomb = mine
+    if cooldown > 0:
+        cooldown -= 1
+
     want = "💣" if mine else "car"
     if me.content != want:
         me.content = want
 
     # Only whoever HOLDS the bomb ever writes down who has it next, so two
     # players can never disagree about where it is.
-    if mine:
+    if mine and cooldown == 0:
         for p in players:
             if me.touches(p):
                 net.set("bomb", p.id)
+                back_off(p.x, p.y)
                 break
 
+    me.x = max(22, min(458, me.x))
+    me.y = max(22, min(338, me.y))
     net.me(me)
 
     if not net.online():
         info.content = "Connecting..."
+    elif mine and cooldown > 0:
+        info.content = "You have the bomb! Hold it for " + str(cooldown // 30 + 1) + "..."
     elif mine:
         info.content = "You have the bomb! Run into someone."
     else:
         info.content = "Players: " + str(net.count()) + " - keep away from the bomb!"
     game.frame(30)</pre>
           <p><button type="button" class="btn btn-primary" data-load="ex-bomb">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
-          <p>Ideas to take it further: a countdown that ends the game for whoever is holding it, a short cooldown so the bomb cannot bounce straight back, a score kept in <code>net.set("scores", ...)</code>, or making the bomb holder faster than everyone else.</p>
+          <p>Ideas to take it further: a countdown that ends the game for whoever is holding it, a score kept in <code>net.set("scores", ...)</code>, or making the bomb holder faster than everyone else.</p>
         </section>
 
         <section id="decides">
