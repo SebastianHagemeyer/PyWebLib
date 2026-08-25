@@ -39,14 +39,16 @@
         "net.join(\"pyweblib-demo\")        # same room name = same game\n" +
         "\n" +
         "game.window(480, 360)\n" +
-        "me = game.sprite(\"car\", 0, 0, 44)\n" +
-        "info = game.label(\"\", 0, 150, 16)\n" +
+        "me = game.sprite(\"car\", 240, 180, 44)\n" +
+        "info = game.label(\"\", 240, 24, 16)\n" +
         "\n" +
         "while game.playing():\n" +
         "    if game.pressed(\"left\"):  me.x -= 5\n" +
         "    if game.pressed(\"right\"): me.x += 5\n" +
-        "    if game.pressed(\"up\"):    me.y += 5\n" +
-        "    if game.pressed(\"down\"):  me.y -= 5\n" +
+        "    if game.pressed(\"up\"):    me.y -= 5\n" +
+        "    if game.pressed(\"down\"):  me.y += 5\n" +
+        "    me.x = max(22, min(458, me.x))\n" +
+        "    me.y = max(22, min(338, me.y))\n" +
         "\n" +
         "    net.me(me)         # show my car to everybody else\n" +
         "    net.others()       # ...and put their cars on my screen\n" +
@@ -70,16 +72,30 @@
         "\n" +
         "game.window(480, 360)\n" +
         "game.background(\"#101828\")\n" +
-        "me = game.sprite(\"car\", random.randint(-180, 180), random.randint(-110, 110), 44)\n" +
-        "info = game.label(\"\", 0, 150, 16)\n" +
+        "me = game.sprite(\"car\", random.randint(60, 420), random.randint(60, 300), 44)\n" +
+        "info = game.label(\"\", 240, 24, 16)\n" +
+        "\n" +
+        "COOLDOWN = 30        # frames you must hold it for: 1 second at 30 fps\n" +
+        "KNOCKBACK = 46       # pixels the two of you are shoved apart on a tag\n" +
+        "\n" +
+        "def back_off(x, y):\n" +
+        "    # Push me away from a point. Without this the two cars are still touching\n" +
+        "    # the instant the bomb changes hands, so it would come straight back.\n" +
+        "    dx, dy = me.x - x, me.y - y\n" +
+        "    gap = (dx * dx + dy * dy) ** 0.5\n" +
+        "    if gap < 1:                  # dead centre on top of each other\n" +
+        "        dx, dy, gap = 1.0, 0.0, 1.0\n" +
+        "    me.x += dx / gap * KNOCKBACK\n" +
+        "    me.y += dy / gap * KNOCKBACK\n" +
+        "\n" +
+        "cooldown = 0\n" +
+        "had_bomb = False\n" +
         "\n" +
         "while game.playing():\n" +
         "    if game.pressed(\"left\"):  me.x -= 5\n" +
         "    if game.pressed(\"right\"): me.x += 5\n" +
-        "    if game.pressed(\"up\"):    me.y += 5\n" +
-        "    if game.pressed(\"down\"):  me.y -= 5\n" +
-        "    me.x = max(-220, min(220, me.x))\n" +
-        "    me.y = max(-160, min(160, me.y))\n" +
+        "    if game.pressed(\"up\"):    me.y -= 5\n" +
+        "    if game.pressed(\"down\"):  me.y += 5\n" +
         "\n" +
         "    players = net.others()\n" +
         "    holder = net.get(\"bomb\")\n" +
@@ -92,22 +108,40 @@
         "            net.set(\"bomb\", net.id)\n" +
         "\n" +
         "    mine = (holder == net.id)\n" +
+        "\n" +
+        "    # Just been handed it? Jump back off whoever tagged me and start the\n" +
+        "    # cooldown, so it cannot bounce between two cars that are touching.\n" +
+        "    if mine and not had_bomb:\n" +
+        "        cooldown = COOLDOWN\n" +
+        "        for p in players:\n" +
+        "            if me.touches(p):\n" +
+        "                back_off(p.x, p.y)\n" +
+        "                break\n" +
+        "    had_bomb = mine\n" +
+        "    if cooldown > 0:\n" +
+        "        cooldown -= 1\n" +
+        "\n" +
         "    want = \"💣\" if mine else \"car\"\n" +
         "    if me.content != want:\n" +
         "        me.content = want\n" +
         "\n" +
         "    # Only whoever HOLDS the bomb ever writes down who has it next, so two\n" +
         "    # players can never disagree about where it is.\n" +
-        "    if mine:\n" +
+        "    if mine and cooldown == 0:\n" +
         "        for p in players:\n" +
         "            if me.touches(p):\n" +
         "                net.set(\"bomb\", p.id)\n" +
+        "                back_off(p.x, p.y)\n" +
         "                break\n" +
         "\n" +
+        "    me.x = max(22, min(458, me.x))\n" +
+        "    me.y = max(22, min(338, me.y))\n" +
         "    net.me(me)\n" +
         "\n" +
         "    if not net.online():\n" +
         "        info.content = \"Connecting...\"\n" +
+        "    elif mine and cooldown > 0:\n" +
+        "        info.content = \"You have the bomb! Hold it for \" + str(cooldown // 30 + 1) + \"...\"\n" +
         "    elif mine:\n" +
         "        info.content = \"You have the bomb! Run into someone.\"\n" +
         "    else:\n" +
