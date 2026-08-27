@@ -148,7 +148,10 @@ net.join("bomb-tag")
 
 game.window(480, 360)
 game.background("#101828")
-me = game.sprite("car", random.randint(60, 420), random.randint(60, 300), 44)
+CAR = 83             # the two Asset-studio sprites: a plain car...
+BOMB_CAR = 84        # ...and the same car carrying the bomb
+game.preload(CAR, BOMB_CAR)
+me = game.sprite(CAR, random.randint(60, 420), random.randint(60, 300), 44, asset=True)
 info = game.label("", 240, 24, 16)
 
 COOLDOWN = 30        # frames you must hold it for: 1 second at 30 fps
@@ -201,9 +204,9 @@ while game.playing():
     if cooldown > 0:
         cooldown -= 1
 
-    want = "💣" if mine else "car"
-    if me.content != want:
-        me.content = want
+    want = BOMB_CAR if mine else CAR
+    if me.asset != want:
+        me.asset = want
 
     # Only whoever HOLDS the bomb ever writes down who has it next, so two
     # players can never disagree about where it is.

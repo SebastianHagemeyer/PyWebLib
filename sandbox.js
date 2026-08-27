@@ -72,7 +72,10 @@
         "\n" +
         "game.window(480, 360)\n" +
         "game.background(\"#101828\")\n" +
-        "me = game.sprite(\"car\", random.randint(60, 420), random.randint(60, 300), 44)\n" +
+        "CAR = 83             # the two Asset-studio sprites: a plain car...\n" +
+        "BOMB_CAR = 84        # ...and the same car carrying the bomb\n" +
+        "game.preload(CAR, BOMB_CAR)\n" +
+        "me = game.sprite(CAR, random.randint(60, 420), random.randint(60, 300), 44, asset=True)\n" +
         "info = game.label(\"\", 240, 24, 16)\n" +
         "\n" +
         "COOLDOWN = 30        # frames you must hold it for: 1 second at 30 fps\n" +
@@ -125,9 +128,9 @@
         "    if cooldown > 0:\n" +
         "        cooldown -= 1\n" +
         "\n" +
-        "    want = \"💣\" if mine else \"car\"\n" +
-        "    if me.content != want:\n" +
-        "        me.content = want\n" +
+        "    want = BOMB_CAR if mine else CAR\n" +
+        "    if me.asset != want:\n" +
+        "        me.asset = want\n" +
         "\n" +
         "    # Only whoever HOLDS the bomb ever writes down who has it next, so two\n" +
         "    # players can never disagree about where it is.\n" +
