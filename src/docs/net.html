@@ -129,13 +129,17 @@ while game.playing():
 
     players = net.others()
     holder = net.get("bomb")
+    here = [p.id for p in players] + [net.id]
 
-    # Nobody has the bomb yet? The player with the smallest id takes it. Every
-    # browser works that out the same way, so no one has to be the referee.
-    if holder is None and net.online():
-        ids = [p.id for p in players] + [net.id]
-        if net.id == min(ids):
+    # Nobody has the bomb, OR whoever had it has left the room? The smallest id
+    # still here claims it. Every browser sees the same room and agrees, so no
+    # one has to be the referee. Without the "left the room" half, a holder who
+    # closes their tab leaves the bomb pointing at a player who is gone, and
+    # nobody can ever be it again.
+    if net.online() and holder not in here:
+        if net.id == min(here):
             net.set("bomb", net.id)
+            holder = net.id
 
     mine = (holder == net.id)
 

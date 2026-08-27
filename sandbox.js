@@ -99,13 +99,17 @@
         "\n" +
         "    players = net.others()\n" +
         "    holder = net.get(\"bomb\")\n" +
+        "    here = [p.id for p in players] + [net.id]\n" +
         "\n" +
-        "    # Nobody has the bomb yet? The player with the smallest id takes it. Every\n" +
-        "    # browser works that out the same way, so no one has to be the referee.\n" +
-        "    if holder is None and net.online():\n" +
-        "        ids = [p.id for p in players] + [net.id]\n" +
-        "        if net.id == min(ids):\n" +
+        "    # Nobody has the bomb, OR whoever had it has left the room? The smallest id\n" +
+        "    # still here claims it. Every browser sees the same room and agrees, so no\n" +
+        "    # one has to be the referee. Without the \"left the room\" half, a holder who\n" +
+        "    # closes their tab leaves the bomb pointing at a player who is gone, and\n" +
+        "    # nobody can ever be it again.\n" +
+        "    if net.online() and holder not in here:\n" +
+        "        if net.id == min(here):\n" +
         "            net.set(\"bomb\", net.id)\n" +
+        "            holder = net.id\n" +
         "\n" +
         "    mine = (holder == net.id)\n" +
         "\n" +
