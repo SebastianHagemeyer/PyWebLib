@@ -1,7 +1,7 @@
 <!--
 {
   "title": "Multiplayer guide | PyWebLib",
-  "description": "Play together in the browser with import net: join a room, share your sprite, and see everyone else move. A full bomb-tag game, the rule that stops players disagreeing, and what a classroom actually costs.",
+  "description": "Play together in the browser with import net: join a room, share your sprite, and see everyone else move. A full bomb-tag game, the rule that stops players disagreeing, and what it cannot do.",
   "active": "",
   "scripts": [
     "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
@@ -32,7 +32,6 @@
           <a href="#bomb">Bomb tag</a>
           <a href="#decides">Who decides?</a>
           <a href="#reference">Every call</a>
-          <a href="#cost">What it costs</a>
           <a href="#limits">What it cannot do</a>
         </nav>
 
@@ -190,14 +189,14 @@ while game.playing():
             <li><strong>Give one player the pen.</strong> Only the player <em>holding</em> the bomb writes who gets it next. Everyone else only reads. There is nothing to disagree about, because only one browser ever writes.</li>
             <li><strong>Or let everyone work it out identically.</strong> Nobody owns the bomb at the start, so the rule is "smallest id takes it". Every browser sorts the same list of ids and reaches the same answer without anyone being asked.</li>
           </ul>
-          <p class="callout"><strong>The trap to avoid.</strong> Writing a shared value every frame from every player, like <code>net.set("scores", ...)</code> in the main loop for everybody. They will fight, the value will flicker, and it costs a fortune in messages. Let one player own each key.</p>
+          <p class="callout"><strong>The trap to avoid.</strong> Writing a shared value every frame from every player, like <code>net.set("scores", ...)</code> in the main loop for everybody. They will fight, the value will flicker, and the room floods with messages. Let one player own each key.</p>
         </section>
 
         <section id="reference">
           <h2>Every call</h2>
           <ul class="key-points">
-            <li><code>net.join(room, name=None, rate=5)</code> &mdash; join a room. Returns straight away and connects in the background. <code>rate</code> is how many times a second your position may be sent (1&ndash;20). The default 5 looks smooth at 30 fps and costs half what 10 does; raise it only for something twitchy.</li>
-            <li><code>net.me(sprite, **extras)</code> &mdash; publish my position and skin. Call it once per frame. Standing still costs nothing.</li>
+            <li><code>net.join(room, name=None, rate=5)</code> &mdash; join a room. Returns straight away and connects in the background. <code>rate</code> is how many times a second your position may be sent (1&ndash;20). The default 5 looks smooth at 30 fps; raise it only for something twitchy.</li>
+            <li><code>net.me(sprite, **extras)</code> &mdash; publish my position and skin. Call it once per frame. An unchanged position is not resent.</li>
             <li><code>net.others()</code> &mdash; the other players, each with a sprite already on screen.</li>
             <li><code>net.set(key, value)</code> / <code>net.get(key, default=None)</code> &mdash; one fact the whole room shares.</li>
             <li><code>net.id</code> &mdash; my player id. Fixed for this browser tab.</li>
@@ -207,32 +206,6 @@ while game.playing():
             <li><code>net.room()</code> &mdash; the room name I ended up in (tidied: spaces and punctuation become dashes).</li>
             <li><code>net.leave()</code> &mdash; leave, and take everyone else's sprites off my screen.</li>
           </ul>
-        </section>
-
-        <section id="cost">
-          <h2>What it costs</h2>
-          <p>Worth knowing before you point a whole class at it. The pages themselves are free to host; the only thing that costs money is relaying the messages.</p>
-          <p>PyWebLib already does the two things that matter most. Updates are <strong>throttled</strong> to <code>rate</code> a second no matter how fast your loop runs, and an unchanged position is <strong>not resent</strong>, so a parked car is nearly free. Measured at the default <code>rate=5</code>: 123 calls to <code>net.me()</code> in a second while moving became <strong>11 messages</strong>; parked, it became <strong>2</strong>.</p>
-
-          <h3>On Supabase (what this ships with)</h3>
-          <p>Supabase charges <strong>per message received, not per message sent</strong>: one update in a room of four counts as five, because four people get a copy. So traffic grows with the <em>square</em> of the room size, and room size matters far more than tick rate. Roughly, with everyone moving most of the time, against the free tier's 2 million messages a month:</p>
-          <ul class="key-points">
-            <li><strong>You and three friends, a couple of hours a week</strong> &mdash; about 1.7M. Free.</li>
-            <li><strong>A code club: three rooms of four, an hour a week</strong> &mdash; about 2.6M. Needs the $25 plan.</li>
-            <li><strong>One class a week</strong> (eight rooms of four) &mdash; about 5.8M, so about $27.</li>
-            <li><strong>Five classes a week</strong> &mdash; about 29M, so about $84.</li>
-            <li><strong>One room of 30</strong> &mdash; do not. The square is brutal: it is more traffic than the whole rest of this list put together.</li>
-          </ul>
-
-          <h3>On the Cloudflare relay</h3>
-          <p>A relay does not have to bill you for the fan-out. PyWebLib ships one as a <a href="https://developers.cloudflare.com/durable-objects/" target="_blank" rel="noopener">Cloudflare Durable Object</a> (in <code>worker/</code>, one command to deploy). Only messages arriving <em>in</em> are charged, and incoming WebSocket messages are counted 20:1 on top of that, so the squared term disappears. Measured against the real code, relaying ten rounds of updates:</p>
-          <ul class="key-points">
-            <li><strong>Room of 4</strong> &mdash; 36 messages relayed, <strong>12</strong> billed. Supabase would bill 48.</li>
-            <li><strong>Room of 16</strong> &mdash; 960 relayed, <strong>64</strong> billed. Supabase would bill 1024.</li>
-          </ul>
-          <p>The free plan allows 100,000 requests and 13,000 GB-s a day, and a class day costs roughly 17k and 3.1k. <strong>Five classes a week is free</strong>, and so is four lessons in a single day. Only a public, all-day game needs the $5 plan.</p>
-          <p>The trade is that it is a small server you deploy, against Supabase needing no code at all. Which one is running is picked automatically, and you can check with <code>PWL.net.transport()</code> in the browser console. Your Python never knows the difference.</p>
-          <p class="callout"><strong>Two levers, in order.</strong> Keep <strong>rooms small</strong> &mdash; on Supabase that is the squared term and it dominates everything else. Then drop <code>rate</code> to 4 or 5 for anything that is not twitchy. Doing both is the difference between free and a bill.</p>
         </section>
 
         <section id="limits">
