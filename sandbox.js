@@ -1960,6 +1960,10 @@ while game.playing():
     defaultCode: DEFAULT_CODE,
     onChange: function (code) { updatePanels(code); },
     onRunStart: function () {
+      // A maximised editor covers the whole screen, hiding the output / game
+      // window it just ran. Drop back to the split view so you can watch it run
+      // straight away, instead of having to minimise the code by hand.
+      if (editorPanel && editorPanel.classList.contains("is-max")) setMaximised(false);
       // Give the game canvas focus so the arrow keys reach it immediately.
       if (usesGame(runner.getCode())) {
         const cv = document.getElementById("game-canvas");
