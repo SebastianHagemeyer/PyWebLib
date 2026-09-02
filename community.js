@@ -23,7 +23,7 @@
 
   const params = new URLSearchParams(location.search);
   const mineOnly = params.get("mine") === "1";
-  let sort = "top";
+  let sort = "trending";     // the gallery opens on this week's best
   const TRENDING_DAYS = 7;   // how far back the Trending tab looks
   function sinceDaysAgo(days) {
     return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
