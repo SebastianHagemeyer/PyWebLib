@@ -24,6 +24,10 @@
   const params = new URLSearchParams(location.search);
   const mineOnly = params.get("mine") === "1";
   let sort = "top";
+  const TRENDING_DAYS = 7;   // how far back the Trending tab looks
+  function sinceDaysAgo(days) {
+    return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  }
   const PAGE_SIZE = 6;
   let page = 0;          // 0-based current page
   let totalCount = 0;    // total projects matching the current filter
@@ -109,6 +113,9 @@
       if (sort === "new") {
         q = q.order("created_at", { ascending: false });
       } else {
+        // Trending is Top with a window on it: only what was shared in the last
+        // week, so a new hit isn't buried under the all-time favourites.
+        if (sort === "trending") q = q.gte("created_at", sinceDaysAgo(TRENDING_DAYS));
         // Top: most upvotes first; ties broken by most views, then newest.
         q = q.order("vote_count", { ascending: false });
         if (withViews) q = q.order("view_count", { ascending: false });
@@ -166,7 +173,9 @@
       grid.innerHTML = '<p class="community-empty">' +
         (mineOnly
           ? "You haven't shared anything yet. Open the Playground and hit Share."
-          : "No programs yet. Be the first, open the Playground and hit Share!") +
+          : sort === "trending"
+            ? "Nothing shared in the last " + TRENDING_DAYS + " days. Try Top for the all-time favourites."
+            : "No programs yet. Be the first, open the Playground and hit Share!") +
         "</p>";
       return;
     }
