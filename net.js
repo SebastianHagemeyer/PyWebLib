@@ -46,6 +46,12 @@
    * worker/README.md; it is one `npx wrangler deploy`. */
   const RELAY_URL = PWL.netRelayUrl || "";
 
+  /* KILL SWITCH. Set to true to turn multiplayer OFF site-wide: import net then
+   * reports "unavailable", no room connects, and no messages relay. Community
+   * features (sign-in, publishing, the leaderboard) are unaffected. Flip back to
+   * false and redeploy to turn it on again. */
+  const MULTIPLAYER_OFF = true;
+
   // ---- Tunables -----------------------------------------------------------
   // 5, not 10. On the Supabase path cost grows with the SQUARE of the room
   // size, and at a 30 fps game loop the difference between 5 and 10 updates a
@@ -239,6 +245,7 @@
   }
 
   function pickTransport() {
+    if (MULTIPLAYER_OFF) return null;   // kill switch: no relay at all
     if (RELAY_URL) return cloudflareTransport(RELAY_URL);
     if (PWL.supabaseUrl && PWL.supabaseKey) return supabaseTransport();
     return null;
@@ -479,7 +486,7 @@
     // Which relay is in use, or "" before the first join. Handy in the console
     // for checking a deploy actually took effect.
     transport: function () { return transport ? transport.name : (RELAY_URL ? "cloudflare" : "supabase"); },
-    available: function () { return !!(RELAY_URL || (PWL.supabaseUrl && PWL.supabaseKey)); },
+    available: function () { return !MULTIPLAYER_OFF && !!(RELAY_URL || (PWL.supabaseUrl && PWL.supabaseKey)); },
     snapshotJson: function () {
       if (snapshotDirty) rebuild();
       return snapshotJson;
