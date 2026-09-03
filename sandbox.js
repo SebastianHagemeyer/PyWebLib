@@ -2107,10 +2107,15 @@ while game.playing():
   // ---- Fullscreen the game window: the button in the game bar, and the exit
   // ✕ that shows while fullscreen. game.fullscreen() from Python does the same. ----
   (function setupGameFullscreen() {
-    const fsBtn = document.querySelector(".game-fs-btn");
     const fsExit = document.querySelector(".game-fs-exit");
-    if (fsBtn) fsBtn.addEventListener("click", function () {
-      if (window.PWL && window.PWL.toggleGameFullscreen) window.PWL.toggleGameFullscreen();
+    // One button per panel now (game, turtle, 3D): each fullscreens its own canvas.
+    document.querySelectorAll(".game-fs-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const panel = btn.closest(".sandbox-output");
+        const cv = panel ? panel.querySelector("canvas") : null;
+        if (window.PWL && window.PWL.togglePanelFullscreen) window.PWL.togglePanelFullscreen(cv);
+        else if (window.PWL && window.PWL.toggleGameFullscreen) window.PWL.toggleGameFullscreen();
+      });
     });
     if (fsExit) fsExit.addEventListener("click", function () {
       // The on-screen X leaves fullscreen AND ends the program, so a fullscreen

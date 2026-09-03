@@ -749,7 +749,9 @@ body.pwl-game-fs { overflow: hidden; }
    (.pwl-player .game-stage), so fullscreen behaves the same on each. Using inset:0
    rather than 100vw/100vh sidesteps the mobile address-bar height bugs, and the
    opaque background hides the page (bar, output) sitting behind it. */
-body.pwl-game-fs .game-stage {
+body.pwl-game-fs .game-stage,
+body.pwl-game-fs .turtle-stage,
+body.pwl-game-fs .game3d-stage {
   position: fixed;
   inset: 0;
   z-index: 500;
@@ -761,9 +763,22 @@ body.pwl-game-fs .game-stage {
   align-items: center;
   justify-content: center;
 }
-body.pwl-game-fs .game-stage canvas {
-  max-width: none;   /* JS sets the exact letterboxed pixel size */
+/* Game and 3D letterbox to an exact pixel size the JS sets (sharp: the game
+   resizes its canvas buffer, 3D resizes its renderer). */
+body.pwl-game-fs .game-stage canvas,
+body.pwl-game-fs .game3d-stage canvas {
+  max-width: none;
   height: auto;
+  border-radius: 0;
+}
+/* Turtle has two stacked canvases (drawing + the turtle sprite). object-fit
+   makes both fill the overlay and letterbox their content identically, so the
+   sprite stays lined up with the drawing without any JS. */
+body.pwl-game-fs .turtle-stage canvas {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   border-radius: 0;
 }
 body.pwl-game-fs .game-fs-exit {

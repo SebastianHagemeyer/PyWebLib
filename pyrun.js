@@ -2204,9 +2204,14 @@ del _pyrun_install_net
     const cv = canvas || pwlGameCanvasEl();
     // The stage is the element the CSS turns into the overlay; it's present on both
     // the editor and the community player (unlike .game-panel, which is editor-only).
-    const stage = cv && cv.closest ? cv.closest(".game-stage") : null;
-    const host = (cv && cv.closest && (cv.closest(".game-panel") || cv.closest(".pwl-player"))) || stage;
+    const stage = cv && cv.closest ? cv.closest(".game-stage, .turtle-stage, .game3d-stage") : null;
+    const host = (cv && cv.closest && (cv.closest(".game-panel") || cv.closest(".turtle-panel") || cv.closest(".game3d-panel") || cv.closest(".pwl-player"))) || stage;
     if (host) host.classList.toggle("is-fs", !!on);
+    // Each surface resizes differently: the game rescales its canvas buffer, 3D
+    // its renderer, and turtle is pure CSS (object-fit), so nothing to refit.
+    const refit = (stage && stage.classList.contains("game3d-stage")) ? fitG3dCanvas
+                : (stage && stage.classList.contains("turtle-stage")) ? function () {}
+                : fitGameCanvas;
     if (on) {
       ensureFsExit(stage);
       const el = stage || cv;
@@ -2222,12 +2227,12 @@ del _pyrun_install_net
         else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
       } catch (e) {}
     }
-    fitGameCanvas();
-    requestAnimationFrame(fitGameCanvas);
+    refit();
+    requestAnimationFrame(refit);
     // Entering/leaving the real Fullscreen API is asynchronous, so the layout we
     // measured above can still be the old one. Refit once it has settled.
-    setTimeout(fitGameCanvas, 120);
-    setTimeout(fitGameCanvas, 400);
+    setTimeout(refit, 120);
+    setTimeout(refit, 400);
   }
   window.addEventListener("resize", fitGameCanvas);
   window.addEventListener("orientationchange", function () { setTimeout(fitGameCanvas, 120); });
@@ -2247,6 +2252,10 @@ del _pyrun_install_net
   window.PWL.setGameFullscreen = function (on) { setGameFullscreen(null, on !== false); };
   window.PWL.toggleGameFullscreen = function () {
     setGameFullscreen(null, !document.body.classList.contains("pwl-game-fs"));
+  };
+  // Fullscreen a specific surface (game, turtle or 3D) by its canvas.
+  window.PWL.togglePanelFullscreen = function (canvas) {
+    setGameFullscreen(canvas || null, !document.body.classList.contains("pwl-game-fs"));
   };
 
   // ---- Built-in themed sprite art ----
@@ -3007,18 +3016,30 @@ del _pyrun_install_net
     const cv = game3dCanvasEl();
     if (!cv || !g3dRenderer) return;
     const lw = cv.__pwlLogicalW || 480, lh = cv.__pwlLogicalH || 360;
-    const host = cv.parentElement;
-    let avail = lw;
-    if (host) {
-      let pad = 0;
-      try {
-        const cs = getComputedStyle(host);
-        pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
-      } catch (e) {}
-      avail = Math.max(1, (host.clientWidth || lw) - pad);
+    const stage = cv.parentElement;
+    let cssW, cssH;
+    if (document.body.classList.contains("pwl-game-fs") && stage) {
+      // Fullscreen: fill the overlay, letterboxed to the world's aspect (no cap
+      // at the logical width, or the 3D view could never grow past its panel).
+      const availW = stage.clientWidth || window.innerWidth;
+      const availH = stage.clientHeight || window.innerHeight;
+      const fit = Math.min(availW / lw, availH / lh);
+      if (!(fit > 0) || !isFinite(fit)) return;
+      cssW = Math.round(lw * fit);
+      cssH = Math.round(lh * fit);
+    } else {
+      let avail = lw;
+      if (stage) {
+        let pad = 0;
+        try {
+          const cs = getComputedStyle(stage);
+          pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+        } catch (e) {}
+        avail = Math.max(1, (stage.clientWidth || lw) - pad);
+      }
+      cssW = Math.max(40, Math.round(Math.min(lw, avail)));
+      cssH = Math.round(cssW * lh / lw);
     }
-    const cssW = Math.max(40, Math.round(Math.min(lw, avail)));
-    const cssH = Math.round(cssW * lh / lw);
     const cur = g3dRenderer.getSize(new THREE.Vector2());
     if (Math.round(cur.x) !== cssW || Math.round(cur.y) !== cssH) {
       g3dRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_DPR));
