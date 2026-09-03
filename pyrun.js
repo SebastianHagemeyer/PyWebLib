@@ -1785,8 +1785,16 @@ del _pyrun_install_net
     return String(k).toLowerCase();
   }
   const GAME_KEYS_TO_EAT = { left: 1, right: 1, up: 1, down: 1, space: 1 };
+  // A keystroke typed into a text field (a game.textbox(), or any input) belongs
+  // to that field, not the game: don't record it as a game key and, crucially,
+  // don't preventDefault() space/arrows, or the field never receives them.
+  function keyFromTextField(e) {
+    const t = e.target;
+    return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable === true);
+  }
   window.addEventListener("keydown", function (e) {
     if (!gameActive() && !game3dActive()) return;   // 3D programs read the same keys
+    if (keyFromTextField(e)) return;
     const n = gameKeyName(e);
     gameKeys[n] = true;
     if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.keyIndex(n), 1);
@@ -1794,6 +1802,7 @@ del _pyrun_install_net
   });
   window.addEventListener("keyup", function (e) {
     if (!gameActive() && !game3dActive()) return;
+    if (keyFromTextField(e)) return;
     const n = gameKeyName(e);
     gameKeys[n] = false;
     if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.keyIndex(n), 0);
