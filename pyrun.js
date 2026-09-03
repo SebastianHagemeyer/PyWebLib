@@ -2623,9 +2623,15 @@ del _pyrun_install_net
     // where game.pressed() sees no touch keyboard). Submit/click events cross to
     // the worker through the shared buffer, so reading them never blocks.
     uiCreate: function (id, kind, propsJson) {
-      const canvas = document.getElementById("game-canvas");
+      // The ACTIVE canvas, not a hard-coded id: the same program runs in the
+      // Playground (.game-panel) and the community player (.pwl-player), so the
+      // widget must attach to whichever surface is drawing right now.
+      const c = gameCtx();
+      const canvas = c && c.canvas;
       if (!canvas) return;
-      const host = canvas.parentElement || canvas;
+      const host = (canvas.closest && (canvas.closest(".game-stage") ||
+        canvas.closest(".game-panel") || canvas.closest(".pwl-player"))) ||
+        canvas.parentElement || canvas;
       if (getComputedStyle(host).position === "static") host.style.position = "relative";
       let props = {}; try { props = JSON.parse(propsJson) || {}; } catch (e) {}
       let el;
@@ -2677,6 +2683,12 @@ del _pyrun_install_net
     uiReset: function () {
       for (const k in gameUi.els) { try { gameUi.els[k].remove(); } catch (e) {} }
       gameUi.els = {}; gameUi.events = []; gameUi.evSeq = 0;
+      // Sweep any strays a previous run left behind (e.g. it stopped without a
+      // clean reset), so a fresh run never inherits an old textbox or button.
+      try {
+        document.querySelectorAll(".pwl-game-textbox, .pwl-game-button")
+          .forEach(function (el) { el.remove(); });
+      } catch (e) {}
     },
     setup: function (w, h, bg) {
       gamePlaying = true;
