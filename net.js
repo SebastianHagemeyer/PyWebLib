@@ -46,11 +46,52 @@
    * worker/README.md; it is one `npx wrangler deploy`. */
   const RELAY_URL = PWL.netRelayUrl || "";
 
-  /* KILL SWITCH. Set to true to turn multiplayer OFF site-wide: import net then
-   * reports "unavailable", no room connects, and no messages relay. Community
-   * features (sign-in, publishing, the leaderboard) are unaffected. Flip back to
-   * false and redeploy to turn it on again. */
-  const MULTIPLAYER_OFF = true;
+  /* EMERGENCY KILL SWITCH. true turns multiplayer OFF site-wide for everyone,
+   * signed in or not, no deploy-time question asked. Normal control is the
+   * sign-in gate plus the app_settings flag below. Community features (sign-in,
+   * publishing, the leaderboard) are unaffected either way. */
+  const MULTIPLAYER_OFF = false;
+
+  /* Multiplayer needs a signed-in account; a signed-out student just gets a
+   * "please sign in" nudge. On top of that, the app_settings row
+   * "multiplayer_students" ("1"/"0") turns it off for @hallam.local student
+   * accounts with no deploy: flip it to "0" and no student can relay, while
+   * teachers and the rest of the site carry on. Defaults ON until the row is
+   * read, so a missing table simply leaves multiplayer on for signed-in users. */
+  let studentsEnabled = true;
+
+  function refreshStudentFlag() {
+    const sb = PWL.supabase;
+    if (!sb || !sb.from) return;
+    try {
+      sb.from("app_settings").select("value").eq("key", "multiplayer_students").maybeSingle()
+        .then(function (res) { if (res && res.data) studentsEnabled = String(res.data.value) !== "0"; },
+              function () {});
+    } catch (e) {}
+  }
+
+  // Why this user cannot relay right now, or null if they can.
+  function blockReason() {
+    if (MULTIPLAYER_OFF) return "off";
+    const a = PWL.auth;
+    if (!a || !a.user || !a.user()) return "signin";
+    if (a.isStudent && a.isStudent() && !studentsEnabled) return "students_off";
+    return null;
+  }
+
+  const BLOCK_MSG = {
+    signin: "Please sign in to use multiplayer.",
+    students_off: "Multiplayer is switched off right now.",
+    off: "Multiplayer is switched off right now."
+  };
+  let _toastTimer = null;
+  function netToast(msg) {
+    let t = document.getElementById("pwl-toast");
+    if (!t) { t = document.createElement("div"); t.id = "pwl-toast"; t.className = "toast"; document.body.appendChild(t); }
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function () { t.classList.remove("show"); }, 4000);
+  }
 
   // ---- Tunables -----------------------------------------------------------
   // 5, not 10. On the Supabase path cost grows with the SQUARE of the room
@@ -402,6 +443,10 @@
     rate = Math.max(1, Math.min(20, Number(opts.rate) || DEFAULT_RATE));
     myName = opts.name ? String(opts.name).slice(0, 24) : defaultName();
 
+    // Signed out, or switched off for students? Don't relay; nudge them once.
+    const reason = blockReason();
+    if (reason) { leave(); setState("unavailable"); netToast(BLOCK_MSG[reason] || BLOCK_MSG.off); return; }
+
     // Already here: re-connecting every time a student presses Run would blink
     // everyone's car off the screen (and on Supabase, burn the join rate limit).
     if (transport && want === roomName && (state === "joined" || state === "joining")) {
@@ -475,6 +520,20 @@
 
   window.addEventListener("pagehide", function () { if (transport) rawSend("bye", { i: myId }); });
 
+  // Keep the student flag fresh and enforce it (and sign-out) on LIVE sessions,
+  // so flipping the DB to "0" or signing out drops a connected student within
+  // seconds, not just on their next Run.
+  refreshStudentFlag();
+  setInterval(refreshStudentFlag, 15000);
+  setInterval(function () {
+    if (!transport) return;
+    const r = blockReason();
+    if (r) { leave(); setState("unavailable"); netToast(BLOCK_MSG[r] || BLOCK_MSG.off); }
+  }, 5000);
+  if (PWL.auth && PWL.auth.onChange) {
+    PWL.auth.onChange(function () { if (transport && blockReason()) { leave(); setState("unavailable"); } });
+  }
+
   PWL.net = {
     id: myId,
     join: join,
@@ -486,7 +545,7 @@
     // Which relay is in use, or "" before the first join. Handy in the console
     // for checking a deploy actually took effect.
     transport: function () { return transport ? transport.name : (RELAY_URL ? "cloudflare" : "supabase"); },
-    available: function () { return !MULTIPLAYER_OFF && !!(RELAY_URL || (PWL.supabaseUrl && PWL.supabaseKey)); },
+    available: function () { return !blockReason() && !!(RELAY_URL || (PWL.supabaseUrl && PWL.supabaseKey)); },
     snapshotJson: function () {
       if (snapshotDirty) rebuild();
       return snapshotJson;

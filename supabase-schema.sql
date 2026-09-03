@@ -326,3 +326,39 @@ create trigger assets_limit before insert on public.assets
 
 grant select on public.assets to anon, authenticated;
 grant insert, update, delete on public.assets to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- app_settings: a tiny key/value table the site reads at runtime.
+--
+-- One row today:
+--   multiplayer_students  '1' = students (@hallam.local) may use import net,
+--                         '0' = multiplayer is off for them (teachers and the
+--                         rest of the site are unaffected). net.js reads this
+--                         for every player and drops connected students within
+--                         seconds of a change, so misbehaviour is one edit away
+--                         from a fix, with no redeploy.
+--
+-- Flip it from the Supabase dashboard (Table editor), or:
+--   update public.app_settings set value = '0' where key = 'multiplayer_students';
+--
+-- Anyone may READ it; only admins may WRITE, so a student cannot flip their own
+-- switch.
+create table if not exists public.app_settings (
+  key   text primary key,
+  value text not null
+);
+alter table public.app_settings enable row level security;
+
+drop policy if exists app_settings_read on public.app_settings;
+create policy app_settings_read on public.app_settings for select using (true);
+
+drop policy if exists app_settings_write on public.app_settings;
+create policy app_settings_write on public.app_settings for all
+  using (exists (select 1 from public.admins where user_id = auth.uid()))
+  with check (exists (select 1 from public.admins where user_id = auth.uid()));
+
+insert into public.app_settings (key, value) values ('multiplayer_students', '1')
+  on conflict (key) do nothing;
+
+grant select on public.app_settings to anon, authenticated;
+grant insert, update, delete on public.app_settings to authenticated;
