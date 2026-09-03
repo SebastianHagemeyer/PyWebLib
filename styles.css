@@ -1118,6 +1118,10 @@ body.sandbox-maxed { overflow: hidden; }
 .community-tab.active { background: var(--primary); color: #fff; }
 .community-notice { background: #fff3cd; color: #6b5200; border: 1px solid #e6d9a8; border-radius: var(--radius); padding: 14px 16px; }
 .community-empty { color: var(--muted); padding: 24px 2px; }
+/* An empty-state message sits inside a grid, so pin it across every column and
+   centre it instead of leaving it stuck in one narrow cell. */
+.asset-grid .community-empty,
+.community-grid .community-empty { grid-column: 1 / -1; text-align: center; }
 .community-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 /* Community pager: Prev / page count / Next */
 .cc-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 24px 0 4px; flex-wrap: wrap; }
