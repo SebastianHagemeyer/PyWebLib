@@ -32,6 +32,7 @@
           <a href="#move">Moving</a>
           <a href="#collide">Collisions</a>
           <a href="#mouse">The mouse</a>
+          <a href="#type">Text boxes &amp; buttons</a>
           <a href="#spin">Spin &amp; mirror</a>
           <a href="#box">Boxes &amp; score</a>
           <a href="#over">Ending a game</a>
@@ -123,6 +124,30 @@ while game.playing():
           </ul>
           <pre class="guide-code language-python">if plant.at_mouse() and game.clicked():
     plant.size = plant.size + 10</pre>
+        </section>
+
+        <section id="type">
+          <h2>Text boxes &amp; buttons</h2>
+          <p><code>game.pressed()</code> is great for arrows, but not for typing a whole word, and it does nothing on a phone, where there are no keys to press. For real typing use <code>game.textbox()</code>: a proper text field over the game window that works with a phone's keyboard too. It hands you a <strong>handle</strong>, just like a sprite, so you can have several and move them with <code>.x</code> and <code>.y</code>.</p>
+          <ul class="key-points">
+            <li><code>box = game.textbox("hint")</code>: make a text field (the hint is the grey placeholder). <code>.x</code>, <code>.y</code>, <code>.width</code> place it, in the same coordinates as sprites; the default sits at the bottom.</li>
+            <li><code>box.typed()</code>: the line someone just entered, once, the moment they press Enter, or <code>None</code>. It never waits, so call it every frame in the loop. This is the one to use.</li>
+            <li><code>box.value</code>: what is in the box now. <code>box.clear()</code> empties it, <code>box.hide()</code> / <code>box.show()</code> and <code>box.remove()</code> work like a sprite.</li>
+            <li><code>btn = game.button("Send")</code>: a button. <code>btn.clicked()</code> is <code>True</code> once per press. Pass <code>game.button("Send", submits=box)</code> and clicking it sends whatever is in that box, the friendly way to send on a phone.</li>
+          </ul>
+          <pre class="guide-code language-python" id="ex-type">import game
+game.window(480, 360)
+
+box  = game.textbox("say something...")
+line = game.label("(nothing yet)", 240, 150, size=24)
+
+while game.playing():
+    said = box.typed()          # the finished line, or None
+    if said:
+        line.content = "you said: " + said
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-type">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout"><strong>On a phone,</strong> the keyboard may only pop up once the player <em>taps</em> the box, so leave it where a thumb can reach it. Enter sends the line; a <code>game.button(..., submits=box)</code> gives them a Send button to tap instead. Pair this with <a href="../net/">multiplayer</a> and a shared list to build a chat room in a few lines.</p>
         </section>
 
         <section id="spin">
