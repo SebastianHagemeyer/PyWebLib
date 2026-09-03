@@ -846,6 +846,138 @@ def _pyrun_install_game():
     def pressed(key):
         return bool(_io.pressed(str(key).lower()))
 
+    # ---- game.textbox() / game.button() : real DOM widgets over the canvas ----
+    # Each call returns its own handle (like a sprite), so you can have several.
+    # A focused field is also the only way to type on iOS, where game.pressed()
+    # never sees a touch keyboard. Reading is non-blocking: submitted lines and
+    # clicks arrive as events the loop polls, and never freeze it like input().
+    _ui = {"n": 0, "seq": 0, "submits": {}, "clicks": {}, "vals": {}}
+
+    def _pump_ui():
+        blob = _io.uiPoll()
+        if not blob:
+            return
+        try:
+            evs = json.loads(blob)
+        except (ValueError, TypeError):
+            return
+        for ev in evs:
+            if int(ev.get("seq", 0)) <= _ui["seq"]:
+                continue
+            _ui["seq"] = int(ev["seq"])
+            k, wid = ev.get("k"), ev.get("id")
+            if k == "submit":
+                _ui["submits"][wid] = ev.get("t", "")
+                _ui["vals"][wid] = ev.get("t", "")
+            elif k == "click":
+                _ui["clicks"][wid] = _ui["clicks"].get(wid, 0) + 1
+
+    class _Widget:
+        # Base for Textbox and Button: a handle with sprite-like .x / .y you set.
+        def __init__(self, kind, props):
+            _ui["n"] += 1
+            self.id = kind[0] + str(_ui["n"])
+            self.kind = kind
+            self._p = dict(props)
+            _io.uiCreate(self.id, kind, json.dumps(props))
+
+        def _set(self, **kw):
+            self._p.update(kw)
+            _io.uiUpdate(self.id, json.dumps(kw))
+
+        @property
+        def x(self): return self._p.get("x")
+        @x.setter
+        def x(self, v): self._set(x=float(v))
+
+        @property
+        def y(self): return self._p.get("y")
+        @y.setter
+        def y(self, v): self._set(y=float(v))
+
+        @property
+        def width(self): return self._p.get("width")
+        @width.setter
+        def width(self, v): self._set(width=float(v))
+
+        @property
+        def visible(self): return self._p.get("visible", True)
+        @visible.setter
+        def visible(self, v): self._set(visible=bool(v))
+
+        def show(self): self._set(visible=True)
+        def hide(self): self._set(visible=False)
+        def remove(self): _io.uiRemove(self.id)
+
+    class Textbox(_Widget):
+        # A one-line text field. Read finished lines with .typed() in the loop.
+        @property
+        def value(self):
+            _pump_ui()
+            return _ui["vals"].get(self.id, self._p.get("value", ""))
+
+        @value.setter
+        def value(self, v):
+            self._p["value"] = str(v)
+            _ui["vals"][self.id] = str(v)
+            self._set(value=str(v))
+
+        @property
+        def placeholder(self): return self._p.get("placeholder", "")
+        @placeholder.setter
+        def placeholder(self, v): self._set(placeholder=str(v))
+
+        def clear(self): self.value = ""
+        def focus(self): self._set(focus=True)
+
+        def typed(self):
+            # The line just submitted (Enter, or a Send button wired with
+            # submits=), or None. Never blocks, so call it every frame.
+            _pump_ui()
+            line = _ui["submits"].pop(self.id, None)
+            return line if line else None
+
+    class Button(_Widget):
+        @property
+        def text(self): return self._p.get("label", "")
+        @text.setter
+        def text(self, v): self._set(label=str(v))
+
+        def clicked(self):
+            # True once per press, then False until the next one.
+            _pump_ui()
+            c = _ui["clicks"].get(self.id, 0)
+            if c > 0:
+                _ui["clicks"][self.id] = c - 1
+                return True
+            return False
+
+    def textbox(placeholder="", x=None, y=None, width=None):
+        # A real text box over the game window (works on phones). Returns a
+        # handle: read submitted lines with .typed(), move it with .x / .y, take
+        # it away with .hide() or .remove(). Several boxes can coexist.
+        props = {
+            "placeholder": "" if placeholder is None else str(placeholder),
+            "x": W["w"] / 2 if x is None else float(x),
+            "y": W["h"] - 26 if y is None else float(y),
+            "width": W["w"] * 0.74 if width is None else float(width),
+        }
+        return Textbox("textbox", props)
+
+    def button(label="", x=None, y=None, width=None, submits=None):
+        # A clickable button; .clicked() is True once per press. Pass
+        # submits=a_textbox and clicking it submits that box (handy on phones).
+        props = {
+            "label": "" if label is None else str(label),
+            "x": W["w"] / 2 if x is None else float(x),
+            "y": W["h"] - 26 if y is None else float(y),
+        }
+        if width is not None:
+            props["width"] = float(width)
+        if submits is not None:
+            props["submits"] = getattr(submits, "id", str(submits))
+        return Button("button", props)
+
     def mouse_x():
         # Where the mouse pointer is, in game coordinates.
         return float(_io.mouseX())
@@ -1081,6 +1213,8 @@ def _pyrun_install_game():
         del _ink[:]
         W.update(w=480, h=360, bg="#0b1020", score=0, over=None, debug=False,
                  clicks=0, tick=0)
+        _ui["n"] = 0; _ui["seq"] = 0
+        _ui["submits"].clear(); _ui["clicks"].clear(); _ui["vals"].clear()
         _io.reset()
 
     mod = types.ModuleType("game")
@@ -1097,6 +1231,10 @@ def _pyrun_install_game():
     mod.save_image = save_image
     mod.copy_image = copy_image
     mod.pressed = pressed
+    mod.textbox = textbox
+    mod.button = button
+    mod.Textbox = Textbox
+    mod.Button = Button
     mod.hide_cursor = hide_cursor
     mod.show_cursor = show_cursor
     mod.mouse_x = mouse_x
@@ -1722,6 +1860,42 @@ del _pyrun_install_net
   // SVG and the browser re-rasterizes it at whatever size we draw it, and text
   // and shapes are resolution-independent too.
   let gameLogicalW = 480, gameLogicalH = 360;   // matches the Python module's default W
+  // game.textbox()/game.button() widgets: DOM elements keyed by id, plus a short
+  // ring of recent submit/click events that Python drains (see pushGameUiEvent).
+  let gameUi = { els: {}, events: [], evSeq: 0 };
+  const GAME_UI_INPUT_CSS =
+    "box-sizing:border-box;text-align:center;z-index:5;padding:8px 12px;" +
+    "border-radius:10px;border:1px solid #2a355e;background:#0e1430;color:#f4f6ff;" +
+    "outline:none;font:16px system-ui,Segoe UI,sans-serif;";
+  const GAME_UI_BTN_CSS =
+    "box-sizing:border-box;z-index:5;padding:9px 18px;border-radius:10px;border:none;" +
+    "background:#a855f7;color:#fff;font:600 16px system-ui,Segoe UI,sans-serif;cursor:pointer;";
+  function applyGameUiProps(el, kind, props) {
+    if (props.x != null) el.style.left = (Number(props.x) / gameLogicalW * 100) + "%";
+    if (props.y != null) el.style.top = (Number(props.y) / gameLogicalH * 100) + "%";
+    if (props.width != null) el.style.width = (Number(props.width) / gameLogicalW * 100) + "%";
+    if (props.visible != null) el.style.display = props.visible ? "" : "none";
+    if (kind === "button") {
+      if (props.label != null) el.textContent = props.label;
+    } else {
+      if (props.placeholder != null) el.placeholder = props.placeholder;
+      if (props.value != null) el.value = props.value;
+      if (props.focus) { try { el.focus(); } catch (e) {} }
+    }
+  }
+  function pushGameUiEvent(ev) {
+    gameUi.evSeq++; ev.seq = gameUi.evSeq;
+    gameUi.events.push(ev);
+    if (gameUi.events.length > 8) gameUi.events.shift();   // human events are sparse
+    if (workerMem) {
+      const bytes = new TextEncoder().encode(JSON.stringify(gameUi.events));
+      const n = Math.min(bytes.length, workerMem.str.length);
+      workerMem.str.set(bytes.subarray(0, n));
+      const K = window.PRProto.CTRL;
+      Atomics.store(workerMem.ctrl, K.TEXTLEN, n);
+      Atomics.add(workerMem.ctrl, K.TEXTSEQ, 1);
+    }
+  }
   const MAX_DPR = 3;                // past this the gain is invisible, the cost isn't
   const MAX_BUFFER_PX = 5e6;        // ~5 MP ceiling so a 4K fullscreen still holds 60fps
   let lastGameSceneJson = null;     // replayed after a resize (the buffer change clears it)
@@ -2434,6 +2608,66 @@ del _pyrun_install_net
         applyGameTransform(c);
         c.clearRect(0, 0, gameLogicalW, gameLogicalH);
       }
+    },
+    // ---- game.textbox() / game.button() : DOM widgets over the canvas --------
+    // Each is a real element (a focused <input> is the ONLY way to type on iOS,
+    // where game.pressed() sees no touch keyboard). Submit/click events cross to
+    // the worker through the shared buffer, so reading them never blocks.
+    uiCreate: function (id, kind, propsJson) {
+      const canvas = document.getElementById("game-canvas");
+      if (!canvas) return;
+      const host = canvas.parentElement || canvas;
+      if (getComputedStyle(host).position === "static") host.style.position = "relative";
+      let props = {}; try { props = JSON.parse(propsJson) || {}; } catch (e) {}
+      let el;
+      if (kind === "button") {
+        el = document.createElement("button");
+        el.type = "button"; el.className = "pwl-game-button";
+        el.textContent = props.label || "";
+        el.style.cssText = GAME_UI_BTN_CSS;
+        el.addEventListener("click", function () {
+          const tgt = props.submits && gameUi.els[props.submits];
+          if (tgt) {                       // a Send button: submit its textbox
+            pushGameUiEvent({ k: "submit", id: props.submits, t: tgt.value });
+            tgt.value = "";
+          } else {
+            pushGameUiEvent({ k: "click", id: id });
+          }
+        });
+      } else {
+        el = document.createElement("input");
+        el.type = "text"; el.className = "sandbox-stdin pwl-game-textbox";
+        el.autocomplete = "off"; el.spellcheck = false;
+        el.placeholder = props.placeholder || "";
+        el.style.cssText = GAME_UI_INPUT_CSS;
+        el.addEventListener("keydown", function (ev) {
+          if (ev.key !== "Enter") return;
+          ev.preventDefault();
+          pushGameUiEvent({ k: "submit", id: id, t: el.value });
+          el.value = "";
+        });
+      }
+      el.style.position = "absolute";
+      el.style.transform = "translate(-50%, -50%)";
+      host.appendChild(el);
+      gameUi.els[id] = el;
+      applyGameUiProps(el, kind, props);
+      if (kind !== "button") setTimeout(function () { try { el.focus(); } catch (e) {} }, 0);
+    },
+    uiUpdate: function (id, propsJson) {
+      const el = gameUi.els[id]; if (!el) return;
+      let props = {}; try { props = JSON.parse(propsJson) || {}; } catch (e) {}
+      applyGameUiProps(el, el.tagName === "BUTTON" ? "button" : "textbox", props);
+    },
+    uiRemove: function (id) {
+      const el = gameUi.els[id];
+      if (el) { try { el.remove(); } catch (e) {} delete gameUi.els[id]; }
+    },
+    // Main-thread runtime path (no worker): hand Python the recent events.
+    uiPoll: function () { return JSON.stringify(gameUi.events); },
+    uiReset: function () {
+      for (const k in gameUi.els) { try { gameUi.els[k].remove(); } catch (e) {} }
+      gameUi.els = {}; gameUi.events = []; gameUi.evSeq = 0;
     },
     setup: function (w, h, bg) {
       gamePlaying = true;
@@ -3274,11 +3508,13 @@ del _pyrun_install_net
   // Replays the worker's draw calls through the SAME TURTLE_IO/GAME_IO used by
   // the JSPI path, and feeds it live input via the shared buffer.
   function zeroInputState() {
+    try { GAME_IO.uiReset(); } catch (e) {}   // a fresh run has no stale widgets
     if (!workerMem) return;
     const c = workerMem.ctrl, K = window.PRProto.CTRL;
     for (let i = 0; i < K.NKEYS; i++) Atomics.store(c, K.KEYS + i, 0);
     Atomics.store(c, K.MX, 0); Atomics.store(c, K.MY, 0);
     Atomics.store(c, K.MDOWN, 0); Atomics.store(c, K.MCLICKS, 0); Atomics.store(c, K.MIN, 0);
+    Atomics.store(c, K.TEXTSEQ, 0); Atomics.store(c, K.TEXTLEN, 0);
   }
   function ensureWorker() {
     if (sharedWorkerReady) return sharedWorkerReady;

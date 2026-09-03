@@ -28,6 +28,8 @@
     RESTART: 10,     // 1 = the game asked to restart (game_over(retry=True))
     NETLEN: 11,      // number of UTF-8 bytes of the room snapshot in the NET region
     NETSEQ: 12,      // seqlock: odd while the snapshot is being written, even once settled
+    TEXTSEQ: 13,     // game UI (textbox/button): bumped on each submit/click event
+    TEXTLEN: 14,     // UTF-8 byte length of the recent-events JSON, held in STR
     KEYS: 16,        // key states live at KEYS .. KEYS+NKEYS-1 (1 = down)
     NKEYS: 48
   };

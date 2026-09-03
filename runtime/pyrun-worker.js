@@ -23,6 +23,7 @@ let netId = "solo";             // my multiplayer player id, handed over at init
 let netAvailable = false;       // is a multiplayer backend configured at all?
 let netSeqSeen = -1;            // last settled snapshot counter we decoded
 let netCache = "";              // ...and the JSON we decoded from it
+let lastTextSeq = -1;          // last game.textbox() submission counter we returned
 const CTRL = self.PRProto.CTRL;
 const dec = new TextDecoder();
 
@@ -116,6 +117,22 @@ const GAME_IO = {
   // OffscreenCanvas, and no blob has to be handed back across the boundary.
   saveImage: function (which, name, ask) { post("g", "saveImage", [String(which), String(name), !!ask]); },
   copyImage: function (which) { post("g", "copyImage", [String(which)]); },
+  // DOM widgets (game.textbox()/game.button()) live on the main thread; making
+  // and moving them is fire-and-forget. Reading events is the interesting half.
+  uiCreate: function (id, kind, props) { post("g", "uiCreate", [String(id), String(kind), String(props)]); },
+  uiUpdate: function (id, props) { post("g", "uiUpdate", [String(id), String(props)]); },
+  uiRemove: function (id) { post("g", "uiRemove", [String(id)]); },
+  // Recent submit/click events as JSON, read out of the shared buffer (a worker
+  // parked in Atomics.wait can't be handed them any other way). "" when nothing
+  // new since the last poll; Python de-dupes the array by each event's seq.
+  uiPoll: function () {
+    const seq = Atomics.load(mem.ctrl, CTRL.TEXTSEQ);
+    if (seq === lastTextSeq) return "";
+    lastTextSeq = seq;
+    const n = Atomics.load(mem.ctrl, CTRL.TEXTLEN);
+    if (n <= 0) return "";
+    return dec.decode(mem.str.slice(0, n));
+  },
   draw: function (json) { post("g", "draw", [String(json)]); }
 };
 
