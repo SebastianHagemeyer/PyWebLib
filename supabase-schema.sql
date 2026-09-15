@@ -129,6 +129,32 @@ create table if not exists public.admins (
 alter table public.admins enable row level security;
 revoke all on public.admins from anon, authenticated;
 
+-- Tell the page whether the signed-in user is an admin, without exposing the
+-- admins table (which has no grants). SECURITY DEFINER so it can read admins;
+-- returns only a boolean about the caller. See supabase-migration-moderation.sql.
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.admins where user_id = auth.uid());
+$$;
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to anon, authenticated;
+
+-- Admin moderation: an admin may read, rename (update) or delete ANY project,
+-- so abusive posts can be taken down. Permissive, so these OR with the
+-- author-only policies above; ordinary users are unaffected.
+drop policy if exists "admins read any project" on public.projects;
+create policy "admins read any project"
+  on public.projects for select
+  using (public.is_admin());
+drop policy if exists "admins update any project" on public.projects;
+create policy "admins update any project"
+  on public.projects for update
+  using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "admins delete any project" on public.projects;
+create policy "admins delete any project"
+  on public.projects for delete
+  using (public.is_admin());
+
 -- Cap how many programs one person can save (drafts and published both count).
 -- Enforced here because a client-side limit is trivially bypassed. To change the
 -- cap, edit the number and re-run this block (keep PROGRAM_CAP in publish.js in step).

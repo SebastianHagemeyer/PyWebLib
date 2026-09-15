@@ -188,6 +188,8 @@
           '<span class="cc-arrow"><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M8 4l5 6.5H3z" fill="currentColor"/></svg></span> ' +
           '<span class="cc-votes">' + p.vote_count + "</span></button>" +
         '<button type="button" class="btn btn-ghost" id="pg-copy">Copy link</button>' +
+        '<button type="button" class="btn btn-ghost cc-mod" id="pg-rename" hidden>Rename</button>' +
+        '<button type="button" class="btn btn-ghost cc-mod cc-mod-del" id="pg-del" hidden>Delete</button>' +
       "</div>" +
       '<details class="pg-code-wrap">' +
         '<summary class="pg-code-summary">Code</summary>' +
@@ -239,9 +241,54 @@
       } else { toast(url); }
     });
 
+    wireAdmin(p, view);
     wireVote(p);
     loadComments(p);
     countView(p);
+  }
+
+  // Admin moderation on the program page: rename / delete any post.
+  async function wireAdmin(p, view) {
+    const user = PWL.auth && PWL.auth.user();
+    if (!user) return;
+    let admin = false;
+    try { const r = await sb.rpc("is_admin"); admin = !!(r && r.data === true); } catch (e) { return; }
+    if (!admin) return;
+    const renameBtn = view.querySelector("#pg-rename");
+    const delBtn = view.querySelector("#pg-del");
+    if (renameBtn) {
+      renameBtn.hidden = false;
+      renameBtn.addEventListener("click", async function () {
+        const next = window.prompt("Rename this post:", p.title || "");
+        if (next == null) return;
+        const title = next.trim().slice(0, 120);
+        if (!title || title === p.title) return;
+        const res = await sb.from("projects")
+          .update({ title: title, updated_at: new Date().toISOString() })
+          .eq("id", p.id).select("id").single();
+        if (res.error) { toast("Rename failed: " + res.error.message); return; }
+        p.title = title;
+        const el = view.querySelector(".pg-title"); if (el) el.textContent = title;
+        toast("Renamed.");
+      });
+    }
+    if (delBtn) {
+      delBtn.hidden = false;
+      let armed = false, armTimer;
+      delBtn.addEventListener("click", async function () {
+        if (!armed) {
+          armed = true; delBtn.textContent = "Click again to delete"; delBtn.classList.add("armed");
+          clearTimeout(armTimer);
+          armTimer = setTimeout(function () { armed = false; delBtn.textContent = "Delete"; delBtn.classList.remove("armed"); }, 3500);
+          return;
+        }
+        clearTimeout(armTimer);
+        const res = await sb.from("projects").delete().eq("id", p.id);
+        if (res.error) { toast("Delete failed: " + res.error.message); return; }
+        toast("Post deleted.");
+        setTimeout(function () { window.location.href = "../community/"; }, 700);
+      });
+    }
   }
 
   async function wireVote(p) {

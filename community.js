@@ -34,6 +34,8 @@
   let projects = [];
   let votedSet = new Set();
   let currentUserId = null;
+  let isAdmin = false;       // moderator: can rename/delete any post (checked once)
+  let adminChecked = false;
   let pubSupported = true;   // set false once we learn the DB has no `published` column
 
   function esc(s) {
@@ -117,6 +119,12 @@
     grid.innerHTML = '<p class="community-empty">Loading…</p>';
     const user = PWL.auth && PWL.auth.user();
     currentUserId = user ? user.id : null;
+    // Learn (once) whether this user may moderate. is_admin() is security-definer
+    // so the page never reads the admins table directly.
+    if (user && !adminChecked) {
+      adminChecked = true;
+      try { const r = await sb.rpc("is_admin"); isAdmin = !!(r && r.data === true); } catch (e) { isAdmin = false; }
+    }
 
     function cols(withViews, withPub) {
       return "id,title,description,code,kind,scene,vote_count," +
@@ -226,6 +234,8 @@
           '<button type="button" class="cc-btn cc-comment-btn" data-act="detail"><svg class="cc-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3 2h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H7l-3 3v-3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="currentColor"/></svg> ' + commentCount + "</button>" +
           (mine && isDraft ? '<button type="button" class="cc-btn cc-publish" data-act="publish">Publish</button>' : "") +
           (mine ? '<button type="button" class="cc-btn cc-edit" data-act="edit">Edit</button>' : "") +
+          (isAdmin && !mine ? '<button type="button" class="cc-btn cc-mod" data-act="rename" title="Rename this post (admin)">Rename</button>' +
+                              '<button type="button" class="cc-btn cc-mod cc-mod-del" data-act="mod-del" title="Delete this post (admin)">Delete</button>' : "") +
         "</div>";
       card.querySelector(".cc-title").textContent = p.title;
       const desc = card.querySelector(".cc-desc");
@@ -249,6 +259,21 @@
       card.querySelector('[data-act="open"]').addEventListener("click", function () { openInPlayground(p); });
       card.querySelector('[data-act="detail"]').addEventListener("click", function () { openDetail(p); });
       if (mine) card.querySelector('[data-act="edit"]').addEventListener("click", function () { openEditor(p); });
+      if (isAdmin && !mine) {
+        card.querySelector('[data-act="rename"]').addEventListener("click", function () { adminRename(p, card); });
+        const delBtn = card.querySelector('[data-act="mod-del"]');
+        let armed = false, armTimer;
+        delBtn.addEventListener("click", function () {
+          if (!armed) {
+            armed = true; delBtn.textContent = "Click again to delete"; delBtn.classList.add("armed");
+            clearTimeout(armTimer);
+            armTimer = setTimeout(function () { armed = false; delBtn.textContent = "Delete"; delBtn.classList.remove("armed"); }, 3500);
+            return;
+          }
+          clearTimeout(armTimer);
+          adminDelete(p);
+        });
+      }
       if (mine && isDraft) {
         // Two-click, like delete: publishing is public and one-way, so a single
         // stray click shouldn't do it.
@@ -278,6 +303,27 @@
     if (res.error) { toast("Couldn't publish: " + res.error.message); return; }
     p.published = true;
     toast("Published! It's live in the community now.");
+    refresh();
+  }
+
+  // ---- Admin moderation: rename / delete anyone's post ----
+  async function adminRename(p, card) {
+    const next = window.prompt("Rename this post:", p.title || "");
+    if (next == null) return;                     // cancelled
+    const title = next.trim().slice(0, 120);
+    if (!title || title === p.title) return;
+    const res = await sb.from("projects")
+      .update({ title: title, updated_at: new Date().toISOString() })
+      .eq("id", p.id).select("id").single();
+    if (res.error) { toast("Rename failed: " + res.error.message); return; }
+    p.title = title;
+    const el = card.querySelector(".cc-title"); if (el) el.textContent = title;
+    toast("Renamed.");
+  }
+  async function adminDelete(p) {
+    const res = await sb.from("projects").delete().eq("id", p.id);
+    if (res.error) { toast("Delete failed: " + res.error.message); return; }
+    toast("Post deleted.");
     refresh();
   }
 

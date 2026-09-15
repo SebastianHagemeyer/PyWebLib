@@ -1167,6 +1167,10 @@ body.sandbox-maxed { overflow: hidden; }
 .cc-btn.cc-publish, .btn.pwl-publish-alt { border-color: #a855f7; color: #a855f7; font-weight: 700; }
 .cc-btn.cc-publish:hover, .btn.pwl-publish-alt:hover { background: #a855f7; color: #fff; }
 .cc-btn.cc-publish.armed { background: #a855f7; border-color: #a855f7; color: #fff; }
+/* Admin moderation buttons (rename / delete any post) */
+.cc-btn.cc-mod { border-color: var(--danger); color: var(--danger); font-weight: 700; }
+.cc-btn.cc-mod:hover { background: var(--danger-bg); }
+.cc-btn.cc-mod-del.armed { background: var(--danger); border-color: var(--danger); color: #fff; }
 /* Playground share panel while editing a draft: a subtle amber cue. */
 .share-cta.share-cta-draft { border-left: 3px solid #d9861f; padding-left: 15px; }
 .cc-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; flex-wrap: wrap; }
