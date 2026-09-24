@@ -209,7 +209,7 @@
 
     view.querySelector(".pg-title").textContent = p.title || "Untitled";
     const desc = view.querySelector(".pg-desc");
-    if (p.description) desc.textContent = p.description; else desc.remove();
+    if (p.description) desc.innerHTML = linkify(p.description); else desc.remove();
     view.querySelector(".pg-code").textContent = p.code;
 
     // Poster with a Play overlay: click it to run inline, no Playground needed.

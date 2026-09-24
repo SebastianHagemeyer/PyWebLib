@@ -259,11 +259,13 @@
     card.className = "community-card" + (isDraft ? " is-draft" : "") + (isFeatured ? " is-featured" : "");
     card._p = p;
     card.innerHTML =
-      '<a class="cc-thumb-wrap" href="../game/?id=' + encodeURIComponent(p.id) + '"><canvas class="cc-thumb" width="320" height="180"></canvas></a>' +
+      '<a class="cc-thumb-wrap" href="../game/?id=' + encodeURIComponent(p.id) + '">' +
+        '<canvas class="cc-thumb" width="320" height="180"></canvas>' +
+        (isFeatured ? '<span class="cc-kind cc-featured" title="Pinned by a moderator: it leads Trending, New and Top">★ Featured</span>' : "") +
+      "</a>" +
       '<div class="cc-head">' +
         '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
         (isDraft ? '<span class="cc-kind cc-draft" title="Only you can see this">Draft</span>' : "") +
-        (isFeatured ? '<span class="cc-kind cc-featured" title="Pinned by a moderator: it leads Trending, New and Top">★ Featured</span>' : "") +
         '<h3 class="cc-title"></h3>' +
         '<button type="button" class="cc-play" data-act="play" title="' + (p.kind === "game" ? "Play" : p.kind === "game3d" ? "Open in the Playground" : "Run") + '">' +
           '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3l9 5-9 5z" fill="currentColor"/></svg> ' +
@@ -290,7 +292,7 @@
       "</div>";
     card.querySelector(".cc-title").textContent = p.title;
     const desc = card.querySelector(".cc-desc");
-    if (p.description) desc.textContent = p.description; else desc.remove();
+    if (p.description) desc.innerHTML = linkify(p.description); else desc.remove();
     card.querySelector('[data-act="vote"]').addEventListener("click", function () { toggleVote(p, card); });
     card.querySelector('[data-act="play"]').addEventListener("click", function () {
       // Games deserve the full page: leaderboard, comments, big stage. Turtle
@@ -461,7 +463,7 @@
       "</div>";
     back.querySelector(".pwl-modal-title").textContent = p.title;
     const md = back.querySelector(".pwl-modal-desc");
-    if (p.description) md.textContent = p.description; else md.remove();
+    if (p.description) md.innerHTML = linkify(p.description); else md.remove();
     back.querySelector(".pwl-modal-code").textContent = p.code;
 
     function close() { back.remove(); document.removeEventListener("keydown", onKey); }
