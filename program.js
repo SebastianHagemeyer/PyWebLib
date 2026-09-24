@@ -99,14 +99,19 @@
   }
 
   async function load() {
-    function cols(withViews) {
+    function cols(withViews, withFeat) {
       return "id,title,description,code,kind,scene,vote_count," + (withViews ? "view_count," : "") +
+        (withFeat ? "featured," : "") +
         "created_at,updated_at,author_id,profiles!author_id(display_name,avatar_url),comments(count)";
     }
-    // Ask for view_count, but tolerate a database that hasn't added it yet.
-    let res = await sb.from("projects").select(cols(true)).eq("id", id).single();
+    // Ask for view_count and featured, but tolerate a database that hasn't
+    // added either yet: the page still has to open.
+    let res = await sb.from("projects").select(cols(true, true)).eq("id", id).single();
+    if (res.error && /featured/i.test(res.error.message || "")) {
+      res = await sb.from("projects").select(cols(true, false)).eq("id", id).single();
+    }
     if (res.error && /view_count/i.test(res.error.message || "")) {
-      res = await sb.from("projects").select(cols(false)).eq("id", id).single();
+      res = await sb.from("projects").select(cols(false, false)).eq("id", id).single();
     }
     const { data, error } = res;
     if (error || !data) {
@@ -173,6 +178,7 @@
     view.innerHTML =
       '<div class="cc-head">' +
         '<span class="cc-kind cc-kind-' + esc(kind) + '">' + esc(kind) + "</span>" +
+        (p.featured === true ? '<span class="cc-kind cc-featured" title="Pinned to the top of the community gallery">★ Featured</span>' : "") +
         '<h1 class="pg-title"></h1>' +
       "</div>" +
       '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +

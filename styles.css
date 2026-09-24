@@ -59,6 +59,8 @@
 [data-theme="dark"] .guide :not(pre) > code { background: #1c2440; color: #dbe3ff; }
 [data-theme="dark"] .community-notice { background: #241f0f; border-color: #4a3d12; }
 [data-theme="dark"] .community-card.is-draft { background: #241d10; border-color: #4a3a17; }
+[data-theme="dark"] .community-card.is-featured { border-color: #b9902f; box-shadow: 0 0 0 3px rgba(232, 196, 106, 0.13), var(--shadow-md); }
+[data-theme="dark"] .cc-btn.cc-feat { color: #e8c46a; }
 [data-theme="dark"] .pwl-cap-note { background: #2a2210; }
 [data-theme="dark"] .indent-hint { background: #241f0f; border-color: #4a3d12; }
 [data-theme="dark"] .lb-top-2 .lb-rank { color: #b9c2d4; }
@@ -1162,6 +1164,19 @@ body.sandbox-maxed { overflow: hidden; }
    private draft never looks the same as a live, published card. */
 .community-card.is-draft { border: 1.5px dashed #d9861f; background: #fff8ee; box-shadow: 0 1px 0 #f1ddbf, var(--shadow-sm); }
 .community-card.is-draft .cc-thumb { opacity: 0.92; }
+/* Featured cards: pinned by a moderator, so they lead Trending, New and Top.
+   Gold is used nowhere else in the gallery, which is the whole reason a pin
+   reads as one from across the page. */
+.cc-kind.cc-featured { background: linear-gradient(180deg, #e8c46a, #c99a2e); color: #2b2109; }
+.community-card.is-featured {
+  border: 1.5px solid #e0b64a;
+  box-shadow: 0 0 0 3px rgba(232, 196, 106, 0.22), var(--shadow-md);
+  background: linear-gradient(180deg, rgba(232, 196, 106, 0.12), rgba(232, 196, 106, 0) 140px), var(--surface);
+}
+/* The pin toggle wears the same gold as the frame it turns on. */
+.cc-btn.cc-feat { border-color: #c99a2e; color: #a87c17; font-weight: 700; }
+.cc-btn.cc-feat:hover { background: rgba(232, 196, 106, 0.18); }
+.cc-btn.cc-feat.on { background: #e8c46a; border-color: #c99a2e; color: #2b2109; }
 /* The go-public buttons (draft card + share dialog) share one deliberate look
    that stands apart from the neutral "Save"/"Edit" buttons. */
 .cc-btn.cc-publish, .btn.pwl-publish-alt { border-color: #a855f7; color: #a855f7; font-weight: 700; }

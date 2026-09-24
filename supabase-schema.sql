@@ -155,6 +155,48 @@ create policy "admins delete any project"
   on public.projects for delete
   using (public.is_admin());
 
+-- Featured (pinned) programs. An admin pins a published program and it leads
+-- the gallery on all three tabs, in a gold frame. See
+-- supabase-migration-featured.sql for the standalone copy and the reasoning.
+alter table public.projects add column if not exists featured    boolean not null default false;
+alter table public.projects add column if not exists featured_at timestamptz;
+create index if not exists projects_featured_idx
+  on public.projects (featured_at desc) where featured;
+
+-- RLS gates rows, not columns, and every author may already update their own
+-- row, so without this trigger anyone could pin themselves to the top with one
+-- REST call. It is the column-level lock RLS cannot express, and it also stamps
+-- featured_at so no client has to be trusted to.
+create or replace function public.projects_guard_featured()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.featured and not public.is_admin() then
+      new.featured := false;
+    end if;
+  elsif (new.featured is distinct from old.featured) and not public.is_admin() then
+    raise exception 'only an admin can feature a program';
+  end if;
+
+  -- A private draft is not in the gallery, so it cannot lead it. This runs
+  -- AFTER the check above, so an author unpublishing their own featured post
+  -- is an automatic clear, not a permission error.
+  if not new.published then
+    new.featured := false;
+  end if;
+  if new.featured and new.featured_at is null then
+    new.featured_at := now();
+  elsif not new.featured then
+    new.featured_at := null;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists projects_guard_featured on public.projects;
+create trigger projects_guard_featured
+  before insert or update on public.projects
+  for each row execute function public.projects_guard_featured();
+
 -- Cap how many programs one person can save (drafts and published both count).
 -- Enforced here because a client-side limit is trivially bypassed. To change the
 -- cap, edit the number and re-run this block (keep PROGRAM_CAP in publish.js in step).
