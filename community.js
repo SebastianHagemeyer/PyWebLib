@@ -38,8 +38,11 @@
   let adminChecked = false;
   let pubSupported = true;   // set false once we learn the DB has no `published` column
   let featSupported = true;  // ditto for `featured` (pinned posts)
-  let featured = [];         // pinned posts: they lead every tab
-  const FEATURED_MAX = 3;    // a pin is only an advert while it is rare
+  let pinned = [];           // the pins that exist
+  let featured = [];         // the pins actually being shown (page one only)
+  // A pin is only an advert while it is rare, and this must stay BELOW
+  // PAGE_SIZE so page one always has room for ordinary programs too.
+  const FEATURED_MAX = 3;
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -117,6 +120,17 @@
   }
   function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
 
+  // Pins sit on page one and count toward its six, so page one holds fewer
+  // ordinary programs and every later page starts that much earlier. Without
+  // the shift, page one showed seven cards and page two repeated one of them.
+  function firstPageRoom() {
+    return Math.max(1, PAGE_SIZE - Math.min(pinned.length, PAGE_SIZE - 1));
+  }
+  function pageCount() {
+    const rest = Math.max(0, totalCount - firstPageRoom());
+    return Math.max(1, 1 + Math.ceil(rest / PAGE_SIZE));
+  }
+
   // The row shape both the paged list and the pinned strip ask for. The two
   // optional columns are there so a database that has not had the migrations
   // run still loads the gallery instead of erroring out.
@@ -139,6 +153,13 @@
       try { const r = await sb.rpc("is_admin"); isAdmin = !!(r && r.data === true); } catch (e) { isAdmin = false; }
     }
 
+    // The pins are fetched FIRST, because how many there are decides how much
+    // room page one has left. They are only RENDERED on page one: repeating
+    // the same card down every page of the gallery is what made it feel
+    // parasitic rather than promoted.
+    pinned = await loadFeatured();
+    featured = page === 0 ? pinned : [];
+
     function build(withViews, withPub) {
       let q = sb.from("projects").select(cols(withViews, withPub, featSupported), { count: "exact" });
       if (mineOnly && user) {
@@ -160,8 +181,10 @@
         if (withViews) q = q.order("view_count", { ascending: false });
         q = q.order("created_at", { ascending: false });
       }
-      const from = page * PAGE_SIZE;
-      return q.range(from, from + PAGE_SIZE - 1);
+      const room = firstPageRoom();
+      const from = page === 0 ? 0 : room + (page - 1) * PAGE_SIZE;
+      const take = page === 0 ? room : PAGE_SIZE;
+      return q.range(from, from + take - 1);
     }
     // Ask for view_count and published, but tolerate a database that hasn't added
     // them yet (schema not re-run): fall back so the gallery still loads.
@@ -177,11 +200,9 @@
     }
     totalCount = (typeof count === "number") ? count : (data ? data.length : 0);
     // Paged past the end (e.g. after a delete)? Step back to the last page and refetch.
-    const lastPage = Math.max(0, Math.ceil(totalCount / PAGE_SIZE) - 1);
+    const lastPage = pageCount() - 1;
     if (page > lastPage) { page = lastPage; return refresh(); }
     projects = data || [];
-
-    featured = await loadFeatured();
 
     votedSet = new Set();
     if (user && (projects.length || featured.length)) {
@@ -195,6 +216,8 @@
   // The pinned posts, fetched on their own rather than ordered to the front of
   // the list above. Trending's seven-day window and Top's vote ordering would
   // each drop or bury a pin, and a pin has to lead all three tabs the same way.
+  // Fetched on every page even though only page one shows them, because the
+  // count is what the paging is shifted by.
   async function loadFeatured() {
     if (mineOnly || !featSupported) return [];
     function run(withViews) {
@@ -203,6 +226,7 @@
       return q.order("featured_at", { ascending: false }).limit(FEATURED_MAX);
     }
     let r = await run(true);
+    if (r.error && /published/i.test(r.error.message || "")) { pubSupported = false; r = await run(true); }
     if (r.error && /view_count/i.test(r.error.message || "")) r = await run(false);
     if (r.error) {
       // No `featured` column yet (migration not run): stop asking for it.
@@ -214,13 +238,13 @@
 
   function renderPager() {
     if (!pager) return;
-    const pages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    const pages = pageCount();
     if (pages <= 1) { pager.hidden = true; pager.innerHTML = ""; return; }
     pager.hidden = false;
     pager.innerHTML =
       '<button type="button" class="cc-page-btn" data-page="prev"' + (page <= 0 ? " disabled" : "") + ">‹ Prev</button>" +
       '<span class="cc-page-info">Page ' + (page + 1) + " of " + pages + "  ·  " + totalCount + " project" + (totalCount === 1 ? "" : "s") +
-        (featured.length ? " + " + featured.length + " featured" : "") + "</span>" +
+        (pinned.length ? " + " + pinned.length + " featured" : "") + "</span>" +
       '<button type="button" class="cc-page-btn" data-page="next"' + (page >= pages - 1 ? " disabled" : "") + ">Next ›</button>";
     function go(delta) {
       page = Math.min(pages - 1, Math.max(0, page + delta));
