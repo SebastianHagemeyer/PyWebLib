@@ -27,6 +27,9 @@
     s     subtitle, one or two lines.
     pill  top-right chip. Omit for no chip.
     art   snake (default) | code | a path under assets/og/ for a screenshot
+    dom   the domain in the footer. Defaults to play.pyweblib.org; the
+          homepage repo serves its card from pyweblib.org and a card that
+          names the wrong host is worse than no card.
 
   Example:
     tools/og-card.html?t=Real+Python+*in+your+browser*&s=Nothing+to+install
@@ -217,7 +220,7 @@
     <p class="sub" id="sub"></p>
 
     <div class="foot">
-      play.pyweblib.org<span class="dot">&middot;</span><span class="free">free &amp; open source</span>
+      <span id="dom">play.pyweblib.org</span><span class="dot">&middot;</span><span class="free">free &amp; open source</span>
     </div>
   </div>
 
@@ -272,6 +275,8 @@ me = game.<span class="fn">sprite</span>(<span class="st">"car"</span>, 0, 0, 44
     paint(q.get("t") || "Real Python *in your browser*");
   document.getElementById("sub").innerHTML =
     paint(q.get("s") || "Turtle drawing, games and coloured output. Nothing to install.");
+
+  if (q.get("dom")) document.getElementById("dom").textContent = q.get("dom");
 
   var pill = q.get("pill");
   if (pill) {

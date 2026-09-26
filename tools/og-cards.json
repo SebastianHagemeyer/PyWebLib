@@ -64,6 +64,15 @@
       "s": "Turtle drawings and browser games shared by the community. Open one and tinker.",
       "pill": "Gallery",
       "art": "catch-the-egg.jpg"
+    },
+    {
+      "file": "og-home.png",
+      "used_by": "the homepage at pyweblib.org (a different repo: copy it to pyweblib-home/og-home.png)",
+      "t": "Real Python|*in your browser*",
+      "s": "Turtle drawing, browser games and multiplayer rooms. Free, and built for classrooms.",
+      "pill": "▶ No install",
+      "art": "snake",
+      "dom": "pyweblib.org"
     }
   ]
 }

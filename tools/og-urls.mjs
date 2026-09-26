@@ -20,6 +20,7 @@ for (const c of cards) {
   q.set("s", c.s);
   if (c.pill) q.set("pill", c.pill);
   if (c.art && c.art !== "snake") q.set("art", c.art);
+  if (c.dom) q.set("dom", c.dom);
   console.log("\n" + c.file + "   (" + c.used_by + ")");
   console.log("http://localhost:" + port + "/tools/og-card.html?" + q);
 }
