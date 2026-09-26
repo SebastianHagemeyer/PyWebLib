@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# The card generator: brand chrome with no content, and it carries a noindex
+# of its own. Listed here so a crawler does not spend a fetch finding that out.
+Disallow: /tools/
+
+Sitemap: https://play.pyweblib.org/sitemap.xml

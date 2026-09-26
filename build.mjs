@@ -202,21 +202,56 @@ function outputFor(srcPath) {
 
 const check = process.argv.includes("--check");
 let built = 0, differs = 0;
-for (const srcPath of pages()) {
-  const [meta, body] = split(lf(readFileSync(srcPath, "utf8")));
-  const outPath = outputFor(srcPath);
-  const html = render(meta, body, outPath);
+const urls = [];
+
+/* Both modes go through here, so --check compares exactly what a build
+ * would write, sitemap included. */
+function emit(outPath, text) {
   if (check) {
     let current = null;
-    try { current = lf(readFileSync(outPath, "utf8")); } catch { /* new page */ }
-    if (current !== html) { differs++; console.log("  DIFFERS  " + outPath); }
+    try { current = lf(readFileSync(outPath, "utf8")); } catch { /* new file */ }
+    if (current !== text) { differs++; console.log("  DIFFERS  " + outPath); }
     else console.log("  same     " + outPath);
   } else {
     mkdirSync(dirname(outPath), { recursive: true });
-    writeFileSync(outPath, html);
+    writeFileSync(outPath, text);
     console.log("  wrote    " + outPath);
+  }
+}
+
+for (const srcPath of pages()) {
+  const [meta, body] = split(lf(readFileSync(srcPath, "utf8")));
+  const outPath = outputFor(srcPath);
+  emit(outPath, render(meta, body, outPath));
+  if (!meta.noindex) {
+    urls.push(SITE + "/" + outPath.split(sep).slice(0, -1).map((s) => s + "/").join(""));
   }
   built++;
 }
-console.log(NL + built + " page(s)" + (check ? ", " + differs + " differing" : " written"));
+
+/* The sitemap, from the pages the build just wrote.
+ *
+ * WHY GENERATED. The site had none at all, so the five docs pages, the
+ * community gallery and the leaderboard were left for Google to find on its
+ * own. A hand-written one would be a fifteenth copy of the page list to keep
+ * in step, and the first thing to go stale.
+ *
+ * No <lastmod>, <changefreq> or <priority>. Google ignores the last two
+ * outright, and a lastmod can only be honest here if it tracks each page's
+ * real edit: taking it from git makes the committed sitemap disagree with the
+ * commit that writes it, and taking it from the clock makes every page claim
+ * to change on every build. A wrong lastmod is worse than none, because it
+ * teaches the crawler to stop believing the file.
+ *
+ * Pages carrying noindex are left out: asking for a page to be indexed and
+ * telling it not to be is a contradiction Search Console reports as an error.
+ */
+emit("sitemap.xml",
+  '<?xml version="1.0" encoding="UTF-8"?>' + NL +
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + NL +
+  urls.map((u) => "  <url>" + NL + "    <loc>" + u + "</loc>" + NL + "  </url>").join(NL) + NL +
+  "</urlset>" + NL);
+
+console.log(NL + built + " page(s), " + urls.length + " in the sitemap" +
+            (check ? ", " + differs + " differing" : ", written"));
 if (check && differs) process.exit(1);
