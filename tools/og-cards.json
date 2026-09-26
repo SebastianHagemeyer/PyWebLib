@@ -1,0 +1,69 @@
+{
+  "_comment": [
+    "Every social preview card in assets/og/, and the words on it. This file is",
+    "the record: og-card.html draws whatever it is handed, so without a list",
+    "the copy on a shipped card would live nowhere but the PNG itself.",
+    "",
+    "In a headline, *stars* paint a phrase amber and | forces a line break.",
+    "Render them with:  node tools/og-urls.mjs",
+    "and follow tools/README.md."
+  ],
+  "cards": [
+    {
+      "file": "og-default.png",
+      "used_by": "the playground, about, settings, and anything with no card of its own",
+      "t": "Real Python|*in your browser*",
+      "s": "Turtle drawing, games and coloured output. Nothing to install.",
+      "pill": "▶ No install",
+      "art": "snake"
+    },
+    {
+      "file": "og-program.png",
+      "used_by": "/game/ , the page every shared program link opens",
+      "t": "Play this Python program|*in your browser*",
+      "s": "Games and turtle drawings. Real Python, nothing to install.",
+      "pill": "▶ No install",
+      "art": "snake"
+    },
+    {
+      "file": "og-turtle.png",
+      "used_by": "/docs/turtle/",
+      "t": "Turtle drawing|*in the browser*",
+      "s": "A pen that walks and loops that make patterns. Every example runs on the page.",
+      "pill": "Guide",
+      "art": "rainbow-spiral.jpg"
+    },
+    {
+      "file": "og-game.png",
+      "used_by": "/docs/game/",
+      "t": "Python games,|*no install*",
+      "s": "Sprites, keys, collisions and a score. No pygame and no pygbag.",
+      "pill": "Guide",
+      "art": "walk-the-chicken.jpg"
+    },
+    {
+      "file": "og-net.png",
+      "used_by": "/docs/net/",
+      "t": "Multiplayer Python|*in six lines*",
+      "s": "Same room name, same game. No server to run and no account to make.",
+      "pill": "Guide",
+      "art": "code"
+    },
+    {
+      "file": "og-docs.png",
+      "used_by": "/docs/ and /docs/guide/",
+      "t": "Python docs with|*a run button*",
+      "s": "Variables, loops, functions, turtle and game. Every entry has an example.",
+      "pill": "Docs",
+      "art": "snake"
+    },
+    {
+      "file": "og-community.png",
+      "used_by": "/community/ , /leaderboard/ and /assets/",
+      "t": "Programs made|*by learners*",
+      "s": "Turtle drawings and browser games shared by the community. Open one and tinker.",
+      "pill": "Gallery",
+      "art": "catch-the-egg.jpg"
+    }
+  ]
+}

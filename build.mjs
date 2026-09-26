@@ -29,6 +29,13 @@ import { dirname, join, relative, sep } from "node:path";
 const SRC = "src";
 const NL = "\n";
 
+/* Absolute, because a social preview card cannot be a relative path: the
+ * scraper fetching it is Discord's or Google's, not a browser sitting on the
+ * page. Everything under {{social}} is built from this. */
+const SITE = "https://play.pyweblib.org";
+const CARD_DIR = "/assets/og/";
+const DEFAULT_CARD = "og-default.png";
+
 /* Everything is handled in LF and compared in LF.
  *
  * git's core.autocrlf hands out CRLF working files on Windows, but the nav and
@@ -97,6 +104,57 @@ function nav(pagePath) {
   return out.join(NL);
 }
 
+/* Anything going into an HTML attribute. The page titles carry pipes and
+ * ampersands already, and one apostrophe or quote in a future description
+ * would otherwise end the attribute early and mangle the card. */
+const attr = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+           .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/* Canonical URL, Open Graph and Twitter tags, for every page.
+ *
+ * WHY THIS IS BUILT AND NOT WRITTEN. Exactly one page (game/) had these,
+ * hand-written as a 14-line escaped string inside its front matter, so every
+ * other link to this site rendered in Discord, WhatsApp and Slack as a bare
+ * grey URL with no title and no picture. Thirteen more hand-copied blocks is
+ * how the header drifted in the first place. The build already knows a page's
+ * URL, title and description, which is all a card needs, so the only thing a
+ * page has to say is which picture to use.
+ *
+ * Front matter:
+ *   card         file in assets/og/, default og-default.png
+ *   cardAlt      alt text for it
+ *   ogTitle      social headline, when the <title> is too long or too dull
+ *   ogDesc       social blurb, when the meta description is too long
+ *   noindex      true to ask search engines to skip the page
+ */
+function social(page, pagePath) {
+  const url = SITE + pagePath;
+  const card = SITE + CARD_DIR + (page.card || DEFAULT_CARD);
+  const title = page.ogTitle || page.title;
+  const desc = page.ogDesc || page.description;
+  const alt = page.cardAlt || "PyWebLib: real Python in your browser.";
+  const tags = [
+    ['<link rel="canonical" href="' + attr(url) + '" />'],
+    page.noindex ? ['<meta name="robots" content="noindex, follow" />'] : [],
+    ['<meta property="og:type" content="website" />'],
+    ['<meta property="og:site_name" content="PyWebLib" />'],
+    ['<meta property="og:url" content="' + attr(url) + '" />'],
+    ['<meta property="og:title" content="' + attr(title) + '" />'],
+    ['<meta property="og:description" content="' + attr(desc) + '" />'],
+    ['<meta property="og:image" content="' + attr(card) + '" />'],
+    ['<meta property="og:image:width" content="1200" />'],
+    ['<meta property="og:image:height" content="630" />'],
+    ['<meta property="og:image:alt" content="' + attr(alt) + '" />'],
+    ['<meta name="twitter:card" content="summary_large_image" />'],
+    ['<meta name="twitter:title" content="' + attr(title) + '" />'],
+    ['<meta name="twitter:description" content="' + attr(desc) + '" />'],
+    ['<meta name="twitter:image" content="' + attr(card) + '" />'],
+    ['<meta name="twitter:image:alt" content="' + attr(alt) + '" />'],
+  ].flat();
+  return tags.map((t) => "  " + t).join(NL);
+}
+
 function render(page, body, outPath) {
   const root = rootFor(outPath);
   const pagePath = "/" + outPath.split(sep).slice(0, -1).map((s) => s + "/").join("");
@@ -105,6 +163,7 @@ function render(page, body, outPath) {
     description: page.description,
     root,
     nav: nav(pagePath),
+    social: social(page, pagePath),
     head: (page.head || "").trimEnd(),
     // Script paths in front matter are relative to the SITE ROOT, and the
     // build adds the depth. No defer added here: these pages load in order

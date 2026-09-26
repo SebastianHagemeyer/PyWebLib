@@ -26,21 +26,24 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="stylesheet" href="../styles.css" />
-  <!-- Open Graph / social preview. Static card shared by every /game link;
-       per-program previews would need server-side rendering (not GitHub Pages). -->
+  <!-- Canonical, Open Graph and Twitter tags, written by build.mjs from the
+       page's own title, description and card. See social() there. -->
+  <link rel="canonical" href="https://play.pyweblib.org/game/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="PyWebLib" />
   <meta property="og:url" content="https://play.pyweblib.org/game/" />
-  <meta property="og:title" content="Play this Python program in your browser | PyWebLib" />
+  <meta property="og:title" content="Play this Python program in your browser" />
   <meta property="og:description" content="Games and turtle drawings, real Python, nothing to install. Open it in the Playground to tinker." />
-  <meta property="og:image" content="https://play.pyweblib.org/game-card.png" />
+  <meta property="og:image" content="https://play.pyweblib.org/assets/og/og-program.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="PyWebLib: play this Python program in your browser." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Play this Python program in your browser | PyWebLib" />
-  <meta name="twitter:description" content="Games and turtle drawings, real Python, nothing to install." />
-  <meta name="twitter:image" content="https://play.pyweblib.org/game-card.png" />
+  <meta name="twitter:title" content="Play this Python program in your browser" />
+  <meta name="twitter:description" content="Games and turtle drawings, real Python, nothing to install. Open it in the Playground to tinker." />
+  <meta name="twitter:image" content="https://play.pyweblib.org/assets/og/og-program.png" />
+  <meta name="twitter:image:alt" content="PyWebLib: play this Python program in your browser." />
+
 </head>
 <body>
   <header class="site-header">

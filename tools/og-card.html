@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>OG card source</title>
+<!-- Static hosting serves this too, and a page of brand chrome with no content
+     has no business in search results. -->
+<meta name="robots" content="noindex, nofollow" />
+<!--
+  The source for every social preview card in assets/og/.
+
+  WHY A PAGE AND NOT AN IMAGE EDITOR. The cards are brand chrome: the same
+  gradient, the same mascot, the same footer, with only the words changing.
+  Hand-drawing each one guarantees they drift apart, and the first card
+  (game-card.png) had no source at all, so a second one could not match it.
+  This page IS the source. Open it with query parameters and screenshot the
+  1200x630 viewport.
+
+  NO DEPENDENCIES, like the rest of the repo. It is one static file that reads
+  its own URL. Rendering is whatever browser you have; see tools/README.md.
+
+  Parameters (all optional):
+    t     headline. Wrap words in *stars* to paint them amber, and use a
+          pipe | where the line must break. Left to itself the browser
+          balances the lines, which split "Real Python in | your browser"
+          and stranded a lone amber word at the end of line one.
+    s     subtitle, one or two lines.
+    pill  top-right chip. Omit for no chip.
+    art   snake (default) | code | a path under assets/og/ for a screenshot
+
+  Example:
+    tools/og-card.html?t=Real+Python+*in+your+browser*&s=Nothing+to+install
+-->
+<style>
+  /* The palette is copied from styles.css on purpose: this page is rendered
+     to PNG and never served, so it must not depend on the site's stylesheet
+     loading. Change a colour there and change it here. */
+  :root {
+    --primary: #4f46e5;
+    --accent: #ffd43b;
+    --accent-ink: #1e1b4b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                 Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    /* Deep indigo at the top left opening out to the brand indigo on the
+       right, so the headline sits on the dark end and stays legible. */
+    background:
+      radial-gradient(900px 620px at 88% 68%, rgba(129,110,255,0.45), transparent 62%),
+      linear-gradient(118deg, #2a2472 0%, #3b2f9e 46%, #5346d8 100%);
+    color: #fff;
+  }
+  /* Faint graph paper. Two gradients rather than an image keeps this file
+     standalone. */
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .inner { position: relative; height: 100%; padding: 64px 72px; }
+
+  /* ---- lockup ---------------------------------------------------------- */
+  .lockup { display: flex; align-items: center; gap: 20px; }
+  .lockup svg { width: 62px; height: 62px; flex: none; }
+  .wordmark {
+    font-size: 46px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .wordmark .w { color: #c7bfff; }
+
+  /* ---- words ----------------------------------------------------------- */
+  .headline {
+    margin-top: 40px;
+    max-width: 700px;
+    font-size: 78px;
+    line-height: 1.02;
+    font-weight: 800;
+    letter-spacing: -1.8px;
+    text-wrap: balance;
+  }
+  .headline em { font-style: normal; color: var(--accent); }
+
+  .sub {
+    margin-top: 30px;
+    max-width: 640px;
+    font-size: 29px;
+    line-height: 1.34;
+    font-weight: 500;
+    color: rgba(255,255,255,0.74);
+    text-wrap: pretty;
+  }
+
+  .foot {
+    position: absolute;
+    left: 72px;
+    bottom: 58px;
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  .foot .dot { color: rgba(255,255,255,0.4); margin: 0 12px; }
+  .foot .free { color: var(--accent); }
+
+  .pill {
+    position: absolute;
+    top: 58px;
+    right: 66px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    padding: 15px 30px;
+    border-radius: 999px;
+  }
+
+  /* ---- art ------------------------------------------------------------- */
+  /* The mascot bleeds off the bottom right corner, the same crop the first
+     card used. */
+  .snake {
+    position: absolute;
+    right: -46px;
+    bottom: -104px;
+    width: 470px;
+    height: 470px;
+  }
+
+  /* A screenshot of real output, in a frame that reads as a program window
+     rather than a floating rectangle. */
+  .shot {
+    position: absolute;
+    right: 64px;
+    top: 168px;
+    width: 420px;
+    height: 315px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #0f1226;
+    border: 3px solid rgba(255,255,255,0.22);
+    box-shadow: 0 26px 60px rgba(9,6,40,0.55);
+  }
+  .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* The six-line multiplayer snippet, for the card that is about code. */
+  .code {
+    position: absolute;
+    right: 60px;
+    top: 150px;
+    width: 460px;
+    padding: 26px 28px;
+    border-radius: 16px;
+    background: rgba(9,7,38,0.72);
+    border: 3px solid rgba(255,255,255,0.18);
+    box-shadow: 0 26px 60px rgba(9,6,40,0.5);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 20px;
+    line-height: 1.62;
+    white-space: pre;
+    color: #e6e7ef;
+  }
+  .code .kw { color: #c4b5fd; }
+  .code .fn { color: #ffd43b; }
+  .code .st { color: #86efac; }
+  .code .cm { color: #8b93b8; }
+
+  /* Narrow the words when art shares the canvas, so nothing ever collides. */
+  body.has-art .headline { max-width: 560px; font-size: 70px; }
+  body.has-art .sub { max-width: 540px; font-size: 27px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid"></div>
+  <div class="inner">
+    <div class="lockup">
+      <!-- The logo.svg snake, white silhouette and all, inlined so the card
+           renders from this one file. -->
+      <svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M 110 130 C 30 130 30 200 110 200 C 175 200 185 160 175 140 C 165 120 130 125 130 145"
+              fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round"/>
+        <circle cx="110" cy="86" r="58" fill="#ffffff"/>
+        <path d="M 110 130 C 30 130 30 200 110 200 C 175 200 185 160 175 140 C 165 120 130 125 130 145"
+              fill="none" stroke="#4f46e5" stroke-width="34" stroke-linecap="round"/>
+        <path d="M 110 142 C 50 142 50 188 110 188 C 162 188 172 160 165 145"
+              fill="none" stroke="#ffd43b" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+        <circle cx="110" cy="86" r="52" fill="#4f46e5"/>
+        <path d="M 70 100 Q 110 132 150 100 Q 145 130 110 138 Q 75 130 70 100 Z" fill="#ffd43b" opacity="0.95"/>
+        <circle cx="92" cy="76" r="14" fill="#ffffff"/>
+        <circle cx="128" cy="76" r="14" fill="#ffffff"/>
+        <circle cx="92" cy="76" r="6.5" fill="#16233a"/>
+        <circle cx="128" cy="76" r="6.5" fill="#16233a"/>
+        <circle cx="95" cy="72.5" r="2.2" fill="#ffffff"/>
+        <circle cx="131" cy="72.5" r="2.2" fill="#ffffff"/>
+        <path d="M 90 116 Q 110 130 130 116" stroke="#16233a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <path d="M 110 124 L 110 134 L 105 140 M 110 134 L 115 140"
+              stroke="#ef4444" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div class="wordmark">Py<span class="w">Web</span>Lib</div>
+    </div>
+
+    <h1 class="headline" id="headline"></h1>
+    <p class="sub" id="sub"></p>
+
+    <div class="foot">
+      play.pyweblib.org<span class="dot">&middot;</span><span class="free">free &amp; open source</span>
+    </div>
+  </div>
+
+  <div class="pill" id="pill" hidden></div>
+
+  <!-- The big mascot, same artwork at card scale. -->
+  <svg class="snake" id="art-snake" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M 110 130 C 30 130 30 200 110 200 C 175 200 185 160 175 140 C 165 120 130 125 130 145"
+          fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round"/>
+    <circle cx="110" cy="86" r="58" fill="#ffffff"/>
+    <path d="M 110 130 C 30 130 30 200 110 200 C 175 200 185 160 175 140 C 165 120 130 125 130 145"
+          fill="none" stroke="#4f46e5" stroke-width="34" stroke-linecap="round"/>
+    <path d="M 110 142 C 50 142 50 188 110 188 C 162 188 172 160 165 145"
+          fill="none" stroke="#ffd43b" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+    <circle cx="110" cy="86" r="52" fill="#4f46e5"/>
+    <path d="M 70 100 Q 110 132 150 100 Q 145 130 110 138 Q 75 130 70 100 Z" fill="#ffd43b" opacity="0.95"/>
+    <circle cx="92" cy="76" r="14" fill="#ffffff"/>
+    <circle cx="128" cy="76" r="14" fill="#ffffff"/>
+    <circle cx="92" cy="76" r="6.5" fill="#16233a"/>
+    <circle cx="128" cy="76" r="6.5" fill="#16233a"/>
+    <circle cx="95" cy="72.5" r="2.2" fill="#ffffff"/>
+    <circle cx="131" cy="72.5" r="2.2" fill="#ffffff"/>
+    <path d="M 90 116 Q 110 130 130 116" stroke="#16233a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M 110 124 L 110 134 L 105 140 M 110 134 L 115 140"
+          stroke="#ef4444" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+  </svg>
+
+  <div class="shot" id="art-shot" hidden><img id="art-shot-img" src="" alt="" /></div>
+
+  <div class="code" id="art-code" hidden><span class="kw">import</span> game, net
+
+net.<span class="fn">join</span>(<span class="st">"year9-bombers"</span>)
+me = game.<span class="fn">sprite</span>(<span class="st">"car"</span>, 0, 0, 44)
+
+<span class="kw">while</span> game.<span class="fn">playing</span>():
+    net.<span class="fn">me</span>(me)       <span class="cm"># you, to them</span>
+    net.<span class="fn">others</span>()     <span class="cm"># them, to you</span>
+    game.<span class="fn">frame</span>(30)</div>
+</div>
+
+<script>
+  var q = new URLSearchParams(location.search);
+
+  // *stars* mark the amber words and | forces a line break. Escape first: the
+  // text comes off a URL, so it must never be able to inject markup of its own.
+  function paint(text) {
+    var safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return safe.replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/\s*\|\s*/g, "<br />");
+  }
+
+  document.getElementById("headline").innerHTML =
+    paint(q.get("t") || "Real Python *in your browser*");
+  document.getElementById("sub").innerHTML =
+    paint(q.get("s") || "Turtle drawing, games and coloured output. Nothing to install.");
+
+  var pill = q.get("pill");
+  if (pill) {
+    var el = document.getElementById("pill");
+    el.textContent = pill;
+    el.hidden = false;
+  }
+
+  var art = q.get("art") || "snake";
+  if (art !== "snake") {
+    // .hidden is an HTMLElement property and this is an <svg>, so setting it
+    // did nothing at all and the mascot sat behind the code tile. The style
+    // works on both.
+    document.getElementById("art-snake").style.display = "none";
+    document.body.classList.add("has-art");
+    if (art === "code") {
+      document.getElementById("art-code").hidden = false;
+    } else {
+      // Anything else is a file name next to the finished cards.
+      document.getElementById("art-shot-img").src = "../assets/og/" + art;
+      document.getElementById("art-shot").hidden = false;
+    }
+  }
+</script>
+</body>
+</html>

@@ -26,6 +26,23 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="stylesheet" href="../styles.css" />
+  <!-- Canonical, Open Graph and Twitter tags, written by build.mjs from the
+       page's own title, description and card. See social() there. -->
+  <link rel="canonical" href="https://play.pyweblib.org/community/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="PyWebLib" />
+  <meta property="og:url" content="https://play.pyweblib.org/community/" />
+  <meta property="og:title" content="Community | PyWebLib" />
+  <meta property="og:description" content="Browse Python programs shared by the PyWebLib community: turtle drawings, browser games and more. Upvote your favourites and open any one in the Playground." />
+  <meta property="og:image" content="https://play.pyweblib.org/assets/og/og-community.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Python programs shared by the PyWebLib community." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Community | PyWebLib" />
+  <meta name="twitter:description" content="Browse Python programs shared by the PyWebLib community: turtle drawings, browser games and more. Upvote your favourites and open any one in the Playground." />
+  <meta name="twitter:image" content="https://play.pyweblib.org/assets/og/og-community.png" />
+  <meta name="twitter:image:alt" content="Python programs shared by the PyWebLib community." />
 
 </head>
 <body>
@@ -74,9 +91,8 @@
     <div class="container section">
       <div class="community-toolbar" id="community-toolbar">
         <div class="community-tabs" role="tablist" aria-label="Sort programs">
-          <button class="community-tab active" data-sort="trending" role="tab">Trending</button>
+          <button class="community-tab active" data-sort="top" role="tab">Top</button>
           <button class="community-tab" data-sort="new" role="tab">New</button>
-          <button class="community-tab" data-sort="top" role="tab">Top</button>
         </div>
         <a class="btn btn-primary" href="../">Share your own <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
