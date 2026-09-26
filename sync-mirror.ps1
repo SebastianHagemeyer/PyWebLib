@@ -28,7 +28,13 @@ param(
   [string]$Ref           = "origin/main",
   [string]$MirrorDir     = "C:\Code\pyweblib-school",
   [string]$Domain        = "pyweb.qmarkapp.com",
-  [string]$CanonicalBase = "https://play.pyweblib.org"
+  [string]$CanonicalBase = "https://play.pyweblib.org",
+  # A Cloudflare Web Analytics token counts ONE hostname. Shipping the app's
+  # token here would file every school visit under play.pyweblib.org and
+  # quietly corrupt both numbers, so the default is to strip the beacon and
+  # count nothing. Add pyweb.qmarkapp.com as its own site in Cloudflare and
+  # pass its token here to start counting the traffic that actually matters.
+  [string]$AnalyticsToken = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -80,19 +86,40 @@ Allow: /
   # competing duplicates.
   $pages = Get-ChildItem $MirrorDir -Recurse -Filter "*.html" -File |
            Where-Object { $_.FullName -notlike "*\.git\*" }
+  $beacon = '<script type="module" src="https://static\.cloudflareinsights\.com/beacon\.min\.js"[^>]*></script>'
+  $swapped = 0
   foreach ($p in $pages) {
     $rel = $p.FullName.Substring($MirrorDir.TrimEnd('\').Length + 1) -replace '\\', '/'
     $rel = $rel -replace 'index\.html$', ''          # /docs/index.html -> /docs/
     $canonical = "$CanonicalBase/$rel"
     $html = Get-Content $p.FullName -Raw
+    $before = $html
+
+    # The analytics token, before anything else: it must be dealt with on every
+    # page, including any that the canonical step below would skip.
+    if ($html -match $beacon) {
+      if ($AnalyticsToken) {
+        $tag = "<script type=`"module`" src=`"https://static.cloudflareinsights.com/beacon.min.js`"" +
+               "`n          data-cf-beacon='{""token"": ""$AnalyticsToken""}'></script>"
+        $html = $html -replace $beacon, $tag
+      } else {
+        # Drop the tag and the blank line it sat on, so the page ends tidily.
+        $html = $html -replace ("\r?\n\s*" + $beacon), ""
+      }
+      $swapped++
+    }
+
     if ($html -match '<link\s+rel="canonical"') {
       $html = $html -replace '<link\s+rel="canonical"[^>]*>', "<link rel=`"canonical`" href=`"$canonical`" />"
     } elseif ($html -match '(?i)</head>') {
       $html = $html -replace '(?i)</head>', "  <link rel=`"canonical`" href=`"$canonical`" />`n</head>"
-    } else { continue }
-    Set-Content -Path $p.FullName -Value $html -NoNewline -WhatIf:$false
+    }
+
+    if ($html -ne $before) { Set-Content -Path $p.FullName -Value $html -NoNewline -WhatIf:$false }
   }
   Write-Host "Canonicalised $($pages.Count) pages to $CanonicalBase"
+  if ($AnalyticsToken) { Write-Host "Repointed analytics on $swapped pages to this mirror's token" }
+  else { Write-Host "Stripped the analytics beacon from $swapped pages (no -AnalyticsToken given)" }
 
   $status = git -C $MirrorDir status --porcelain
   if (-not $status) { Write-Host "Already in sync, nothing to do."; return }

@@ -26,16 +26,18 @@
         <li><strong>When you sign in with Google:</strong> your name, email address, and profile picture. We use these to sign you in and to show who made a program you share.</li>
         <li><strong>Things you choose to publish:</strong> the programs, sprites, comments, upvotes, and game scores you post to the community. These are public by design. Programs you keep as private drafts are visible only to you.</li>
         <li><strong>A few basics:</strong> how many times a shared program has been viewed, and small settings saved inside your own browser (your sign-in session, and in the Asset studio your recently used colours). We do not use tracking cookies, we do not show ads, and we never sell your information.</li>
+        <li><strong>Anonymous visit counts:</strong> which pages are opened, roughly where in the world from, and which site linked here. This is measured by Cloudflare Web Analytics, which sets no cookies, does not fingerprint your device and does not build a profile of you. It counts visits, not people, and we cannot tell from it who you are.</li>
       </ul>
 
       <h2>How we use it</h2>
-      <p>Only to run the community features: signing you in, showing your name and picture on your shared work, ordering the leaderboards, and displaying comments. That is all.</p>
+      <p>Only to run the community features: signing you in, showing your name and picture on your shared work, ordering the leaderboards, and displaying comments. The anonymous visit counts are used for one thing: seeing whether the guides are reaching anyone, so we know what is worth writing next.</p>
 
       <h2>Where it is stored</h2>
       <ul>
         <li>Sign-in is handled by <strong>Google</strong>.</li>
         <li>Your account and published content are stored in <strong>Supabase</strong>, our database and authentication provider.</li>
         <li>The Python engine and libraries load in your browser from a public CDN (<strong>Pyodide</strong>). Your code runs on your own device, not on our servers.</li>
+        <li>Anonymous visit counts are processed by <strong>Cloudflare</strong>. They are tied to a page, never to an account, so they cannot be joined back to anything else here.</li>
       </ul>
 
       <h2>Your choices</h2>
@@ -54,7 +56,7 @@
       <h2>Contact</h2>
       <p>Questions or requests: <a href="mailto:hello@qmarkapp.com">hello@qmarkapp.com</a></p>
 
-      <p class="muted">Last updated: 29 July 2026</p>
+      <p class="muted">Last updated: 26 September 2026</p>
     </div>
   </main>
 

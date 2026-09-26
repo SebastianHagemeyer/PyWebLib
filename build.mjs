@@ -36,6 +36,20 @@ const SITE = "https://play.pyweblib.org";
 const CARD_DIR = "/assets/og/";
 const DEFAULT_CARD = "og-default.png";
 
+/* Cloudflare Web Analytics. Cookieless, no fingerprinting and nothing stored
+ * per person, so it needs no consent banner and the privacy policy's "no
+ * tracking cookies" stays true. It answers the only question we actually have:
+ * whether anyone outside this school is finding the guides.
+ *
+ * The token is public by design. It names the site being counted, not the
+ * account, and it has to reach the browser to work.
+ *
+ * Empty string turns it off and emits nothing, the same bargain
+ * supabase-config.js makes: clone this repo, build it, and you get a working
+ * site that reports to nobody. IMPORTANT: a token is tied to ONE hostname, so
+ * the school mirror must not ship this one. sync-mirror.ps1 swaps it out. */
+const ANALYTICS_TOKEN = "418c9dadd19b4d168004f4e47076039c";
+
 /* Everything is handled in LF and compared in LF.
  *
  * git's core.autocrlf hands out CRLF working files on Windows, but the nav and
@@ -164,6 +178,12 @@ function render(page, body, outPath) {
     root,
     nav: nav(pagePath),
     social: social(page, pagePath),
+    // Last script on the page, and a module so it defers: counting a visit
+    // must never hold up Pyodide or the editor.
+    analytics: ANALYTICS_TOKEN
+      ? '  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"' + NL +
+        "          data-cf-beacon='{\"token\": \"" + ANALYTICS_TOKEN + "\"}'></script>"
+      : "",
     head: (page.head || "").trimEnd(),
     // Script paths in front matter are relative to the SITE ROOT, and the
     // build adds the depth. No defer added here: these pages load in order
