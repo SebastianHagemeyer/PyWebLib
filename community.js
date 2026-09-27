@@ -154,9 +154,9 @@
     }
 
     // The pins are fetched FIRST, because how many there are decides how much
-    // room page one has left. They are only RENDERED on page one: repeating
-    // the same card down every page of the gallery is what made it feel
-    // parasitic rather than promoted.
+    // room page one has left. They are only RENDERED on page one of Top:
+    // repeating the same card down every page, or on every tab, is what made
+    // it feel parasitic rather than promoted.
     pinned = await loadFeatured();
     featured = page === 0 ? pinned : [];
 
@@ -166,8 +166,9 @@
         q = q.eq("author_id", user.id);                          // your own, drafts included
       } else {
         if (withPub) q = q.eq("published", true);                // public feed: published only
-        // Pinned posts have their own strip at the top of every tab, so keep
-        // them out of the paged list rather than printing the same card twice.
+        // Featured posts live only on Top, in their own strip there, so keep
+        // them out of every paged list: no duplicate card on Top, and no
+        // featured post at all on Trending or New.
         if (featSupported) q = q.eq("featured", false);
       }
       if (sort === "new") {
@@ -214,12 +215,11 @@
   }
 
   // The pinned posts, fetched on their own rather than ordered to the front of
-  // the list above. Trending's seven-day window and Top's vote ordering would
-  // each drop or bury a pin, and a pin has to lead all three tabs the same way.
-  // Fetched on every page even though only page one shows them, because the
-  // count is what the paging is shifted by.
+  // the list above, because Top's vote ordering would bury a pin. Only Top has
+  // pins. Fetched on every page of Top even though only page one shows them,
+  // because the count is what the paging is shifted by.
   async function loadFeatured() {
-    if (mineOnly || !featSupported) return [];
+    if (mineOnly || !featSupported || sort !== "top") return [];
     function run(withViews) {
       let q = sb.from("projects").select(cols(withViews, pubSupported, true)).eq("featured", true);
       if (pubSupported) q = q.eq("published", true);
@@ -285,7 +285,7 @@
     card.innerHTML =
       '<a class="cc-thumb-wrap" href="../game/?id=' + encodeURIComponent(p.id) + '">' +
         '<canvas class="cc-thumb" width="320" height="180"></canvas>' +
-        (isFeatured ? '<span class="cc-kind cc-featured" title="Pinned by a moderator: it leads Trending, New and Top">★ Featured</span>' : "") +
+        (isFeatured ? '<span class="cc-kind cc-featured" title="Pinned by a moderator: it leads the Top tab">★ Featured</span>' : "") +
       "</a>" +
       '<div class="cc-head">' +
         '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
@@ -308,7 +308,7 @@
         (mine ? '<button type="button" class="cc-btn cc-edit" data-act="edit">Edit</button>' : "") +
         (isAdmin && featSupported && !isDraft
           ? '<button type="button" class="cc-btn cc-feat' + (isFeatured ? " on" : "") + '" data-act="feature" title="' +
-            (isFeatured ? "Unpin this post" : "Pin this post to the top of Trending, New and Top") + '">' +
+            (isFeatured ? "Unpin this post" : "Pin this post to the top of the Top tab") + '">' +
             (isFeatured ? "★ Unfeature" : "☆ Feature") + "</button>"
           : "") +
         (isAdmin && !mine ? '<button type="button" class="cc-btn cc-mod" data-act="rename" title="Rename this post (admin)">Rename</button>' +
@@ -384,7 +384,7 @@
     refresh();
   }
 
-  // ---- Admin: pin a post to the top of every tab ----
+  // ---- Admin: pin a post to the top of the Top tab ----
   // Deliberately does NOT touch updated_at: featuring a program is not the
   // author editing it, and the card would otherwise start claiming it was.
   // The database is the real gate (a trigger rejects a non-admin), this button
@@ -397,7 +397,7 @@
     if (btn) btn.disabled = false;
     if (res.error) { toast("Couldn't " + (next ? "feature" : "unfeature") + ": " + res.error.message); return; }
     p.featured = next;
-    toast(next ? "Featured. It now leads Trending, New and Top." : "No longer featured.");
+    toast(next ? "Featured. It now leads the Top tab." : "No longer featured.");
     refresh();
   }
 
