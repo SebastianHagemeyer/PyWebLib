@@ -184,7 +184,9 @@
     if (!sb) return;
     await sb.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.href }
+      // Drop any hash: a leftover "#" from the last login makes Supabase
+      // return to "##access_token=...", which it then can't parse.
+      options: { redirectTo: window.location.href.split("#")[0] }
     });
   }
 
