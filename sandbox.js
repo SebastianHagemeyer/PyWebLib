@@ -2291,6 +2291,25 @@ while game.playing():
   renderExamples();
   updatePanels();
 
+  // A link from another site (the WeBlog on pyweblib.org) can't reach this
+  // origin's localStorage, so it carries the code in the hash instead:
+  // #code=<base64url of the UTF-8 source>. The hash never goes to a server.
+  // Load it once, then strip it so a reload doesn't load it over your edits.
+  // Also on hashchange: a link pasted into an open tab changes only the hash.
+  function loadFromHash() {
+    try {
+      const m = /^#code=([A-Za-z0-9_-]+)/.exec(location.hash);
+      if (!m) return;
+      history.replaceState(null, "", location.pathname + location.search);
+      const bin = atob(m[1].replace(/-/g, "+").replace(/_/g, "/"));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      loadInto(new TextDecoder().decode(bytes), "Loaded from a link");
+    } catch (e) { /* a mangled link: just open the editor as usual */ }
+  }
+  loadFromHash();
+  window.addEventListener("hashchange", loadFromHash);
+
   // A community card can hand its code to the Playground: it stashes the code
   // under this key and navigates here. Pick it up once, then clear it.
   try {
