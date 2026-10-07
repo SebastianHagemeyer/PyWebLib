@@ -166,10 +166,10 @@
         q = q.eq("author_id", user.id);                          // your own, drafts included
       } else {
         if (withPub) q = q.eq("published", true);                // public feed: published only
-        // Featured posts live only on Top, in their own strip there, so keep
-        // them out of every paged list: no duplicate card on Top, and no
-        // featured post at all on Trending or New.
-        if (featSupported) q = q.eq("featured", false);
+        // On Top, featured posts have their own strip, so keep them out of the
+        // paged list rather than printing the same card twice. On Trending and
+        // New they stay in their natural spot like any other post.
+        if (featSupported && sort === "top") q = q.eq("featured", false);
       }
       if (sort === "new") {
         q = q.order("created_at", { ascending: false });
