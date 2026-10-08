@@ -26,14 +26,23 @@
     const sel = window.getSelection();
     if (!sel.rangeCount) return null;
     const r = sel.getRangeAt(0);
-    if (!editor.contains(r.startContainer) || !editor.contains(r.endContainer)) return null;
+    const inStart = editor.contains(r.startContainer);
+    const inEnd = editor.contains(r.endContainer);
+    if (!inStart && !inEnd && !r.intersectsNode(editor)) return null;
     function offsetOf(node, off) {
       const probe = document.createRange();
       probe.selectNodeContents(editor);
       probe.setEnd(node, off);
       return probe.toString().length;
     }
-    return { start: offsetOf(r.startContainer, r.startOffset), end: offsetOf(r.endContainer, r.endOffset) };
+    // A mouse drag often starts or ends just outside the code box (on the line
+    // numbers, or the hint strip under it). It still means "these lines", so
+    // clamp it to the editor. Returning null here used to hand the key to the
+    // editor's own Tab, which typed 4 spaces OVER the selection, deleting it.
+    return {
+      start: inStart ? offsetOf(r.startContainer, r.startOffset) : 0,
+      end: inEnd ? offsetOf(r.endContainer, r.endOffset) : editor.textContent.length
+    };
   }
 
   function setSelectionOffsets(editor, start, end) {
