@@ -1131,6 +1131,7 @@ body.sandbox-maxed { overflow: hidden; }
 /* Community gallery (community.js) */
 .community-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .community-tabs { display: inline-flex; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px; }
+.community-mine-title { margin: 0; font-size: 1.4rem; }
 .community-tab { border: 0; background: transparent; padding: 7px 16px; border-radius: 999px; cursor: pointer; font: inherit; font-weight: 700; color: var(--muted); }
 .community-tab.active { background: var(--primary); color: #fff; }
 .community-notice { background: #fff3cd; color: #6b5200; border: 1px solid #e6d9a8; border-radius: var(--radius); padding: 14px 16px; }

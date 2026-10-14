@@ -23,7 +23,10 @@
 
   const params = new URLSearchParams(location.search);
   const mineOnly = params.get("mine") === "1";
-  let sort = "trending";     // the gallery opens on this week's best
+  // The gallery opens on this week's best. My programs is a list of your own
+  // work, not a feed: Trending's 7-day window hid anything older, so it skips
+  // the tabs and shows everything, newest first.
+  let sort = mineOnly ? "new" : "trending";
   const TRENDING_DAYS = 7;   // how far back the Trending tab looks
   function sinceDaysAgo(days) {
     return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -151,6 +154,13 @@
     if (user && !adminChecked) {
       adminChecked = true;
       try { const r = await sb.rpc("is_admin"); isAdmin = !!(r && r.data === true); } catch (e) { isAdmin = false; }
+    }
+    // Signed out there is no "mine" to show. Without this it fell through to the
+    // public feed under a "My programs" heading. pwl:auth re-runs this on sign-in.
+    if (mineOnly && !user) {
+      grid.innerHTML = '<p class="community-empty">Sign in to see your programs.</p>';
+      if (pager) pager.hidden = true;
+      return;
     }
 
     // The pins are fetched FIRST, because how many there are decides how much
@@ -630,6 +640,13 @@
   }
 
   // ---- Sort tabs ----
+  const tabsEl = document.querySelector(".community-tabs");
+  if (mineOnly && tabsEl) {
+    const title = document.createElement("h2");
+    title.className = "community-mine-title";
+    title.textContent = "My programs";
+    tabsEl.replaceWith(title);
+  }
   document.querySelectorAll(".community-tab").forEach(function (tab) {
     tab.addEventListener("click", function () {
       document.querySelectorAll(".community-tab").forEach(function (t) { t.classList.remove("active"); });
