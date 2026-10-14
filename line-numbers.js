@@ -1,4 +1,4 @@
-/* Line numbers down the side of the code editor, off by default, remembered.
+/* Line numbers down the side of the code editor, on by default, remembered.
  *
  * Ported from the same feature in ITbasics, which shares this editor's shape.
  * This file only DRAWS them. The switch lives on the Settings page next to the
@@ -32,7 +32,7 @@
   var GUTTER_W = 44;            // keep in step with .sandbox-gutter in styles.css
 
   function wanted() {
-    try { return localStorage.getItem(KEY) === "on"; } catch (e) { return false; }
+    try { return localStorage.getItem(KEY) !== "off"; } catch (e) { return true; }   // on unless switched off
   }
   function remember(on) {
     try { localStorage.setItem(KEY, on ? "on" : "off"); } catch (e) {
