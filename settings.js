@@ -49,8 +49,8 @@
   const lineSeg = $("linenum-seg");
 
   function lineMode() {
-    try { return localStorage.getItem(LINENUM_KEY) === "on" ? "on" : "off"; }
-    catch (e) { return "off"; }
+    try { return localStorage.getItem(LINENUM_KEY) === "off" ? "off" : "on"; }   // on by default
+    catch (e) { return "on"; }
   }
   function paintLines() {
     if (!lineSeg) return;
