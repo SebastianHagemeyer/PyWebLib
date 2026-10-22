@@ -70,6 +70,23 @@
     out += esc(str.slice(last));
     return out;
   }
+
+  // Comment box: Enter posts, Shift+Enter starts a new line, and the box
+  // grows with what's typed (up to the CSS max-height, then it scrolls).
+  function growComment(ta) {
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + 2 + "px";
+  }
+  function wireCommentBox(form) {
+    const ta = form.querySelector("textarea");
+    ta.addEventListener("input", function () { growComment(ta); });
+    ta.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+      e.preventDefault();
+      form.requestSubmit();
+    });
+  }
+
   function timeAgo(iso) {
     const then = new Date(iso).getTime();
     if (isNaN(then)) return "";
@@ -509,7 +526,7 @@
         '<h3 class="pwl-comments-h">Comments</h3>' +
         '<div class="pwl-comments" id="pwl-comments">Loading…</div>' +
         '<form class="pwl-comment-form" id="pwl-comment-form" hidden>' +
-          '<input type="text" maxlength="1000" placeholder="Add a comment…" aria-label="Add a comment" />' +
+          '<textarea rows="1" maxlength="1000" placeholder="Add a comment…" aria-label="Add a comment"></textarea>' +
           '<button type="submit" class="btn btn-primary">Post</button>' +
         "</form>" +
         '<p class="pwl-comment-signin" id="pwl-comment-signin" hidden>Sign in to join the conversation.</p>' +
@@ -535,7 +552,27 @@
     const form = back.querySelector("#pwl-comment-form");
     const signin = back.querySelector("#pwl-comment-signin");
     const user = PWL.auth && PWL.auth.user();
-    if (user) form.hidden = false; else signin.hidden = false;
+    // Wire the box up as soon as it shows. Before this ran after the fetch,
+    // so posting while comments loaded did a plain form submit (a reload).
+    let comments = null;
+    if (user) {
+      form.hidden = false;
+      wireCommentBox(form);
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const input = form.querySelector("textarea");
+        const body = (input.value || "").trim().replace(/\n{3,}/g, "\n\n");
+        if (!body || !comments) return;   // still loading: keep the text
+        input.value = "";
+        growComment(input);
+        const ins = await sb.from("comments")
+          .insert({ project_id: p.id, user_id: user.id, body: body })
+          .select("id,body,created_at,user_id,profiles(display_name,avatar_url)").single();
+        if (ins.error) { toast("Comment didn't post."); return; }
+        comments.push(ins.data);
+        render(comments);
+      });
+    } else signin.hidden = false;
 
     const { data, error } = await sb.from("comments")
       .select("id,body,created_at,user_id,profiles(display_name,avatar_url)")
@@ -564,24 +601,8 @@
         box.appendChild(row);
       });
     }
-    let comments = data || [];
+    comments = data || [];
     render(comments);
-
-    if (user) {
-      form.addEventListener("submit", async function (e) {
-        e.preventDefault();
-        const input = form.querySelector("input");
-        const body = (input.value || "").trim();
-        if (!body) return;
-        input.value = "";
-        const ins = await sb.from("comments")
-          .insert({ project_id: p.id, user_id: user.id, body: body })
-          .select("id,body,created_at,user_id,profiles(display_name,avatar_url)").single();
-        if (ins.error) { toast("Comment didn't post."); return; }
-        comments.push(ins.data);
-        render(comments);
-      });
-    }
   }
 
   function detectKind(code) {

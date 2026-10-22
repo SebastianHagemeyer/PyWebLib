@@ -38,6 +38,23 @@
     out += esc(str.slice(last));
     return out;
   }
+
+  // Comment box: Enter posts, Shift+Enter starts a new line, and the box
+  // grows with what's typed (up to the CSS max-height, then it scrolls).
+  function growComment(ta) {
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + 2 + "px";
+  }
+  function wireCommentBox(form) {
+    const ta = form.querySelector("textarea");
+    ta.addEventListener("input", function () { growComment(ta); });
+    ta.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+      e.preventDefault();
+      form.requestSubmit();
+    });
+  }
+
   function timeAgo(iso) {
     const then = new Date(iso).getTime();
     if (isNaN(then)) return "";
@@ -202,7 +219,7 @@
       '<h2 class="pg-h">Comments</h2>' +
       '<div class="pwl-comments" id="pg-comments">Loading…</div>' +
       '<form class="pwl-comment-form" id="pg-comment-form" hidden>' +
-        '<input type="text" maxlength="1000" placeholder="Add a comment…" aria-label="Add a comment" />' +
+        '<textarea rows="1" maxlength="1000" placeholder="Add a comment…" aria-label="Add a comment"></textarea>' +
         '<button type="submit" class="btn btn-primary">Post</button>' +
       "</form>" +
       '<p class="pwl-comment-signin" id="pg-comment-signin" hidden>Sign in to join the conversation.</p>';
@@ -333,13 +350,33 @@
     const form = document.getElementById("pg-comment-form");
     const signin = document.getElementById("pg-comment-signin");
     const user = PWL.auth && PWL.auth.user();
-    if (user) form.hidden = false; else signin.hidden = false;
+    // Wire the box up as soon as it shows. Before this ran after the fetch,
+    // so posting while comments loaded did a plain form submit (a reload).
+    let comments = null;
+    if (user) {
+      form.hidden = false;
+      wireCommentBox(form);
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const input = form.querySelector("textarea");
+        const body = (input.value || "").trim().replace(/\n{3,}/g, "\n\n");
+        if (!body || !comments) return;   // still loading: keep the text
+        input.value = "";
+        growComment(input);
+        const ins = await sb.from("comments")
+          .insert({ project_id: p.id, user_id: user.id, body: body })
+          .select("id,body,created_at,user_id,profiles(display_name,avatar_url)").single();
+        if (ins.error) { toast("Comment didn't post."); return; }
+        comments.push(ins.data);
+        render(comments);
+      });
+    } else signin.hidden = false;
 
     const { data, error } = await sb.from("comments")
       .select("id,body,created_at,user_id,profiles(display_name,avatar_url)")
       .eq("project_id", p.id).order("created_at", { ascending: true });
     if (error) { box.textContent = "Could not load comments."; return; }
-    let comments = data || [];
+    comments = data || [];
 
     function render(list) {
       if (!list.length) { box.innerHTML = '<p class="pwl-comments-empty">No comments yet. Say something nice!</p>'; return; }
@@ -364,22 +401,6 @@
       });
     }
     render(comments);
-
-    if (user) {
-      form.addEventListener("submit", async function (e) {
-        e.preventDefault();
-        const input = form.querySelector("input");
-        const body = (input.value || "").trim();
-        if (!body) return;
-        input.value = "";
-        const ins = await sb.from("comments")
-          .insert({ project_id: p.id, user_id: user.id, body: body })
-          .select("id,body,created_at,user_id,profiles(display_name,avatar_url)").single();
-        if (ins.error) { toast("Comment didn't post."); return; }
-        comments.push(ins.data);
-        render(comments);
-      });
-    }
   }
 
   // Re-run once auth resolves (so votes/comments reflect the signed-in user).

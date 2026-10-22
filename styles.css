@@ -1310,13 +1310,13 @@ body.sandbox-maxed { overflow: hidden; }
 .pwl-comment-body { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
 .pwl-comment-name { font-weight: 700; font-size: 0.85rem; }
 .pwl-comment-when { color: var(--muted); font-weight: 400; font-size: 0.78rem; margin-left: 4px; }
-.pwl-comment-text { font-size: 0.92rem; overflow-wrap: anywhere; }
+.pwl-comment-text { font-size: 0.92rem; overflow-wrap: anywhere; white-space: pre-wrap; }
 .pwl-comment-text a { color: var(--primary); text-decoration: underline; overflow-wrap: anywhere; }
 .pwl-comment-del { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 1.1rem; line-height: 1; }
 .pwl-comment-del:hover { color: var(--danger); }
-.pwl-comment-form { display: flex; gap: 8px; margin-top: 12px; }
-.pwl-comment-form input { flex: 1; font: inherit; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
-.pwl-comment-form input:focus { outline: none; border-color: var(--primary); }
+.pwl-comment-form { display: flex; gap: 8px; margin-top: 12px; align-items: flex-end; }
+.pwl-comment-form textarea { flex: 1; font: inherit; color: inherit; line-height: 1.4; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); resize: none; max-height: 10em; overflow-y: auto; box-sizing: border-box; }
+.pwl-comment-form textarea:focus { outline: none; border-color: var(--primary); }
 .pwl-comment-signin { color: var(--muted); font-size: 0.88rem; margin-top: 12px; }
 
 /* Leaderboard (leaderboard.js) */
