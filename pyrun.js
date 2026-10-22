@@ -2609,6 +2609,10 @@ del _pyrun_install_net
     restart: function () { gameRestart = true; },
     reset: function () {
       stopAllTones();   // a fresh run (or a restart) starts silent
+      // Widget ids restart at b1 each run, so a click left over from the last
+      // run would land on this run's first button (a Start menu skipped itself).
+      // The worker path already clears these in zeroInputState; this covers JSPI.
+      GAME_IO.uiReset();
       gameKeys = {};
       gamePlaying = true;
       gameMouse.down = false; gameMouse.clicks = 0;
