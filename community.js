@@ -41,6 +41,7 @@
   let adminChecked = false;
   let pubSupported = true;   // set false once we learn the DB has no `published` column
   let featSupported = true;  // ditto for `featured` (pinned posts)
+  let pubAtSupported = true; // ditto for `published_at` (when a draft went public)
   let pinned = [];           // the pins that exist
   let featured = [];         // the pins actually being shown (page one only)
   // A pin is only an advert while it is rare, and this must stay BELOW
@@ -144,7 +145,13 @@
       "created_at,updated_at,author_id,profiles!author_id(display_name,avatar_url),comments(count)";
   }
 
+  // Tab clicks, paging and sign-in can each start a refresh before the last one
+  // lands. Only the newest may draw, or a slow Trending fetch could fill the
+  // grid after you've already switched to New.
+  let refreshSeq = 0;
+
   async function refresh() {
+    const seq = ++refreshSeq;
     grid.hidden = false;
     grid.innerHTML = '<p class="community-empty">Loading…</p>';
     const user = PWL.auth && PWL.auth.user();
@@ -168,6 +175,7 @@
     // repeating the same card down every page, or on every tab, is what made
     // it feel parasitic rather than promoted.
     pinned = await loadFeatured();
+    if (seq !== refreshSeq) return;
     featured = page === 0 ? pinned : [];
 
     function build(withViews, withPub) {
@@ -181,12 +189,18 @@
         // New they stay in their natural spot like any other post.
         if (featSupported && sort === "top") q = q.eq("featured", false);
       }
+      // New and Trending go by when a post went PUBLIC, not when it was first
+      // saved, so a draft polished for weeks still lands on page one the day
+      // it's published. My programs has drafts (no published_at), so it keeps
+      // created_at.
+      const when = (pubAtSupported && withPub && !mineOnly) ? "published_at" : "created_at";
       if (sort === "new") {
-        q = q.order("created_at", { ascending: false });
+        q = q.order(when, { ascending: false });
+        if (when !== "created_at") q = q.order("created_at", { ascending: false });
       } else {
         // Trending is Top with a window on it: only what was shared in the last
         // week, so a new hit isn't buried under the all-time favourites.
-        if (sort === "trending") q = q.gte("created_at", sinceDaysAgo(TRENDING_DAYS));
+        if (sort === "trending") q = q.gte(when, sinceDaysAgo(TRENDING_DAYS));
         // Top: most upvotes first; ties broken by most views, then newest.
         q = q.order("vote_count", { ascending: false });
         if (withViews) q = q.order("view_count", { ascending: false });
@@ -200,9 +214,13 @@
     // Ask for view_count and published, but tolerate a database that hasn't added
     // them yet (schema not re-run): fall back so the gallery still loads.
     let res = await build(true, pubSupported);
+    // Checked before /published/, which would also match "published_at" and
+    // wrongly decide the whole published column is missing.
+    if (res.error && /published_at/i.test(res.error.message || "")) { pubAtSupported = false; res = await build(true, pubSupported); }
     if (res.error && /featured/i.test(res.error.message || "")) { featSupported = false; res = await build(true, pubSupported); }
     if (res.error && /published/i.test(res.error.message || "")) { pubSupported = false; res = await build(true, false); }
     if (res.error && /view_count/i.test(res.error.message || "")) res = await build(false, pubSupported);
+    if (seq !== refreshSeq) return;
     const { data, error, count } = res;
     if (error) {
       grid.innerHTML = '<p class="community-empty">Could not load programs: ' + esc(error.message) + "</p>";
@@ -220,6 +238,7 @@
       const res = await sb.from("votes").select("project_id").eq("user_id", user.id);
       votedSet = new Set((res.data || []).map(function (r) { return r.project_id; }));
     }
+    if (seq !== refreshSeq) return;
     renderGrid();
     renderPager();
   }
