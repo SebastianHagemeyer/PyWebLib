@@ -104,6 +104,30 @@
   let recent = [];
   try { recent = JSON.parse(localStorage.getItem("pwl-asset-recent") || "[]"); } catch (e) {}
 
+  // ---- pixel mode state ----
+  // Pixel art is a grid of cells, not a list of shapes: painting a sprite one
+  // square at a time as separate rectangles was the tedious part. Only one of
+  // `shapes` / `px` holds the drawing at a time, decided by `mode`.
+  const PIXEL_SIZES = [8, 16, 32];
+  let mode = "shapes";    // "shapes" or "pixels"
+  let ptool = "pencil";   // pencil | eraser | fill | eyedrop | pan
+  let px = { n: 16, cells: blankCells(16) };   // cells[y * n + x] = "#rrggbb" or ""
+  let pstroke = null;     // { val, last, changed, histLen } while painting a stroke
+  let hoverCell = null;   // the cell under the pointer, outlined so you can aim
+  function blankCells(n) { return new Array(n * n).fill(""); }
+  try {
+    if (localStorage.getItem("pwl-asset-mode") === "pixels") {
+      mode = "pixels";
+      // The pixel draft survives a reload: a grid is cheap to keep and a
+      // half-painted sprite is exactly the work nobody wants to lose.
+      const d = JSON.parse(localStorage.getItem("pwl-asset-pixels") || "null");
+      if (d && PIXEL_SIZES.indexOf(d.n) >= 0 && Array.isArray(d.c) && d.c.length === d.n * d.n &&
+          d.c.every(function (v) { return v === "" || /^#[0-9a-f]{6}$/i.test(v); })) {
+        px = { n: d.n, cells: d.c };
+      }
+    }
+  } catch (e) {}
+
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -111,7 +135,16 @@
   }
   function rnd(n) { return Math.round(n * 10) / 10; }
   function clamp(n) { return Math.max(0, Math.min(64, n)); }
-  function snapshot() { history.push(JSON.stringify(shapes)); if (history.length > 60) history.shift(); }
+  // A snapshot records which MODE it was taken in as well as the drawing, so
+  // Undo straight after a mode switch puts you back where you were, in the
+  // mode you were in. Shapes stay a bare array (the original format); pixels
+  // and an as-is import are tagged objects.
+  function snapshot() {
+    history.push(mode === "pixels" ? JSON.stringify({ px: px.n, c: px.cells })
+      : (importedSvg && !shapes.length) ? JSON.stringify({ imp: importedSvg })
+      : JSON.stringify(shapes));
+    if (history.length > 60) history.shift();
+  }
 
   // ---- selection -------------------------------------------------------------
   // One place to change what's selected, so `selected` (the primary) can never
@@ -354,13 +387,20 @@
   }
 
   // ---- render the canvas + previews ----
-  function currentSvg() { return importedSvg || toSvg(); }
+  function currentSvg() { return mode === "pixels" ? pixelSvg(px) : (importedSvg || toSvg()); }
+  // Is there anything to publish, download or clear, whichever mode we're in?
+  function hasArt() {
+    return mode === "pixels" ? px.cells.some(Boolean) : !!(shapes.length || importedSvg);
+  }
   function render() {
     // Keep the slider in step with the selected line (and adopt its width for new lines).
     if (lineWidthInput && selected >= 0 && shapes[selected] && shapes[selected].type === "line") {
       lineWidth = shapes[selected].width; lineWidthInput.value = lineWidth;
     }
-    if (importedSvg) {
+    if (mode === "pixels") {
+      stage.innerHTML = pixelStage();
+      scheduleDraft();
+    } else if (importedSvg) {
       stage.innerHTML = '<image href="' + esc(dataUri(importedSvg)) + '" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid meet"/>';
     } else {
       let svg = shapes.map(shapeSvg).join("");
@@ -426,6 +466,7 @@
   let panning = null;   // { sx, sy, vx, vy } while dragging the view around
 
   stage.addEventListener("pointerdown", function (e) {
+    if (mode === "pixels") { pixelDown(e); return; }   // right-click erases there, so first
     if (e.button === 2) return;   // right-click opens the context menu, not drawing
     e.preventDefault();
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
@@ -489,6 +530,7 @@
   });
 
   stage.addEventListener("pointermove", function (e) {
+    if (mode === "pixels" && !panning) { pixelMove(e); return; }
     if (freehand) {
       const p = toStage(e);
       freehand.travel += Math.hypot(e.clientX - freehand.lastX, e.clientY - freehand.lastY);
@@ -544,6 +586,7 @@
   });
 
   stage.addEventListener("pointerup", function (e) {
+    if (pstroke) { pixelUp(e); return; }
     if (freehand) {
       const raw = freehand.pts;
       const moved = freehand.travel;
@@ -604,6 +647,411 @@
   // decide a click survived a small movement.
   const CLICK_PX = 4;
 
+  // ---- Pixel mode: paint squares on a grid ----------------------------------
+  // The grid is the drawing. The SVG it publishes is built from it on demand,
+  // so there is one source of truth and nothing to keep in step.
+
+  // "#ABC" -> "#aabbcc", so one colour is one key however it was typed.
+  function normHex(c) {
+    c = String(c || "").toLowerCase();
+    if (/^#[0-9a-f]{3}$/.test(c)) c = "#" + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+    return /^#[0-9a-f]{6}$/.test(c) ? c : "";
+  }
+  // And back the other way when writing SVG: every byte counts toward the cap.
+  function shortHex(c) {
+    return (c[1] === c[2] && c[3] === c[4] && c[5] === c[6]) ? "#" + c[1] + c[3] + c[5] : c;
+  }
+
+  // The paths only, one per colour. Each horizontal run of a colour becomes
+  // "M{x} {y}h{len}": a STROKED line one unit wide, centred on the row. That is
+  // the same square cells as a filled "M3 5h4v1h-4z" but about half the bytes,
+  // which is what lets a 32x32 sprite with a different colour in every cell
+  // (the worst case) still fit under the 40,000-character limit. The half-unit
+  // offset that centres the line on its row lives in the viewBox, once.
+  function pixelPaths(p) {
+    const n = p.n, byColor = {}, order = [];
+    for (let y = 0; y < n; y++) {
+      let x = 0;
+      while (x < n) {
+        const c = p.cells[y * n + x];
+        let len = 1;
+        while (x + len < n && p.cells[y * n + x + len] === c) len++;
+        if (c) {
+          if (!byColor[c]) { byColor[c] = []; order.push(c); }
+          byColor[c].push("M" + x + " " + y + "h" + len);
+        }
+        x += len;
+      }
+    }
+    return order.map(function (c) {
+      return '<path stroke="' + shortHex(c) + '" d="' + byColor[c].join("") + '"/>';
+    }).join("");
+  }
+  // viewBox in CELL units (a 16 grid is 16 wide), shifted up half a cell so the
+  // stroke centred on row y covers exactly y..y+1. crispEdges stops the browser
+  // blurring cell edges when the game scales the sprite; fill="none" keeps the
+  // zero-area lines from ever painting a fill.
+  function pixelSvg(p) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -.5 ' + p.n + " " + p.n +
+           '" shape-rendering="crispEdges" fill="none">' + pixelPaths(p) + "</svg>";
+  }
+  // Read one of OUR pixel SVGs back into a grid, so a published pixel sprite
+  // reopens as pixels rather than as a pile of shapes. Anything else -> null.
+  function parsePixelSvg(svg) {
+    const m = /viewBox="0 -\.5 (\d+) (\d+)"/.exec(svg || "");
+    if (!m || m[1] !== m[2] || !/shape-rendering="crispEdges"/.test(svg)) return null;
+    const n = parseInt(m[1], 10);
+    if (PIXEL_SIZES.indexOf(n) < 0) return null;
+    const cells = blankCells(n);
+    let count = 0, bad = false;
+    svg.replace(/<path stroke="(#[0-9a-fA-F]{3,6})" d="([^"]*)"\/>/g, function (all, col, d) {
+      count++;
+      const c = normHex(col);
+      if (!c) { bad = true; return all; }
+      d.replace(/M(\d+) (\d+)h(\d+)/g, function (r, xs, ys, ls) {
+        const x = +xs, y = +ys, len = +ls;
+        for (let i = 0; i < len; i++) if (x + i < n && y < n) cells[y * n + x + i] = c;
+        return r;
+      });
+      return all;
+    });
+    // Exactly our markup: the <svg>, the paths, the </svg>, and nothing else.
+    if (bad || (svg.match(/</g) || []).length !== count + 2) return null;
+    return { n: n, cells: cells };
+  }
+
+  // Pixels -> editable rectangles, for the switch back to Shapes mode. Each run
+  // is grown downwards while the row below has the identical run, so a solid
+  // block becomes ONE rect instead of a stack of strips you'd have to herd.
+  function pixelsToShapes(p) {
+    const n = p.n, k = 64 / n, used = new Array(n * n).fill(false), out = [];
+    for (let y = 0; y < n; y++) {
+      let x = 0;
+      while (x < n) {
+        const c = p.cells[y * n + x];
+        if (!c || used[y * n + x]) { x++; continue; }
+        let w = 1;
+        while (x + w < n && p.cells[y * n + x + w] === c && !used[y * n + x + w]) w++;
+        let h = 1;
+        grow: while (y + h < n) {
+          for (let i = 0; i < w; i++) {
+            const j = (y + h) * n + x + i;
+            if (p.cells[j] !== c || used[j]) break grow;
+          }
+          h++;
+        }
+        for (let yy = y; yy < y + h; yy++) for (let i = 0; i < w; i++) used[yy * n + x + i] = true;
+        out.push({ type: "rect", x: x * k, y: y * k, w: w * k, h: h * k, rx: 0, fill: c });
+        x += w;
+      }
+    }
+    return out;
+  }
+
+  // Any SVG -> an n x n grid, for the switch into Pixels mode. Rasterise it at
+  // 8 samples per cell and keep a cell when at least half of it is covered,
+  // painted in its commonest SOLID colour, so antialiased edge blends never
+  // leak in as near-miss colours. Async because an <img> has to decode.
+  function rasterise(svg, n, letterbox, done) {
+    const S = 8, R = n * S;
+    const img = new Image();
+    img.onload = function () {
+      try {
+        const cv = document.createElement("canvas"); cv.width = R; cv.height = R;
+        const c = cv.getContext("2d", { willReadFrequently: true });
+        let dx = 0, dy = 0, dw = R, dh = R;
+        if (letterbox && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          // Same "meet" fit the stage shows an imported SVG with.
+          const s = Math.min(R / img.naturalWidth, R / img.naturalHeight);
+          dw = img.naturalWidth * s; dh = img.naturalHeight * s;
+          dx = (R - dw) / 2; dy = (R - dh) / 2;
+        }
+        c.drawImage(img, dx, dy, dw, dh);
+        const d = c.getImageData(0, 0, R, R).data;
+        const hex2 = function (v) { return ("0" + v.toString(16)).slice(-2); };
+        const cells = blankCells(n);
+        for (let cy = 0; cy < n; cy++) {
+          for (let cx = 0; cx < n; cx++) {
+            const counts = {};
+            let opaque = 0, best = "", bestN = 0, centre = "";
+            for (let sy = 0; sy < S; sy++) {
+              for (let sx = 0; sx < S; sx++) {
+                const i = ((cy * S + sy) * R + cx * S + sx) * 4;
+                if (d[i + 3] < 128) continue;
+                opaque++;
+                const h = "#" + hex2(d[i]) + hex2(d[i + 1]) + hex2(d[i + 2]);
+                if (sx === S / 2 && sy === S / 2) centre = h;
+                if (d[i + 3] < 250) continue;   // a blended edge, not a real colour
+                counts[h] = (counts[h] || 0) + 1;
+                if (counts[h] > bestN) { bestN = counts[h]; best = h; }
+              }
+            }
+            if (opaque * 2 >= S * S) cells[cy * n + cx] = best || centre;
+          }
+        }
+        done(cells);
+      } catch (err) { done(null); }
+    };
+    img.onerror = function () { done(null); };
+    img.src = dataUri(svg);
+  }
+
+  // Change the grid size, keeping the picture: every new cell takes the colour
+  // of the old cell under its centre (nearest neighbour, so no blurring).
+  function resample(p, n) {
+    const cells = blankCells(n);
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const ox = Math.floor((x + 0.5) * p.n / n), oy = Math.floor((y + 0.5) * p.n / n);
+        cells[y * n + x] = p.cells[oy * p.n + ox] || "";
+      }
+    }
+    return { n: n, cells: cells };
+  }
+
+  // The stage in pixel mode: the art (drawn exactly as it will publish, scaled
+  // from cell units up to the 0..64 stage), a grid you can actually see, and
+  // an outline on the cell you're about to paint.
+  function pixelStage() {
+    const n = px.n, k = 64 / n;
+    let svg = '<g transform="scale(' + k + ') translate(0 .5)" shape-rendering="crispEdges" fill="none">' +
+              pixelPaths(px) + "</g>";
+    let minor = "", major = "";
+    for (let i = 1; i < n; i++) {
+      const at = rnd(i * k);
+      // Every 4th (8 on a 32 grid) line is stronger, so you can count cells
+      // and find the middle without squinting.
+      const strong = i % (n >= 32 ? 8 : 4) === 0;
+      const seg = "M" + at + " 0V64M0 " + at + "H64";
+      if (strong) major += seg; else minor += seg;
+    }
+    svg += '<path d="' + minor + '" stroke="rgba(79,70,229,0.22)" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none"/>';
+    svg += '<path d="' + major + '" stroke="rgba(79,70,229,0.5)" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none"/>';
+    if (hoverCell && hoverCell.x >= 0 && hoverCell.y >= 0 && hoverCell.x < n && hoverCell.y < n && ptool !== "pan") {
+      svg += '<rect x="' + rnd(hoverCell.x * k) + '" y="' + rnd(hoverCell.y * k) + '" width="' + rnd(k) + '" height="' + rnd(k) +
+             '" fill="none" stroke="#111827" stroke-width="1.5" vector-effect="non-scaling-stroke" pointer-events="none"/>';
+    }
+    return svg;
+  }
+
+  // The cell under the pointer, NOT clamped: a fast drag that leaves the canvas
+  // still draws a straight line to the edge instead of piling up on it.
+  function cellAt(e) {
+    const r = stage.getBoundingClientRect();
+    const sx = view.x + (e.clientX - r.left) / r.width * view.size;
+    const sy = view.y + (e.clientY - r.top) / r.height * view.size;
+    return { x: Math.floor(sx / 64 * px.n), y: Math.floor(sy / 64 * px.n) };
+  }
+  function paintCell(x, y, val) {
+    if (x < 0 || y < 0 || x >= px.n || y >= px.n) return false;
+    const i = y * px.n + x;
+    if (px.cells[i] === val) return false;
+    px.cells[i] = val;
+    return true;
+  }
+  // Bresenham from cell a to cell b. Pointer events arrive every few pixels
+  // however fast the hand moves, so without this a quick stroke is a dotted line.
+  function paintLine(a, b, val) {
+    let x = a.x, y = a.y, changed = false;
+    const dx = Math.abs(b.x - x), dy = -Math.abs(b.y - y);
+    const sx = x < b.x ? 1 : -1, sy = y < b.y ? 1 : -1;
+    let err = dx + dy;
+    for (;;) {
+      if (paintCell(x, y, val)) changed = true;
+      if (x === b.x && y === b.y) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x += sx; }
+      if (e2 <= dx) { err += dx; y += sy; }
+    }
+    return changed;
+  }
+  // 4-way flood fill of the same-colour region (empty counts as a colour, so
+  // filling the background works). Diagonals don't leak, which is what pixel
+  // artists expect: a one-pixel diagonal outline holds the paint in.
+  function floodFill(x, y, val) {
+    const n = px.n;
+    if (x < 0 || y < 0 || x >= n || y >= n) return false;
+    const target = px.cells[y * n + x];
+    if (target === val) return false;
+    const stack = [y * n + x];
+    while (stack.length) {
+      const i = stack.pop();
+      if (px.cells[i] !== target) continue;
+      px.cells[i] = val;
+      const cx = i % n, cy = (i - cx) / n;
+      if (cx > 0) stack.push(i - 1);
+      if (cx < n - 1) stack.push(i + 1);
+      if (cy > 0) stack.push(i - n);
+      if (cy < n - 1) stack.push(i + n);
+    }
+    return true;
+  }
+
+  function pixelDown(e) {
+    e.preventDefault();   // no text selection, no scroll, no long-press menu
+    try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    // Right mouse button, or the eraser end of a pen, always rubs out.
+    const erase = e.button === 2 || e.button === 5 || ptool === "eraser";
+    if (ptool === "pan" && !erase) {
+      panning = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
+      return;
+    }
+    const c = cellAt(e);
+    if (ptool === "eyedrop" && !erase) {
+      const v = (c.x >= 0 && c.y >= 0 && c.x < px.n && c.y < px.n) ? px.cells[c.y * px.n + c.x] : "";
+      if (!v) { showMsg("That square is empty. Aim at a painted one.", false); return; }
+      setColor(v);
+      showMsg("Picked " + v, true);
+      return;
+    }
+    const val = erase ? "" : normHex(color);
+    if (!erase && !val) { showMsg("Pick a solid colour from the palette first.", false); return; }
+    if (ptool === "fill" && !erase) {
+      snapshot();
+      if (floodFill(c.x, c.y, val)) { pushRecent(val); render(); }
+      else history.pop();   // nothing changed, so leave no empty undo step
+      return;
+    }
+    // A whole stroke is ONE undo step: snapshot once here, and rewind it on
+    // release if the stroke turned out not to change anything.
+    pstroke = { val: val, last: c, changed: false, histLen: history.length };
+    snapshot();
+    if (paintCell(c.x, c.y, val)) pstroke.changed = true;
+    hoverCell = c;
+    render();
+  }
+  function pixelMove(e) {
+    const c = cellAt(e);
+    if (pstroke) {
+      if (c.x === pstroke.last.x && c.y === pstroke.last.y) return;
+      if (paintLine(pstroke.last, c, pstroke.val)) pstroke.changed = true;
+      pstroke.last = c;
+      hoverCell = c;
+      render();
+      return;
+    }
+    // Just hovering: only redraw when the outlined cell actually changes.
+    if (!hoverCell || hoverCell.x !== c.x || hoverCell.y !== c.y) { hoverCell = c; render(); }
+  }
+  function pixelUp(e) {
+    const s = pstroke;
+    pstroke = null;
+    if (!s.changed) history.length = s.histLen;   // a no-op stroke leaves no undo step
+    else if (s.val) pushRecent(s.val);
+    render();
+    try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
+  }
+  // A cancelled touch (the OS took the gesture) still ends the stroke cleanly.
+  stage.addEventListener("pointercancel", function (e) {
+    if (pstroke) pixelUp(e);
+    panning = null;
+  });
+  stage.addEventListener("pointerleave", function () {
+    if (mode === "pixels" && hoverCell && !pstroke) { hoverCell = null; render(); }
+  });
+
+  // Save the pixel draft a moment after the last change rather than on every
+  // painted cell; a burst of moves becomes one localStorage write.
+  let draftTimer = 0;
+  function scheduleDraft() {
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(function () {
+      try {
+        if (mode === "pixels") localStorage.setItem("pwl-asset-pixels", JSON.stringify({ n: px.n, c: px.cells }));
+      } catch (e) {}
+    }, 300);
+  }
+
+  // ---- the Shapes | Pixels switch ---------------------------------------------
+  const modeSwitch = document.getElementById("asset-mode");
+  const gridSizeInput = document.getElementById("asset-grid-size");
+  // Show a mode: the switch, which controls are visible, the remembered choice.
+  // Never converts anything; switchMode does that, then calls this.
+  function setMode(m) {
+    mode = m;
+    pstroke = null; hoverCell = null; freehand = null; drawing = null; pathPts = [];
+    studio.classList.toggle("is-pixels", m === "pixels");
+    stage.classList.toggle("is-pixels", m === "pixels");
+    if (modeSwitch) modeSwitch.setAttribute("aria-checked", m === "pixels" ? "true" : "false");
+    if (gridSizeInput) gridSizeInput.value = String(px.n);
+    syncPixelTools();
+    stage.classList.toggle("is-pan", m === "pixels" ? ptool === "pan" : tool === "pan");
+    try { localStorage.setItem("pwl-asset-mode", m); } catch (e) {}
+  }
+  function syncPixelTools() {
+    document.querySelectorAll("[data-ptool]").forEach(function (b) {
+      const on = b.getAttribute("data-ptool") === ptool;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  // Switching never silently loses work, and Undo always takes it back.
+  //   Pixels -> Shapes: the grid becomes rectangles you can keep editing.
+  //   Shapes -> Pixels: asks first, then traces the drawing onto the grid.
+  function switchMode(to) {
+    if (to === mode) return;
+    if (to === "shapes") {
+      const had = px.cells.some(Boolean);
+      if (had) snapshot();
+      shapes = had ? pixelsToShapes(px) : [];
+      importedSvg = null; setSel([]);
+      setMode("shapes");
+      useSelectTool();
+      render();
+      if (had) showMsg("Your pixels are now " + shapes.length + " rectangle" + (shapes.length === 1 ? "" : "s") +
+                       " you can move, stretch and recolour. Undo (Ctrl+Z) puts the pixel grid back.", true);
+      return;
+    }
+    if (!hasArt()) {
+      px = { n: px.n, cells: blankCells(px.n) };
+      setSel([]);
+      setMode("pixels");
+      render();
+      return;
+    }
+    const ok = confirm("Switch to Pixels mode?\n\nYour drawing will be traced onto a " + px.n + " x " + px.n +
+                       " pixel grid so you can keep painting it.\nUndo (Ctrl+Z) brings your shapes back.\n\nCancel stays in Shapes mode.");
+    if (!ok) { setMode("shapes"); return; }   // puts the switch back too
+    const n = px.n;
+    rasterise(currentSvg(), n, !!importedSvg, function (cells) {
+      if (!cells) { showMsg("Couldn't turn that drawing into pixels. It's still here in Shapes mode.", false); setMode("shapes"); return; }
+      snapshot();   // still in Shapes mode here, so this saves the shapes
+      shapes = []; importedSvg = null; setSel([]);
+      px = { n: n, cells: cells };
+      setMode("pixels");
+      render();
+      showMsg("Traced onto a " + n + " x " + n + " grid. Undo (Ctrl+Z) brings your shapes back.", true);
+    });
+  }
+  if (modeSwitch) modeSwitch.addEventListener("click", function () {
+    switchMode(mode === "pixels" ? "shapes" : "pixels");
+  });
+  if (gridSizeInput) gridSizeInput.addEventListener("change", function () {
+    const n = parseInt(gridSizeInput.value, 10);
+    if (PIXEL_SIZES.indexOf(n) < 0 || n === px.n) return;
+    if (px.cells.some(Boolean)) {
+      snapshot();
+      px = resample(px, n);
+      showMsg("Resized to " + n + " x " + n + ". Undo (Ctrl+Z) goes back to the old grid.", true);
+    } else {
+      px = { n: n, cells: blankCells(n) };
+    }
+    hoverCell = null;
+    render();
+  });
+  const pixelToolbar = document.getElementById("asset-pixel-toolbar");
+  if (pixelToolbar) pixelToolbar.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-ptool]");
+    if (!btn) return;
+    setPixelTool(btn.getAttribute("data-ptool"));
+  });
+  function setPixelTool(t) {
+    ptool = t;
+    syncPixelTools();
+    stage.classList.toggle("is-pan", ptool === "pan");
+    render();
+  }
+
   function finishPath() {
     if (pathPts.length >= 3) {
       snapshot();
@@ -621,7 +1069,7 @@
     if (!btn) return;
     tool = btn.getAttribute("data-tool");
     if (pathPts.length) pathPts = [];   // abandon a half-drawn path when switching
-    document.querySelectorAll(".asset-tool").forEach(function (b) { b.classList.toggle("is-on", b === btn); });
+    document.querySelectorAll(".asset-tool[data-tool]").forEach(function (b) { b.classList.toggle("is-on", b === btn); });
     stage.classList.toggle("is-pan", tool === "pan");
     // Panning is a view change, so it keeps the selection; drawing tools drop it.
     if (tool !== "select" && tool !== "pan") setSel([]);
@@ -751,11 +1199,16 @@
       rd.onload = function () {
         const clean = sanitizeSvg(String(rd.result || ""));
         if (!clean) { showMsg("That file isn't an SVG we can use, or it's over the " + MAX_ASSET_CHARS.toLocaleString() + " character size limit.", false); return; }
-        snapshot();
+        snapshot();   // in Pixels mode this saves the grid, so Undo gets it back
+        // An imported SVG is any shape at all, so it lands in Shapes mode. The
+        // switch can then trace it onto the pixel grid if that's what you want.
+        const fromPixels = mode === "pixels";
+        if (fromPixels) setMode("shapes");
         importedSvg = clean; shapes = []; setSel([]); pathPts = []; editingId = null;
         if (!nameInput.value) nameInput.value = (f.name || "sprite").replace(/\.svg$/i, "").slice(0, 40);
         setPublishLabel(); render();
-        showMsg('Imported! Publish it as-is, hit "Break into editable shapes" to edit it, or Clear to start over.', true);
+        showMsg((fromPixels ? "Switched to Shapes mode for the import (flip back to Pixels to trace it onto the grid). " : "") +
+                'Imported! Publish it as-is, hit "Break into editable shapes" to edit it, or Clear to start over.', true);
       };
       rd.readAsText(f);
     });
@@ -800,6 +1253,14 @@
   function renderFrameInfo() {
     const el = document.getElementById("asset-frame-info");
     if (!el) return;
+    if (mode === "pixels") {
+      // The SVG size is shown here because it's the number the publish limit
+      // is about, and pixel art is where it is easiest to run into.
+      const painted = px.cells.filter(Boolean).length;
+      el.textContent = px.n + " x " + px.n + " grid - " + painted + " pixel" + (painted === 1 ? "" : "s") +
+                       (painted ? " - " + pixelSvg(px).length.toLocaleString() + " chars" : "");
+      return;
+    }
     if (!shapes.length || importedSvg) { el.textContent = ""; return; }
     const b = groupBox(shapes);
     if (!(b.w > 0.01) || !(b.h > 0.01)) { el.textContent = ""; return; }
@@ -916,8 +1377,29 @@
     render();
   }
   document.getElementById("asset-undo").addEventListener("click", undo);
-  function undo() { if (!history.length) return; shapes = JSON.parse(history.pop()); setSel([]); render(); }
+  // A snapshot can come from either mode (see snapshot), so Undo restores the
+  // mode along with the drawing.
+  function undo() {
+    if (!history.length) return;
+    const st = JSON.parse(history.pop());
+    if (Array.isArray(st)) {
+      if (mode !== "shapes") setMode("shapes");
+      shapes = st; importedSvg = null;
+    } else if (st && st.px) {
+      px = { n: st.px, cells: st.c };
+      setMode("pixels");
+    } else if (st && st.imp) {
+      if (mode !== "shapes") setMode("shapes");
+      shapes = []; importedSvg = st.imp;
+    }
+    setSel([]); render();
+  }
   document.getElementById("asset-clear").addEventListener("click", function () {
+    if (mode === "pixels") {
+      if (!hasArt()) return;
+      snapshot(); px = { n: px.n, cells: blankCells(px.n) }; editingId = null; setPublishLabel(); render();
+      return;
+    }
     if (!shapes.length && !importedSvg) return;
     snapshot(); shapes = []; setSel([]); editingId = null; importedSvg = null; pathPts = []; setPublishLabel(); render();
   });
@@ -938,7 +1420,7 @@
   }
   function useSelectTool() {
     tool = "select";
-    document.querySelectorAll(".asset-tool").forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-tool") === "select"); });
+    document.querySelectorAll(".asset-tool[data-tool]").forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-tool") === "select"); });
   }
   function addShape(c) { shapes.push(c); setSel([shapes.length - 1]); useSelectTool(); render(); }
   // The bounding box around a whole group, so a group pastes as one piece.
@@ -1026,6 +1508,7 @@
     window.addEventListener("blur", closeCtx);
   }
   stage.addEventListener("contextmenu", function (e) {
+    if (mode === "pixels") { e.preventDefault(); return; }   // right-click erased instead
     if (importedSvg) return;   // nothing to edit until it's broken into shapes
     e.preventDefault();
     const p = toStage(e);
@@ -1040,7 +1523,21 @@
   });
 
   document.addEventListener("keydown", function (e) {
-    if (/input|textarea/i.test((e.target && e.target.tagName) || "")) return;
+    if (/input|textarea|select/i.test((e.target && e.target.tagName) || "")) return;
+    if (mode === "pixels") {
+      // Pixel mode has its own short list: undo, zoom, and its tools. The shape
+      // shortcuts (copy, nudge, delete...) have nothing to act on here.
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
+        return;
+      }
+      if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(1.5); return; }
+      if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1 / 1.5); return; }
+      if (e.key === "0") { e.preventDefault(); resetView(); return; }
+      const pk = { b: "pencil", p: "pencil", e: "eraser", g: "fill", f: "fill", i: "eyedrop", h: "pan" }[e.key.toLowerCase()];
+      if (pk) setPixelTool(pk);
+      return;
+    }
     if (e.key === "Enter" && tool === "path") { e.preventDefault(); finishPath(); return; }
     if (e.key === "Escape" && pathPts.length) { e.preventDefault(); pathPts = []; render(); return; }
     if (e.ctrlKey || e.metaKey) {
@@ -1085,7 +1582,7 @@
     const btn = document.getElementById("asset-download");
     if (!btn) return;
     btn.addEventListener("click", async function () {
-      if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
+      if (!hasArt()) { showMsg("Draw something first.", false); return; }
       btn.disabled = true;
       try {
         const svg = currentSvg();
@@ -1120,7 +1617,7 @@
     if (!PWL.configured || !sb) { showMsg("The asset backend isn't set up yet.", false); return; }
     const user = PWL.auth && PWL.auth.user();
     if (!user) { PWL.auth.signIn(); return; }
-    if (!shapes.length && !importedSvg) { showMsg("Draw something first.", false); return; }
+    if (!hasArt()) { showMsg("Draw something first.", false); return; }
     // The 64x64 canvas IS the frame: where you put the art on it, and how big
     // you drew it, is information (an open hand bigger than a closed fist), so
     // it is never cropped away. Use the Centre tools to place it deliberately.
@@ -1145,7 +1642,7 @@
     if (res.error) { showMsg("Couldn't save: " + res.error.message, false); return; }
     editingId = res.data.id;
     setPublishLabel();
-    showMsg("Saved as asset #" + res.data.id + "  —  use it with game.sprite(" + res.data.id + ", asset=True)", true);
+    showMsg("Saved as asset #" + res.data.id + ". Use it with game.sprite(" + res.data.id + ", asset=True)", true);
     loadLibrary();
   });
 
@@ -1191,6 +1688,20 @@
     snapshot();
     setSel([]); pathPts = [];
     editingId = asTemplate ? null : a.id;   // a remix publishes as a NEW asset
+    // A pixel sprite reopens as pixels; anything else opens in Shapes mode.
+    const grid = parsePixelSvg(a.svg);
+    if (grid) {
+      px = grid; shapes = []; importedSvg = null;
+      setMode("pixels");
+      nameInput.value = asTemplate ? ((a.name || "sprite") + " remix") : (a.name || "");
+      setPublishLabel();
+      render();
+      showMsg(asTemplate ? ("Opened a copy of pixel sprite #" + a.id + " to remix. Publish it to save your own.")
+                         : ("Editing your pixel sprite #" + a.id + "."), true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    if (mode === "pixels") setMode("shapes");
     let imported = false;
     if (isStudioNative(a.svg)) {
       const parsed = parseSvg(a.svg);
@@ -1210,6 +1721,12 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // The little count pill on each library heading. It was called but never
+  // defined, so loadLibrary threw half way: signed in, Community never loaded.
+  function setLibCount(id, n) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = n ? String(n) : "";
+  }
   async function loadLibrary() {
     if (!PWL.configured || !sb) return;
     const user = PWL.auth && PWL.auth.user();
@@ -1444,8 +1961,9 @@
   }
   const breakupBtn = document.getElementById("asset-breakup");
   if (breakupBtn) breakupBtn.addEventListener("click", breakupImported);
-  PWL.assetStudio = { flatten: flattenSvg };
+  PWL.assetStudio = { flatten: flattenSvg, pixelSvg: pixelSvg, currentSvg: function () { return currentSvg(); } };
 
+  setMode(mode);   // reopen in the mode this browser last used
   render();
   renderRecent();
   setPublishLabel();

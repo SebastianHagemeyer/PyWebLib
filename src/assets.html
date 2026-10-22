@@ -20,7 +20,7 @@
           <summary class="hero-tuck-btn" title="What is this page?" aria-label="What is this page?">?</summary>
           <p class="eyebrow">Asset studio</p>
           <h1>Design a sprite</h1>
-          <p class="lead">Build a little sprite out of shapes, publish it, then drop it into any game with <code>game.sprite(id, asset=True)</code>. Pick a tool, drag on the canvas to draw, and pick a colour.</p>
+          <p class="lead">Build a little sprite out of shapes (or flip the switch to paint pixel art on a grid), publish it, then drop it into any game with <code>game.sprite(id, asset=True)</code>. Pick a tool, drag on the canvas to draw, and pick a colour.</p>
         </details>
       </div>
     </section>
@@ -32,7 +32,28 @@
 
       <div class="asset-studio" id="asset-studio">
         <div class="asset-tools">
-          <div class="asset-tool-row" id="asset-toolbar">
+          <!-- One real button with role="switch": a click, Enter or Space flips it,
+               and a screen reader hears "Pixel art mode, switch, on/off". The two
+               words are its visible label, so they are hidden from the reader. -->
+          <button type="button" class="asset-mode" id="asset-mode" role="switch" aria-checked="false" aria-label="Pixel art mode" title="Switch between drawing with shapes and painting pixel art on a grid">
+            <span class="asset-mode-opt" aria-hidden="true">Shapes</span>
+            <span class="asset-mode-opt" aria-hidden="true">Pixels</span>
+          </button>
+          <div class="asset-tool-row asset-pixel-only" id="asset-pixel-toolbar" role="group" aria-label="Pixel tools">
+            <button type="button" class="asset-tool is-on" data-ptool="pencil" aria-label="Pencil" aria-pressed="true" title="Pencil: click or drag to paint squares (B). Right-click erases."><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15.2 4.2l4.6 4.6L9 19.6 3.6 21l1.4-5.4zM17 2.4a1.6 1.6 0 0 1 2.3 0l2.3 2.3a1.6 1.6 0 0 1 0 2.3l-1 1-4.6-4.6z" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-ptool="eraser" aria-label="Eraser" aria-pressed="false" title="Eraser: click or drag to clear squares (E)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M14.6 3.4a2 2 0 0 1 2.8 0l4.2 4.2a2 2 0 0 1 0 2.8L12 20h7v2H7.8l-5.4-5.4a2 2 0 0 1 0-2.8zM8.5 9.5l-4.7 4.7 5 5h1.4l3.5-3.5z" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-ptool="fill" aria-label="Fill bucket" aria-pressed="false" title="Fill: paint a whole same-colour area (G)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9.6 2.6l1.4-1.4 9.2 9.2-7.8 7.8a2 2 0 0 1-2.8 0L3.4 12a2 2 0 0 1 0-2.8l5.4-5.4zM10.2 5.4 5.6 10h11.2zM20 14s-2 2.4-2 3.8a2 2 0 0 0 4 0C22 16.4 20 14 20 14z" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-ptool="eyedrop" aria-label="Eyedropper" aria-pressed="false" title="Eyedropper: pick a colour from a square (I)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M17.7 2.9a3 3 0 0 1 3.4 4.8l-1.6 1.6.9.9-1.5 1.5-.9-.9-5.9 5.9c-.3.3-.7.6-1.2.7l-2.9.7-1.9 1.9-1.5-1.5 1.9-1.9.7-2.9c.1-.5.4-.9.7-1.2l5.9-5.9-.9-.9 1.5-1.5.9.9 1.6-1.6c.3-.3.6-.5 1-.6Z" fill="currentColor"/></svg></button>
+            <button type="button" class="asset-tool" data-ptool="pan" aria-label="Pan" aria-pressed="false" title="Pan: drag to move around when zoomed in (H)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2 9.5 5h5L12 2Zm0 20 2.5-3h-5l2.5 3ZM2 12l3-2.5v5L2 12Zm20 0-3 2.5v-5l3 2.5ZM11 7h2v10h-2V7Zm-4 4h10v2H7v-2Z" fill="currentColor"/></svg></button>
+          </div>
+          <label class="asset-grid-size asset-pixel-only" title="How many squares across and down. Changing it keeps your picture (Undo goes back).">Grid
+            <select id="asset-grid-size">
+              <option value="8">8 x 8</option>
+              <option value="16" selected>16 x 16</option>
+              <option value="32">32 x 32</option>
+            </select>
+          </label>
+          <div class="asset-tool-row asset-shape-only" id="asset-toolbar">
             <button type="button" class="asset-tool is-on" data-tool="select" title="Select and move (V)"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M4 3l12 5-5 2-2 5z" fill="currentColor"/></svg></button>
             <button type="button" class="asset-tool" data-tool="rect" title="Rectangle (R)"><svg viewBox="0 0 20 20" width="18" height="18"><rect x="3" y="5" width="14" height="10" rx="1.5" fill="currentColor"/></svg></button>
             <button type="button" class="asset-tool" data-tool="circle" title="Circle (C)"><svg viewBox="0 0 20 20" width="18" height="18"><circle cx="10" cy="10" r="7" fill="currentColor"/></svg></button>
@@ -53,14 +74,14 @@
           <label class="asset-custom-color">Colour
             <input type="color" id="asset-color" value="#4f46e5" />
           </label>
-          <label class="asset-line-width" title="Thickness of the line tool (and the selected line)">Line width
+          <label class="asset-line-width asset-shape-only" title="Thickness of the line tool (and the selected line)">Line width
             <input type="range" id="asset-line-width" min="0.5" max="12" step="0.5" value="4" />
           </label>
           <div class="asset-recent-row" id="asset-recent-row" hidden>
             <span class="asset-recent-label">Recent</span>
             <div class="asset-swatches asset-recent" id="asset-recent"></div>
           </div>
-          <div class="asset-tool-row asset-edit-actions">
+          <div class="asset-tool-row asset-edit-actions asset-shape-only">
             <button type="button" class="btn btn-ghost" id="asset-centre-h" title="Centre left-to-right on the canvas. Works on the selection, or the whole drawing if nothing is selected.">Centre&nbsp;↔</button>
             <button type="button" class="btn btn-ghost" id="asset-centre-v" title="Centre top-to-bottom on the canvas. Works on the selection, or the whole drawing if nothing is selected.">Centre&nbsp;↕</button>
             <button type="button" class="btn btn-ghost is-on" id="asset-frame-toggle" title="Show the box your artwork actually fills inside the 64x64 canvas, and its ratio. A game draws the whole canvas, so the space around this box is empty space in your sprite.">Frame</button>
@@ -68,7 +89,7 @@
             <button type="button" class="btn btn-ghost" id="asset-smaller" title="Scale down 10% in place, keeping proportions ( [ ). Draw a sprout smaller than its flower and a game gets that difference for free.">Scale&nbsp;&minus;</button>
             <button type="button" class="btn btn-ghost" id="asset-bigger" title="Scale up 10% in place, keeping proportions ( ] )">Scale&nbsp;+</button>
           </div>
-          <div class="asset-tool-row asset-edit-actions">
+          <div class="asset-tool-row asset-edit-actions asset-shape-only">
             <button type="button" class="btn btn-ghost" id="asset-forward" title="Bring forward">Forward</button>
             <button type="button" class="btn btn-ghost" id="asset-back" title="Send back">Back</button>
             <button type="button" class="btn btn-ghost" id="asset-dup" title="Duplicate the selected shape (Ctrl+D)">Duplicate</button>

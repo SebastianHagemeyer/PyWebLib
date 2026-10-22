@@ -1711,6 +1711,48 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-frame-info { display: block; margin-top: 8px; font-size: 0.74rem; color: #8aa0d0; font-variant-numeric: tabular-nums; }
 .asset-tool-row .btn.is-on { background: var(--primary); color: #fff; border-color: var(--primary); }
 
+/* ===== Asset studio: Shapes | Pixels mode ============================ =====
+   The switch is a pill with a sliding thumb under the active word, built from
+   the same tokens as the settings segmented control, so it themes itself in
+   dark mode. Its state lives in aria-checked, so the look can never disagree
+   with what a screen reader is told. --------------------------------------- */
+.asset-mode {
+  position: relative; display: grid; grid-template-columns: 1fr 1fr;
+  width: 100%; max-width: 230px; padding: 4px; margin: 0;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+  font: inherit; font-size: 0.86rem; font-weight: 700; cursor: pointer;
+}
+.asset-mode::before {
+  content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px;
+  width: calc(50% - 4px); border-radius: 999px; background: var(--primary);
+  transition: transform 0.18s ease;
+}
+.asset-mode[aria-checked="true"]::before { transform: translateX(100%); }
+.asset-mode-opt { position: relative; padding: 6px 10px; text-align: center; color: var(--muted); transition: color 0.18s; }
+.asset-mode[aria-checked="false"] .asset-mode-opt:first-child,
+.asset-mode[aria-checked="true"] .asset-mode-opt:last-child { color: #fff; }
+.asset-mode:hover .asset-mode-opt { color: var(--text); }
+.asset-mode[aria-checked="false"]:hover .asset-mode-opt:first-child,
+.asset-mode[aria-checked="true"]:hover .asset-mode-opt:last-child { color: #fff; }
+.asset-mode:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .asset-mode::before, .asset-mode-opt { transition: none; } }
+
+/* Each mode shows only the controls that mean something in it. */
+.asset-studio.is-pixels .asset-shape-only,
+.asset-studio:not(.is-pixels) .asset-pixel-only { display: none; }
+/* .btn's display beat the [hidden] attribute, so "Break into editable shapes"
+   showed all the time, even with nothing imported (and in Pixels mode). */
+#asset-breakup[hidden] { display: none; }
+.asset-tool:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.asset-grid-size { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--muted); }
+.asset-grid-size select {
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
+}
+/* Pixel mode draws its own grid (it follows the cells and the zoom), so the
+   decorative background grid would only fight it. */
+.asset-stage.is-pixels { background-image: none; }
+
 /* Snippet subtitle: the qualifier, kept out of the title so names stay short. */
 .sandbox-example-sub {
   display: inline-block;
