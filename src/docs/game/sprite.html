@@ -1,0 +1,150 @@
+<!--
+{
+  "title": "game.sprite() | PyWebLib docs",
+  "description": "game.sprite(skin, x, y, size) makes a character in a PyWebLib Python game: built-in skins by number or name, any emoji, or your own Asset studio art. Properties, a full example and fixes.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.sprite(): characters for your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.sprite()</code></h1>
+        <p class="lead">Make a sprite: a player, a coin, an enemy, anything that moves. Pick a built-in picture, any emoji, or art you drew yourself in the Asset studio.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.sprite(skin, x, y, size=40, asset=False)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>skin</dt>
+              <dd>What the sprite looks like: a built-in skin's <strong>number</strong> (<code>0</code>) or <strong>name</strong> (<code>"chicken"</code>), or any <strong>emoji</strong> (<code>"🦖"</code>). With <code>asset=True</code>, it is the id number of your own art.</dd>
+            </div>
+            <div>
+              <dt>x, y</dt>
+              <dd>Where the <strong>middle</strong> of the sprite goes. Leave them both out and it starts in the middle of the window.</dd>
+            </div>
+            <div>
+              <dt>size</dt>
+              <dd>Optional. How big it is, in pixels. Leave it out and you get <code>40</code>.</dd>
+            </div>
+            <div>
+              <dt>asset</dt>
+              <dd>Optional. Set it to <code>True</code> to use a sprite you designed in the <a href="../../../assets/">Asset studio</a>. Then <code>skin</code> is that art's id number.</dd>
+            </div>
+          </dl>
+          <p>It gives back the sprite, so always save it in a variable: <code>hero = game.sprite("chicken", 100, 200)</code>. You use that name to move it later.</p>
+        </section>
+
+        <section id="skins">
+          <h2>The built-in skins</h2>
+          <p>Use the number or the name, whichever you find easier. <code>game.sprite(4)</code> and <code>game.sprite("coin")</code> are the same coin.</p>
+          <ul>
+            <li><code>0</code> chicken, <code>1</code> dog, <code>2</code> bird, <code>3</code> egg, <code>4</code> coin, <code>5</code> basket</li>
+            <li><code>6</code> shocked, <code>7</code> calm (two faces)</li>
+            <li><code>8</code> turtle, <code>9</code> car, <code>10</code> mouse</li>
+            <li><code>11</code> rocket, <code>12</code> asteroid, <code>13</code> laser</li>
+            <li><code>14</code> snake, <code>15</code> pacman (it chomps all by itself), <code>16</code> ghost, <code>17</code> pacman2 (Pac-Man with his mouth shut), <code>18</code> kid</li>
+          </ul>
+          <p>Anything that is not a skin name is drawn as text, so any emoji works: <code>game.sprite("🍕", 200, 100)</code>. For words, like a score, use <a href="../label/">game.label()</a> instead.</p>
+          <p>Your own art from the Asset studio works too. Each asset has an id number (shown like <code>#2</code>), and you pass that number with <code>asset=True</code>:</p>
+          <pre class="guide-code language-python">hero = game.sprite("chicken", 100, 200)    # built-in, by name
+coin = game.sprite(4, 250, 100)            # built-in, by number
+dino = game.sprite("🦖", 300, 200)          # any emoji
+mine = game.sprite(2, 380, 200, asset=True) # your Asset studio art #2</pre>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>Steer the chicken with the arrow keys to collect the spinning coin. The chicken turns to face the way it walks, and the coin disappears when you grab it:</p>
+          <pre class="guide-code language-python" id="ex-sprite">import game
+
+game.window(480, 360, background="#1d3557")
+
+hero = game.sprite("chicken", 80, 180, size=56)
+coin = game.sprite("coin", 380, 180, size=40)
+dino = game.sprite("🦖", 380, 300, size=50)
+note = game.label("Get the coin!", 240, 24, color="#ffffff")
+
+while game.playing():
+    if game.pressed("left"):
+        hero.x = hero.x - 5
+        hero.scale_x = -1         # mirror it to face left
+    if game.pressed("right"):
+        hero.x = hero.x + 5
+        hero.scale_x = 1          # face right (the way the art is drawn)
+    if game.pressed("up"):
+        hero.y = hero.y - 5
+    if game.pressed("down"):
+        hero.y = hero.y + 5
+
+    coin.angle = coin.angle + 6   # spin 6 degrees every frame
+
+    if coin.visible and hero.touches(coin):
+        coin.visible = False      # hide the coin
+        note.content = "Got it!"
+        hero.size = 80            # and grow a little
+        dino.content = "😮"       # the dinosaur turns into a surprised face
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-sprite">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+        </section>
+
+        <section id="properties">
+          <h2>Changing a sprite</h2>
+          <p>A sprite is like a box of settings. Change one, and the next <a href="../frame/">game.frame()</a> draws it the new way.</p>
+          <ul>
+            <li><strong><code>.x</code> and <code>.y</code></strong>: where it is. Change them to move it: <code>hero.x = hero.x + 5</code>.</li>
+            <li><strong><code>.size</code></strong>: how big it is, in pixels.</li>
+            <li><strong><code>.content</code></strong>: what it shows. Set it to another number, name or emoji to swap the picture: <code>hero.content = "ghost"</code>.</li>
+            <li><strong><code>.angle</code></strong>: turn it, in degrees. Add a little every frame to make it spin.</li>
+            <li><strong><code>.scale_x</code> and <code>.scale_y</code></strong>: stretch it. <code>2</code> is twice as wide (or tall), and <code>-1</code> mirrors it so it faces the other way.</li>
+            <li><strong><code>.visible</code></strong>: <code>False</code> hides it, <code>True</code> shows it again. <code>hero.hide()</code> and <code>hero.show()</code> do the same.</li>
+            <li><strong><code>.remove()</code></strong>: takes it off the screen for good, once it is collected or destroyed.</li>
+            <li><strong><code>a.touches(b)</code></strong>: <code>True</code> when two sprites overlap. See <a href="../touches/">touches()</a>.</li>
+          </ul>
+          <p>There are more, like <code>.layer</code> (what is drawn on top), <code>.anchor</code> and <code>.animate()</code>. The <a href="../../#sec-game">full reference</a> lists them all.</p>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my sprite working?</h2>
+          <ul>
+            <li><strong>It doesn't show up at all.</strong> Nothing is drawn until <code>game.frame()</code> runs, so check your game has a loop that ends with it. Also check <code>x</code> and <code>y</code> are inside the window: in a 480 by 360 window, <code>y = 400</code> is below the bottom.</li>
+            <li><strong>I see a purple square.</strong> That is a number with no skin, like <code>game.sprite(25)</code>. The skins go from <code>0</code> to <code>18</code>. Your own art also shows a faint square for a moment while it loads.</li>
+            <li><strong>My Asset studio art shows the wrong thing.</strong> Without <code>asset=True</code>, the number is a built-in skin: <code>game.sprite(2)</code> is the bird, but <code>game.sprite(2, asset=True)</code> is your asset #2.</li>
+            <li><strong>It won't move.</strong> You need to keep the sprite in a variable, then change <code>name.x</code> or <code>name.y</code> <em>inside</em> the loop.</li>
+            <li><strong>A hidden sprite still gets touched.</strong> <code>touches()</code> does not care whether a sprite is visible, and that includes removed ones. That is why the example checks <code>coin.visible and hero.touches(coin)</code>.</li>
+            <li><strong>A word shows up invisible.</strong> Plain text as a skin, like <code>game.sprite("Hello")</code>, is drawn like an emoji and often comes out invisible. Use <code>game.label("Hello", x, y)</code> for words.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../touches/">sprite.touches()</a>
+            <a href="../pressed/">game.pressed()</a>
+            <a href="../label/">game.label()</a>
+            <a href="../anchor/">sprite.anchor</a>
+            <a href="../window/">game.window()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> shows every built-in skin as a picture and walks through a whole game step by step.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

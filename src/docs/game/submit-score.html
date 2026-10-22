@@ -1,0 +1,136 @@
+<!--
+{
+  "title": "game.submit_score() | PyWebLib docs",
+  "description": "game.submit_score(points) puts a player's score on your PyWebLib game's own leaderboard once you publish it. How it works, a full example game, and the mistakes that stop a leaderboard showing up.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.submit_score(): a leaderboard for your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.submit_score()</code></h1>
+        <p class="lead">Put a player's score on your game's own leaderboard. Publish the game, and its page gets a scoreboard showing the best score of everyone who plays it.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.submit_score(points)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>points</dt>
+              <dd>The score, as a number. Decimals are rounded down to a whole number (<code>12.9</code> becomes <code>12</code>). <strong>Higher is better</strong>: the board is sorted biggest first.</dd>
+            </div>
+          </dl>
+          <p>It gives nothing back, and it never stops or slows your game, so you can call it whenever you like.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>A 20-second coin catcher. When the time runs out, the score goes on the leaderboard and the game ends:</p>
+          <pre class="guide-code language-python" id="ex-catch">import game
+import random
+
+game.window(480, 360, background="#0b1020")
+
+basket = game.sprite("basket", 240, 320, size=60)
+coin = game.sprite("coin", random.randint(30, 450), 0, size=36)
+board = game.label("Score: 0", 70, 24, color="#ffffff")
+clock = game.label("Time: 20", 400, 24, color="#ffffff")
+
+score = 0
+frames = 20 * 30            # 20 seconds at 30 frames a second
+
+while game.playing():
+    if game.pressed("left"):
+        basket.x = basket.x - 8
+    if game.pressed("right"):
+        basket.x = basket.x + 8
+
+    coin.y = coin.y + 6
+    if basket.touches(coin):
+        score = score + 1
+        board.content = "Score: " + str(score)
+        game.sound("coin")
+        coin.x = random.randint(30, 450)
+        coin.y = 0
+    if coin.y &gt; 380:
+        coin.x = random.randint(30, 450)
+        coin.y = 0
+
+    frames = frames - 1
+    clock.content = "Time: " + str(frames // 30)
+    if frames == 0:
+        game.submit_score(score)          # onto the leaderboard
+        game.game_over("Time's up! Score: " + str(score), retry=True)
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-catch">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">In the Playground, <code>game.submit_score()</code> quietly does nothing, so the example runs but no board appears. That's on purpose: you can test your game as much as you like without filling the board with practice runs. Publish it to see the board.</p>
+        </section>
+
+        <section id="how">
+          <h2>How the leaderboard works</h2>
+          <ul>
+            <li><strong>It appears by itself.</strong> Publish your game (any program with <code>import game</code> is published as a game), and if its code contains <code>game.submit_score</code>, the game's page gets a Leaderboard next to the game.</li>
+            <li><strong>One line per player.</strong> Each player keeps only their <strong>best</strong> score. A worse run never replaces a better one.</li>
+            <li><strong>The top 10 are shown</strong>, biggest score first, with each player's name and picture.</li>
+            <li><strong>Players must be signed in.</strong> Anyone can play, but only signed-in players' scores are saved. The board reminds everyone else to sign in.</li>
+            <li><strong>Scores are saved on the game's own page.</strong> Pressing <strong>Play</strong> on a game in the community gallery takes you there, and so does its link.</li>
+          </ul>
+        </section>
+
+        <section id="when">
+          <h2>When to call it</h2>
+          <p>The simplest place is <strong>right before <code>game.game_over()</code></strong>, as in the example above: one score per game.</p>
+          <p>You can also call it <strong>every time the score goes up</strong>. Only scores that beat the player's best for that run are sent, so this is safe, and the board updates live as they play. It also means a player who closes the tab mid-game still keeps their score.</p>
+          <pre class="guide-code language-python">if basket.touches(coin):
+    score = score + 1
+    game.submit_score(score)    # the board updates while you play</pre>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my leaderboard showing?</h2>
+          <ul>
+            <li><strong>It's written without <code>game.</code> in front.</strong> The site looks for the exact text <code>game.submit_score</code> in your code. With <code>from game import *</code> you'd write <code>submit_score(score)</code>, and with <code>import game as g</code> you'd write <code>g.submit_score(score)</code>. Both run fine, but no board appears. Use <code>import game</code> and <code>game.submit_score(...)</code>.</li>
+            <li><strong>You're testing in the Playground.</strong> It does nothing there. Open the published game's page instead.</li>
+            <li><strong>Nobody signed in has played yet.</strong> The board says "No scores yet" until a signed-in player finishes a run.</li>
+            <li><strong>It's never reached.</strong> If the line is inside an <code>if</code> that never comes true, nothing is sent. A <code>print("sent", score)</code> next to it shows whether it runs.</li>
+          </ul>
+        </section>
+
+        <section id="lower">
+          <h2>When lower is better</h2>
+          <p>The board always puts the <strong>biggest</strong> number first. For a race or a speed-run, where the fastest time wins, turn the time into points so faster means more:</p>
+          <pre class="guide-code language-python">seconds = frames_taken / 30
+game.submit_score(1000 - seconds * 10)   # 20 s scores 800, 30 s scores 700</pre>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../game-over/">game.game_over()</a>
+            <a href="../label/">game.label()</a>
+            <a href="../save/">game.save() / game.load()</a>
+            <a href="../button/">game.button()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step. Note that the per-game leaderboard is separate from the site <a href="../../../leaderboard/">Leaderboard</a>, which ranks <em>creators</em> by the upvotes on their programs.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

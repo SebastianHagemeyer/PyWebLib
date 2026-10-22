@@ -1,0 +1,59 @@
+# PyWebLib
+
+> Real Python in the browser, with its own beginner-friendly game, turtle, 3D and multiplayer libraries.
+
+PyWebLib (https://play.pyweblib.org) runs real Python 3 in the web browser (Pyodide), with no install.
+It is used in schools to learn Python, and adds its own libraries on top of standard Python:
+
+- `game`: a 2D game library (sprites, keys, mouse, collisions, sound, saving, per-game leaderboards).
+- `turtle`: turtle drawing, like desktop Python's turtle.
+- `game3d`: simple 3D games (shapes, a camera, the same game loop).
+- `net`: multiplayer, used together with `game`.
+
+Important when writing code for PyWebLib:
+
+- `import game` is PyWebLib's OWN library. It is NOT pygame and has a different API. Do not use pygame calls.
+- Every game has the same shape: `game.window(w, h)`, make sprites, then `while game.playing():` ... `game.frame()`.
+- Coordinates are pixels from the top-left of the game window; y grows DOWNWARD. Sprites are positioned by their centre.
+- `game.frame()` draws one frame and waits (30 fps by default). Put it at the end of the loop.
+- Code runs in the Playground at https://play.pyweblib.org. Programs can be published to the community gallery.
+
+A minimal game:
+
+```python
+import game
+
+game.window(480, 360)
+player = game.sprite("chicken", 240, 300, size=52)
+
+while game.playing():
+    if game.pressed("left"):
+        player.x = player.x - 5
+    if game.pressed("right"):
+        player.x = player.x + 5
+    game.frame()
+```
+
+## Docs
+
+- [Full reference (plain text)](https://play.pyweblib.org/llms-full.txt): every function in every library, with an example each. Read this first.
+- [Game library guide](https://play.pyweblib.org/docs/game/): a hands-on walkthrough of making a game.
+- [Turtle guide](https://play.pyweblib.org/docs/turtle/): drawing with turtle.
+- [Multiplayer guide](https://play.pyweblib.org/docs/net/): the net library.
+
+## Function pages
+
+- [sprite.anchor](https://play.pyweblib.org/docs/game/anchor/): sprite.anchor picks which point of a PyWebLib sprite sits on its x and y, and the pivot it spins around with sprite.angle. Feet on the ground, a swinging hammer and a wheelie, in Python.
+- [game.button()](https://play.pyweblib.org/docs/game/button/): game.button() adds a real clickable button to your PyWebLib Python game. Make a Start menu and a Play again button, send a text box with submits=, and stop old buttons staying on screen.
+- [game.clicked()](https://play.pyweblib.org/docs/game/clicked/): game.clicked() and the mouse in your PyWebLib Python game: mouse_x(), mouse_y(), sprite.at_mouse() and mouse_down(). Make clickable sprites, with a full example and common mistakes.
+- [game.frame()](https://play.pyweblib.org/docs/game/frame/): game.frame(fps) and game.playing() make the game loop in PyWebLib: why every Python game needs while game.playing() and game.frame(), what fps does, and how to keep speed right.
+- [game.game_over()](https://play.pyweblib.org/docs/game/game-over/): game.game_over(message, retry=False) ends a PyWebLib Python game with a big banner. Line breaks, tap to play again with retry=True, what happens to your loop, and a full example game.
+- [game.label()](https://play.pyweblib.org/docs/game/label/): game.label() puts words on your PyWebLib Python game: a score, a timer, a message. How to change the text with .content, add a background, and show or hide it, with a full example.
+- [game.plot()](https://play.pyweblib.org/docs/game/plot/): game.plot(x, y, color) stamps a dot that stays on the screen in your PyWebLib Python game. Draw fractals, trails and paintings with hundreds of thousands of dots at full speed.
+- [game.pressed()](https://play.pyweblib.org/docs/game/pressed/): game.pressed(key) reads the keyboard in a PyWebLib Python game: key names, held keys vs one action per press, diagonal movement and keeping the player on screen. Full example and fixes.
+- [game.save() and game.load()](https://play.pyweblib.org/docs/game/save/): game.save() and game.load() make your PyWebLib Python game remember coins, high scores and unlocked levels between runs. What you can save, where it lives, game.clear_save(), and a full example.
+- [game.sound()](https://play.pyweblib.org/docs/game/sound/): game.sound() plays a built-in arcade sound in your PyWebLib Python game, no sound files needed. All 10 sounds by number and name, when to play them, and why a sound can turn into a buzz.
+- [game.sprite()](https://play.pyweblib.org/docs/game/sprite/): game.sprite(skin, x, y, size) makes a character in a PyWebLib Python game: built-in skins by number or name, any emoji, or your own Asset studio art. Properties, a full example and fixes.
+- [game.submit_score()](https://play.pyweblib.org/docs/game/submit-score/): game.submit_score(points) puts a player's score on your PyWebLib game's own leaderboard once you publish it. How it works, a full example game, and the mistakes that stop a leaderboard showing up.
+- [sprite.touches()](https://play.pyweblib.org/docs/game/touches/): a.touches(b) tells your PyWebLib Python game when two sprites overlap. How the collision boxes work, game.debug(True) to see them, hitbox, and removing collected coins from a list safely.
+- [game.window()](https://play.pyweblib.org/docs/game/window/): game.window(w, h, background) opens the game window in PyWebLib, the first line of every Python game. Width, height, colours, coordinates, a full example and common mistakes.

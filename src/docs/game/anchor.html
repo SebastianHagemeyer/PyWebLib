@@ -1,0 +1,149 @@
+<!--
+{
+  "title": "sprite.anchor | PyWebLib docs",
+  "description": "sprite.anchor picks which point of a PyWebLib sprite sits on its x and y, and the pivot it spins around with sprite.angle. Feet on the ground, a swinging hammer and a wheelie, in Python.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "sprite.anchor: where your Python sprite stands and spins",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>sprite.anchor</code></h1>
+        <p class="lead">A sprite's handle. It picks which point of the sprite sits exactly on its <code>x</code> and <code>y</code>, and it's the point the sprite spins around when you change <code>sprite.angle</code>.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">sprite.anchor = (across, down)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>across</dt>
+              <dd>How far across the sprite the handle is, from <code>0</code> (left edge) to <code>1</code> (right edge). <code>0.5</code> is the middle.</dd>
+            </div>
+            <div>
+              <dt>down</dt>
+              <dd>How far down the sprite the handle is, from <code>0</code> (top edge) to <code>1</code> (bottom edge). <code>0.5</code> is the middle.</dd>
+            </div>
+          </dl>
+          <p>Every sprite starts at <code>(0.5, 0.5)</code>, the middle. A few handy ones:</p>
+          <ul>
+            <li><code>(0.5, 1)</code>: bottom middle. The sprite stands with its feet on <code>y</code>.</li>
+            <li><code>(0, 0)</code>: the top-left corner.</li>
+            <li><code>(0.2, 1)</code>: the bottom edge, near the left. On a car facing right, that's just over the back wheel.</li>
+          </ul>
+          <p>It goes hand in hand with <code>sprite.angle</code>, which turns the sprite by that many degrees. Bigger numbers turn it clockwise, and the anchor is the point that stays still while it turns.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>Three anchors at once: a kid who stands on the grass, a hammer swinging from the end of its handle, and a car that does a wheelie on its back wheel when you hold the space bar. The hammer and the car are made of plain boxes and circles. The left and right arrows walk the kid.</p>
+          <pre class="guide-code language-python" id="ex-anchor">import game
+import math
+
+game.window(480, 360, background="#87ceeb")
+GROUND = 300
+game.box(240, 330, 480, 60, "#3a7d44")      # the grass
+
+# A kid standing ON the grass, not sunk into it
+kid = game.sprite("kid", 70, GROUND, size=70)
+kid.anchor = (0.5, 1)                       # feet on (x, y)
+
+# A hammer: a handle and a head that share one pivot
+handle = game.box(200, GROUND, 10, 100, "#8b5a2b")
+handle.anchor = (0.5, 1)                    # swings from its bottom end
+head = game.box(200, GROUND, 46, 20, "#555555")
+head.anchor = (0.5, 5.5)                    # pivot 5 heads below: the handle's end
+
+# A car that pops a wheelie: a body and two wheels sharing one pivot
+car = game.box(380, GROUND - 15, 100, 30, "#e63946")
+car.anchor = (0.2, 1)                       # pivot: low down, over the back wheel
+back = game.circle(380, GROUND - 15, 30, color="#222222")    # right on the pivot
+front = game.circle(380, GROUND - 15, 30, color="#222222")
+front.anchor = (-1.5, 0.5)                  # pivot 2 wheels behind it: 60 px back
+
+game.debug(True)                            # red boxes: what touches() checks
+t = 0
+
+while game.playing():
+    t = t + 1
+
+    if game.pressed("left"):
+        kid.x = kid.x - 4
+    if game.pressed("right"):
+        kid.x = kid.x + 4
+
+    swing = 70 * math.sin(t / 10)
+    handle.angle = swing
+    head.angle = swing
+
+    if game.pressed("space"):
+        tilt = max(car.angle - 3, -30)        # front lifts
+    else:
+        tilt = min(car.angle + 3, 0)          # and drops back
+    car.angle = tilt
+    front.angle = tilt
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-anchor">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">Click the game first so it hears the keys. Then try <code>handle.anchor = (0.5, 0.5)</code>: the handle spins around its middle like a propeller, and comes apart from its head.</p>
+        </section>
+
+        <section id="how">
+          <h2>How it works</h2>
+          <ul>
+            <li><strong>It's where the sprite is.</strong> <code>x</code> and <code>y</code> always tell you where the anchor point is. With <code>(0.5, 1)</code>, <code>kid.y = GROUND</code> puts the feet on the ground, whatever size the kid is.</li>
+            <li><strong>It's what the sprite turns around.</strong> Change <code>angle</code> and the anchor point stays put while the rest swings around it, like a door on its hinge.</li>
+            <li><strong>The collision box follows.</strong> <code>touches()</code> and <code>at_mouse()</code> use a box that moves and turns with the anchor, so a swinging hammer really hits what it looks like it hits. <code>game.debug(True)</code> draws those boxes in red so you can see.</li>
+            <li><strong>You can go past the edges.</strong> Numbers below <code>0</code> or above <code>1</code> put the handle outside the sprite. That's the trick behind the hammer head: <code>(0.5, 5.5)</code> puts its pivot far below it, at the end of the handle, so the two parts swing together. The car's front wheel does the same, with its pivot back at the rear wheel. Give every part the same <code>x</code>, <code>y</code> and <code>angle</code>, and they move as one.</li>
+          </ul>
+        </section>
+
+        <section id="when">
+          <h2>When to use it</h2>
+          <ul>
+            <li><strong>Things that stand on the ground</strong>: players, plants, trees, buildings. Use <code>(0.5, 1)</code>, then set <code>y</code> to the ground.</li>
+            <li><strong>Things that swing or turn on a hinge</strong>: a hammer, a sword, a door, a clock hand, a flipper.</li>
+            <li><strong>A sprite that plays the mouse pointer</strong>: set the anchor to its tip, so the tip is exactly where you click.</li>
+          </ul>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my anchor working?</h2>
+          <ul>
+            <li><strong>I get a <code>TypeError</code>.</strong> You can't pass it to <code>game.sprite()</code>. Make the sprite first, then set it on the next line: <code>kid.anchor = (0.5, 1)</code>.</li>
+            <li><strong>It went to the wrong corner.</strong> The order is <em>across</em>, then <em>down</em>, and down grows towards the <strong>bottom</strong>, the same as <code>y</code> on the screen. <code>(0.5, 0)</code> is the top middle, not the bottom.</li>
+            <li><strong>The numbers are pixels.</strong> They're fractions of the sprite, not pixels. <code>(20, 60)</code> puts the handle 20 sprite-widths away. Use <code>(0.2, 0.6)</code>.</li>
+            <li><strong>My sprite floats a little above the ground.</strong> The anchor is measured on the sprite's whole square (<code>size</code> by <code>size</code>), and some built-in pictures don't fill their square. A wide, low one like <code>"car"</code> has empty space under it. Move it down a few pixels, or use <code>game.debug(True)</code> to see where it really is.</li>
+            <li><strong>It spins around the middle anyway.</strong> Check you set <code>anchor</code> on the same sprite whose <code>angle</code> you change.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../sprite/">game.sprite()</a>
+            <a href="../touches/">sprite.touches()</a>
+            <a href="../pressed/">game.pressed()</a>
+            <a href="../frame/">game.frame()</a>
+          </div>
+          <p>See <code>sprite.angle</code>, <code>sprite.hitbox</code> and every other game function in the <a href="../../#sec-game">reference</a>, or build a whole game step by step with the <a href="../">game library guide</a>.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

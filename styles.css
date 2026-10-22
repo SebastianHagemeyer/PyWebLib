@@ -1390,6 +1390,31 @@ body.sandbox-maxed { overflow: hidden; }
 .docs-ex .token.function, .docs-ex .token.builtin,
 .docs-sig .token.function, .docs-sig .token.builtin         { color: #82aaff; }
 
+/* One-function docs pages (docs/game/submit-score/ and friends). */
+.fn-crumbs { font-size: 0.85rem; font-weight: 700; margin: 0 0 6px; }
+.fn-crumbs a { color: var(--primary); text-decoration: none; }
+.fn-crumbs a:hover { text-decoration: underline; }
+.fn-sig {
+  display: block; background: var(--code-bg); color: var(--code-text);
+  border-radius: var(--radius-sm); padding: 14px 16px; margin: 0 0 18px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1rem; overflow-x: auto; white-space: pre;
+}
+.fn-params { margin: 0 0 18px; display: grid; gap: 10px; }
+.fn-params > div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; }
+.fn-params dt { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; margin: 0 0 4px; }
+.fn-params dd { margin: 0; color: var(--muted); line-height: 1.55; }
+.fn-related { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.fn-related a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem; font-weight: 700; color: var(--primary);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 12px; text-decoration: none;
+}
+.fn-related a:hover { border-color: var(--primary); }
+.docs-more { display: inline-block; margin-top: 8px; font-size: 0.85rem; font-weight: 700; color: var(--primary); text-decoration: none; }
+.docs-more:hover { text-decoration: underline; }
+
 .callout {
   background: #fff7e8; border-left: 4px solid #ffbe0b;
   padding: 12px 16px; border-radius: var(--radius-sm); margin: 12px 0 18px; font-size: 0.97rem;

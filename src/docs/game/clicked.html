@@ -1,0 +1,154 @@
+<!--
+{
+  "title": "game.clicked() | PyWebLib docs",
+  "description": "game.clicked() and the mouse in your PyWebLib Python game: mouse_x(), mouse_y(), sprite.at_mouse() and mouse_down(). Make clickable sprites, with a full example and common mistakes.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.clicked(): use the mouse in your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.clicked()</code></h1>
+        <p class="lead">Find out when the player clicks the game window (or taps it on a phone). Add the mouse position and you can click on sprites: pop balloons, whack moles, pick cards.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.clicked()</code>
+          <p>It takes nothing. It gives back <code>True</code> <strong>once</strong> for each new click on the game window, then <code>False</code> until the player clicks again. One click, one action.</p>
+          <p>It comes with a few mouse friends:</p>
+          <dl class="fn-params">
+            <div>
+              <dt>game.mouse_x(), game.mouse_y()</dt>
+              <dd>Where the mouse pointer is, in game coordinates, the same ones your sprites use. <code>(0, 0)</code> is the top-left corner.</dd>
+            </div>
+            <div>
+              <dt>sprite.at_mouse()</dt>
+              <dd><code>True</code> while the pointer is over that sprite (inside its collision box).</dd>
+            </div>
+            <div>
+              <dt>game.mouse_down()</dt>
+              <dd><code>True</code> the whole time the mouse button is <strong>held</strong> down, every frame. Like <code>game.pressed()</code>, but for the mouse.</dd>
+            </div>
+            <div>
+              <dt>game.mouse_in()</dt>
+              <dd><code>True</code> while the pointer is over the game window.</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>Balloons float up. Aim with the mouse and click a balloon to pop it:</p>
+          <pre class="guide-code language-python" id="ex-clicked">import game
+import random
+
+game.window(480, 360, background="#87ceeb")
+game.hide_cursor()                       # the target is the pointer now
+
+aim = game.sprite("🎯", 240, 180, size=30)
+aim.layer = 500                          # in front of the balloons
+board = game.label("Popped: 0", 80, 24, color="#ffffff", background="#1d4ed8")
+
+balloons = []
+for i in range(5):
+    balloon = game.sprite("🎈", random.randint(40, 440), random.randint(380, 700), size=50)
+    balloons.append(balloon)
+
+popped = 0
+
+while game.playing():
+    aim.x = game.mouse_x()
+    aim.y = game.mouse_y()
+
+    click = game.clicked()               # ask ONCE per frame
+
+    for balloon in balloons:
+        balloon.y = balloon.y - 2
+        if click and balloon.at_mouse():
+            popped = popped + 1
+            board.content = "Popped: " + str(popped)
+            game.sound("hit")
+            click = False                # one click pops one balloon
+            balloon.y = 400              # send it back to the bottom
+        if balloon.y &lt; -30:
+            balloon.x = random.randint(40, 440)
+            balloon.y = 400
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-clicked">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout"><strong>Clicking a sprite</strong> is always the same two checks together: is the pointer over it (<code>balloon.at_mouse()</code>), and was there a click (<code>game.clicked()</code>)? Both <code>True</code> means "the player clicked this balloon".</p>
+        </section>
+
+        <section id="held">
+          <h2>One click, or holding the button?</h2>
+          <p>Pick the one that matches what the player should do:</p>
+          <ul>
+            <li><strong><code>game.clicked()</code></strong> is for <strong>one click, one action</strong>: pop one balloon, pick one card, fire one shot. Holding the button down still counts as just one click.</li>
+            <li><strong><code>game.mouse_down()</code></strong> is <code>True</code> on <strong>every frame</strong> while the button is held. Use it for things that keep going: painting, a machine gun, charging up a jump.</li>
+          </ul>
+          <pre class="guide-code language-python" id="ex-paint">import game
+
+game.window(480, 360, background="#ffffff")
+
+while game.playing():
+    if game.mouse_down():                # hold to paint
+        game.plot(game.mouse_x(), game.mouse_y(), "#e11d48", size=6)
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-paint">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p>Use <code>game.mouse_down()</code> to pop balloons and one long press would pop every balloon the pointer drifts over. Use <code>game.clicked()</code> to paint and you'd only get one dot per click.</p>
+        </section>
+
+        <section id="how">
+          <h2>Good to know</h2>
+          <ul>
+            <li><strong>Taps count.</strong> On a phone or tablet, a tap is a click, and the finger's position is the mouse position.</li>
+            <li><strong>Only clicks on the game window count.</strong> Clicking the code or the Output panel does nothing.</li>
+            <li><strong>Clicks on a <a href="../button/">game.button()</a> count too</strong>, because the button sits on top of the game window.</li>
+            <li><strong><code>at_mouse()</code> uses the collision box</strong>, the same one <a href="../touches/">touches()</a> uses. Turn on <code>game.debug(True)</code> to see the red box you have to click inside.</li>
+            <li><strong>A sprite as the pointer.</strong> <code>game.hide_cursor()</code> hides the real arrow, then move a sprite to <code>game.mouse_x()</code>, <code>game.mouse_y()</code> every frame, like the target above.</li>
+          </ul>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my click working?</h2>
+          <ul>
+            <li><strong>Only the first sprite in my list ever gets clicked.</strong> You wrote <code>if game.clicked() and balloon.at_mouse():</code> inside the <code>for</code> loop. The first <code>game.clicked()</code> uses up the click, so every balloon after it sees <code>False</code>. Ask <code>click = game.clicked()</code> <strong>once</strong>, before the loop, and check <code>click</code> inside it, like the example.</li>
+            <li><strong>Only one of my two click checks ever works.</strong> Two different <code>if</code>s each call <code>game.clicked()</code>? Only the first one gets the click. Save it in a variable once per frame and use that.</li>
+            <li><strong>One click pops a whole stack of balloons.</strong> Set <code>click = False</code> after the first one is popped, so the rest don't count it.</li>
+            <li><strong>It does way too much while I hold the button.</strong> You used <code>game.mouse_down()</code>. Swap to <code>game.clicked()</code> for one action per click.</li>
+            <li><strong>I have to click right in the middle.</strong> The collision box is a bit smaller than the picture. Check it with <code>game.debug(True)</code>, and make it bigger with <code>sprite.hitbox = (width, height)</code>. A long <code>game.label()</code> only has a small box in its middle, so for a clickable word use a <a href="../button/">game.button()</a> instead.</li>
+            <li><strong>It isn't checked every frame.</strong> <code>game.clicked()</code> has to be asked inside the <code>while game.playing():</code> loop, which ends with <code>game.frame()</code>. Asked once at the top of the program, it's almost always <code>False</code>.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../button/">game.button()</a>
+            <a href="../touches/">sprite.touches()</a>
+            <a href="../pressed/">game.pressed()</a>
+            <a href="../anchor/">sprite.anchor</a>
+            <a href="../../#sec-game">game.hide_cursor()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step, including the mouse.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

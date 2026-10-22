@@ -10,6 +10,48 @@
     <loc>https://play.pyweblib.org/community/</loc>
   </url>
   <url>
+    <loc>https://play.pyweblib.org/docs/game/anchor/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/button/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/clicked/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/frame/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/game-over/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/label/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/plot/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/pressed/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/save/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/sound/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/sprite/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/submit-score/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/touches/</loc>
+  </url>
+  <url>
+    <loc>https://play.pyweblib.org/docs/game/window/</loc>
+  </url>
+  <url>
     <loc>https://play.pyweblib.org/docs/game/</loc>
   </url>
   <url>

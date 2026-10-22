@@ -1,0 +1,150 @@
+<!--
+{
+  "title": "game.save() and game.load() | PyWebLib docs",
+  "description": "game.save() and game.load() make your PyWebLib Python game remember coins, high scores and unlocked levels between runs. What you can save, where it lives, game.clear_save(), and a full example.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.save() and game.load(): a Python game that remembers",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.save()</code> and <code>game.load()</code></h1>
+        <p class="lead">A game forgets everything when it stops. Save the things that matter, like coins, a high score or the levels you've unlocked, and they're still there next time.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.save(key, value)</code>
+          <code class="fn-sig">game.load(key, default=None)</code>
+          <code class="fn-sig">game.clear_save(key=None)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>key</dt>
+              <dd>A name for the thing you're saving, in quotes, like <code>"coins"</code> or <code>"best"</code>. Use the same name to load it back.</dd>
+            </div>
+            <div>
+              <dt>value</dt>
+              <dd>What to save: a number, text, <code>True</code>/<code>False</code>, or a list or dictionary of those, like <code>["carrot", "rose"]</code>.</dd>
+            </div>
+            <div>
+              <dt>default</dt>
+              <dd>What <code>game.load()</code> gives back when nothing has been saved under that key yet, like the very first time someone plays. Leave it out and you get <code>None</code>.</dd>
+            </div>
+          </dl>
+          <p><code>game.save()</code> and <code>game.clear_save()</code> give nothing back. <code>game.load()</code> gives back the saved value, or the default. <code>game.clear_save("coins")</code> forgets just the coins, and <code>game.clear_save()</code> with nothing in the brackets forgets everything this game saved.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>A coin clicker. Click the coin to earn coins, and spend them on upgrades that earn more per click. Stop the game, press Run again, and your coins are still there:</p>
+          <pre class="guide-code language-python" id="ex-coins">import game
+
+game.window(480, 360, background="#1b4332")
+
+coins = game.load("clicker_coins", 0)     # 0 the very first time
+power = game.load("clicker_power", 1)     # coins per click
+
+coin = game.sprite("coin", 240, 170, size=110)
+info = game.label("", 240, 40, size=22, color="#ffffff")
+upgrade = game.button("Upgrade", 160, 320)
+restart = game.button("New game", 330, 320)
+
+def show():
+    cost = power * 10
+    info.content = "Coins: " + str(coins) + "   Upgrade costs " + str(cost)
+
+show()
+
+while game.playing():
+    if game.clicked() and coin.at_mouse():
+        coins = coins + power
+        game.save("clicker_coins", coins)       # save when it changes
+        game.sound("coin")
+        show()
+
+    if upgrade.clicked():
+        cost = power * 10
+        if coins &gt;= cost:
+            coins = coins - cost
+            power = power + 1
+            game.save("clicker_coins", coins)
+            game.save("clicker_power", power)
+            game.sound("powerup")
+        else:
+            game.sound("buzz")
+        show()
+
+    if restart.clicked():
+        game.clear_save()                       # forget everything
+        coins = 0
+        power = 1
+        show()
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-coins">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">The pattern is always the same: <strong>load at the top</strong> with a sensible default, and <strong>save whenever the value changes</strong>.</p>
+        </section>
+
+        <section id="how">
+          <h2>Where the save lives</h2>
+          <ul>
+            <li><strong>In this browser, on this device.</strong> Play on your laptop and then on your phone, and they each have their own save. Clearing the browser's data wipes it too.</li>
+            <li><strong>Each program has its own save.</strong> On a published game's page, one game can never read or spoil another game's save, even if both use the key <code>"coins"</code>.</li>
+            <li><strong>In the Playground, all your programs share one save.</strong> A <code>"coins"</code> saved by one Playground program is loaded by the next program that asks for <code>"coins"</code>. Give your keys names that belong to your game, like <code>"clicker_coins"</code>, to keep them apart.</li>
+            <li><strong>Each player has their own.</strong> Your best score lives in your browser, so it's private to you. For a scoreboard everyone can see, use <code>game.submit_score()</code>.</li>
+          </ul>
+        </section>
+
+        <section id="highscore">
+          <h2>A high score that lasts</h2>
+          <p>Load the best score at the top, and only save when it's beaten:</p>
+          <pre class="guide-code language-python">best = game.load("best", 0)
+
+# ... the game loop, then when the game ends:
+if score &gt; best:
+    best = score
+    game.save("best", best)
+game.game_over("Score: " + str(score) + "\nBest: " + str(best))</pre>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my save working?</h2>
+          <ul>
+            <li><strong>It's back to 0 every run.</strong> You load it, but never call <code>game.save()</code> when the value changes. Or the key is spelled differently in the two places: <code>"coins"</code> and <code>"Coins"</code> are different keys.</li>
+            <li><strong>I put <code>game.save()</code> at the bottom of the loop.</strong> That saves the same value 30 times a second, again and again. It works, but it's wasted effort. Save only when something actually changes, like in the example above.</li>
+            <li><strong>I get <code>None</code> and then an error.</strong> You left out the default. Write <code>game.load("coins", 0)</code>, not <code>game.load("coins")</code>, so <code>coins + 1</code> works the very first time.</li>
+            <li><strong>It says it can't store something.</strong> <code>game.save()</code> only takes numbers, text, <code>True</code>/<code>False</code>, and lists and dictionaries of those. A sprite or a set can't be saved: save its numbers instead, like <code>player.x</code>.</li>
+            <li><strong>My dictionary's number keys came back as text.</strong> A saved dictionary always comes back with text keys, so <code>{1: "gold"}</code> loads as <code>{"1": "gold"}</code>. Use text keys from the start.</li>
+            <li><strong>I want to start over while testing.</strong> Run <code>game.clear_save()</code> once, or give your game a "New game" button like the example.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../submit-score/">game.submit_score()</a>
+            <a href="../button/">game.button()</a>
+            <a href="../clicked/">game.clicked()</a>
+            <a href="../game-over/">game.game_over()</a>
+          </div>
+          <p>See every game function in the <a href="../../#sec-game">reference</a>, or build a whole game step by step with the <a href="../">game library guide</a>.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

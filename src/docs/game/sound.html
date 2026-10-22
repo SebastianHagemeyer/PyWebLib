@@ -1,0 +1,159 @@
+<!--
+{
+  "title": "game.sound() | PyWebLib docs",
+  "description": "game.sound() plays a built-in arcade sound in your PyWebLib Python game, no sound files needed. All 10 sounds by number and name, when to play them, and why a sound can turn into a buzz.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.sound(): arcade sound effects for your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.sound()</code></h1>
+        <p class="lead">Play a short arcade sound effect: a coin, a jump, an explosion. There are 10 built in, made right in the browser, so you never need a sound file.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.sound(n)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>n</dt>
+              <dd>Which sound, as a number from <code>0</code> to <code>9</code> or as its name in quotes, like <code>game.sound(2)</code> or <code>game.sound("coin")</code>. Leave it out for <code>0</code>, the beep.</dd>
+            </div>
+          </dl>
+          <p>It starts the sound and carries straight on, so your game never waits for it to finish.</p>
+        </section>
+
+        <section id="list">
+          <h2>All the sounds</h2>
+          <dl class="fn-params">
+            <div>
+              <dt>0 &nbsp;"beep"</dt>
+              <dd>a menu click, a countdown tick</dd>
+            </div>
+            <div>
+              <dt>1 &nbsp;"buzz"</dt>
+              <dd>a wrong answer, "you can't do that"</dd>
+            </div>
+            <div>
+              <dt>2 &nbsp;"coin"</dt>
+              <dd>picking something up, scoring a point</dd>
+            </div>
+            <div>
+              <dt>3 &nbsp;"powerup"</dt>
+              <dd>a power-up, a level up, an upgrade</dd>
+            </div>
+            <div>
+              <dt>4 &nbsp;"jump"</dt>
+              <dd>jumping, bouncing</dd>
+            </div>
+            <div>
+              <dt>5 &nbsp;"laser"</dt>
+              <dd>shooting</dd>
+            </div>
+            <div>
+              <dt>6 &nbsp;"hit"</dt>
+              <dd>getting hurt, losing a life</dd>
+            </div>
+            <div>
+              <dt>7 &nbsp;"explosion"</dt>
+              <dd>a crash, a blown-up asteroid</dd>
+            </div>
+            <div>
+              <dt>8 &nbsp;"win"</dt>
+              <dd>winning, clearing a level</dd>
+            </div>
+            <div>
+              <dt>9 &nbsp;"lose"</dt>
+              <dd>game over</dd>
+            </div>
+          </dl>
+          <p>A few extra names work too: <code>"shoot"</code> and <code>"zap"</code> are the laser, <code>"boom"</code> is the explosion, <code>"hurt"</code> is the hit, <code>"point"</code> and <code>"score"</code> are the coin, <code>"wrong"</code> and <code>"error"</code> are the buzz, <code>"blip"</code> is the beep, <code>"won"</code> is win and <code>"gameover"</code> is lose. Capital letters don't matter.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>A sound board: press a number key from 0 to 9 to hear that sound and see its name.</p>
+          <pre class="guide-code language-python" id="ex-soundboard">import game
+
+game.window(480, 360, background="#14213d")
+
+names = ["beep", "buzz", "coin", "powerup", "jump",
+         "laser", "hit", "explosion", "win", "lose"]
+
+game.label("Click here, then press 0 to 9", 240, 40, color="#ffffff")
+shown = game.label("", 240, 180, size=40, color="#ffd166")
+
+was_down = False          # was a number key down last frame?
+
+while game.playing():
+    key = None
+    for n in range(10):
+        if game.pressed(str(n)):
+            key = n
+
+    if key is not None and not was_down:     # only the moment it goes down
+        game.sound(key)
+        shown.content = str(key) + "  " + names[key]
+
+    was_down = key is not None
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-soundboard">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">Browsers only allow sound after you click or tap the page. A game is clicked to play anyway, so this almost never matters, but if the very first sound is silent, that's why.</p>
+        </section>
+
+        <section id="when">
+          <h2>When to play a sound</h2>
+          <p>Play a sound <strong>once, when something happens</strong>: the moment a coin is caught, the moment a jump starts, the moment the game ends. Put it right next to the code that makes the thing happen:</p>
+          <pre class="guide-code language-python">if basket.touches(coin):
+    score = score + 1
+    game.sound("coin")        # once, because the coin moves away straight after
+    coin.y = 0</pre>
+          <p>Never play it on <strong>every frame</strong>. The loop runs 30 times a second, so this plays 30 laser sounds a second for as long as the key is held, and they pile into one ugly buzz:</p>
+          <pre class="guide-code language-python">while game.playing():
+    if game.pressed("space"):
+        game.sound("laser")   # 30 lasers a second!
+    game.frame()</pre>
+          <p>Fix it by playing the sound only when the key <em>goes</em> down, like the sound board does with <code>was_down</code>, or by adding a short wait (a cool-down) between shots.</p>
+          <p>Need a sound that keeps going, like a car engine or a siren that rises and falls? That's <code>game.tone()</code>, which starts a sound that keeps playing until you stop it, and you can change its pitch every frame.</p>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my sound working?</h2>
+          <ul>
+            <li><strong>I hear a beep instead of my sound.</strong> The name is misspelled, like <code>"coins"</code> or <code>"explode"</code>, or the number is bigger than 9. Anything it doesn't know plays the beep. Check the list above.</li>
+            <li><strong>It sounds like a horrible buzz.</strong> It's being played every frame. See <a href="#when">When to play a sound</a>.</li>
+            <li><strong>I hear nothing at all.</strong> Check your volume and that the tab isn't muted, then click the game once. The browser won't play sound until you have clicked the page.</li>
+            <li><strong>I want my own sound file.</strong> That isn't possible: <code>game.sound()</code> only plays the built-in sounds. Use <code>game.tone()</code> to make your own beeps and hums.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../../#sec-game">game.tone()</a>
+            <a href="../pressed/">game.pressed()</a>
+            <a href="../touches/">sprite.touches()</a>
+            <a href="../game-over/">game.game_over()</a>
+          </div>
+          <p>See every game function in the <a href="../../#sec-game">reference</a>, or build a whole game step by step with the <a href="../">game library guide</a>.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

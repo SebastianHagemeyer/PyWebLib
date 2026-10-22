@@ -1,0 +1,180 @@
+<!--
+{
+  "title": "game.button() | PyWebLib docs",
+  "description": "game.button() adds a real clickable button to your PyWebLib Python game. Make a Start menu and a Play again button, send a text box with submits=, and stop old buttons staying on screen.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.button(): a Start menu for your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.button()</code></h1>
+        <p class="lead">Put a real button on your game: Start, Play again, Shop, Jump. It works with a mouse and with a finger on a phone.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.button(label, x, y, width, submits=None)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>label</dt>
+              <dd>The words on the button, like <code>"Start"</code>.</dd>
+            </div>
+            <div>
+              <dt>x, y</dt>
+              <dd>Where the <strong>middle</strong> of the button goes, in game coordinates. Optional: leave them out and it sits in the middle of the bottom edge.</dd>
+            </div>
+            <div>
+              <dt>width</dt>
+              <dd>Optional. How wide the button is, in game pixels. Leave it out and the button is just wide enough for its label.</dd>
+            </div>
+            <div>
+              <dt>submits</dt>
+              <dd>Optional. A text box from <code>game.textbox()</code>. Clicking the button then sends whatever is typed in that box, just like pressing Enter (see <a href="#submits">Send buttons</a>).</dd>
+            </div>
+          </dl>
+          <p>It gives back the button. Keep it in a variable, then ask <code>start.clicked()</code> in your loop: it is <code>True</code> <strong>once</strong> for each click, then <code>False</code> until the next click.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>A Start menu, a 10-second coin catcher, and a Play again button at the end:</p>
+          <pre class="guide-code language-python" id="ex-button">import game
+import random
+
+game.window(480, 360, background="#0b1020")
+
+def wait_for(button):
+    # Keep the game drawing until the button is clicked,
+    # then take the button away.
+    while game.playing():
+        if button.clicked():
+            button.remove()
+            return
+        game.frame()
+
+def play_round():
+    basket = game.sprite("basket", 240, 320, size=60)
+    coin = game.sprite("coin", random.randint(30, 450), 0, size=36)
+    board = game.label("Score: 0", 70, 24)
+    score = 0
+    frames = 10 * 30                # 10 seconds at 30 frames a second
+    while game.playing() and frames &gt; 0:
+        if game.pressed("left"):
+            basket.x = basket.x - 8
+        if game.pressed("right"):
+            basket.x = basket.x + 8
+        coin.y = coin.y + 6
+        if basket.touches(coin) or coin.y &gt; 380:
+            if basket.touches(coin):
+                score = score + 1
+                board.content = "Score: " + str(score)
+            coin.x = random.randint(30, 450)
+            coin.y = 0
+        frames = frames - 1
+        game.frame()
+    basket.remove()
+    coin.remove()
+    board.remove()
+    return score
+
+title = game.label("Coin Catcher", 240, 120, size=40, color="#ffd23f")
+start = game.button("Start", 240, 220, width=160)
+wait_for(start)                     # the menu
+title.hide()
+
+while game.playing():
+    score = play_round()
+    title.content = "You scored " + str(score)
+    title.show()
+    again = game.button("Play again", 240, 220, width=200)
+    wait_for(again)
+    title.hide()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-button">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout"><strong>The menu trick:</strong> a menu is just a small loop of its own. It keeps calling <code>game.frame()</code> until the button is clicked, then the program carries on to the next part. The <code>wait_for()</code> function above does exactly that, so you can reuse it for every button.</p>
+        </section>
+
+        <section id="how">
+          <h2>Good to know</h2>
+          <ul>
+            <li><strong>It's a real button, not a sprite.</strong> It floats on top of the game window, above every sprite and label, and it never touches anything. You can't change its colour or shape: every game button looks the same.</li>
+            <li><strong>Change the words</strong> with <code>.text</code>: <code>sound_btn.text = "Sound: off"</code>.</li>
+            <li><strong>Move or resize it</strong> with <code>.x</code>, <code>.y</code> and <code>.width</code>.</li>
+            <li><strong>Hide it for a while</strong> with <code>.hide()</code> and bring it back with <code>.show()</code>. Take it away for good with <code>.remove()</code>.</li>
+            <li><strong>Several buttons</strong> can be on screen at once. Each one has its own <code>.clicked()</code>.</li>
+          </ul>
+          <pre class="guide-code language-python">left = game.button("Left", 80, 330, width=120)
+right = game.button("Right", 400, 330, width=120)
+
+while game.playing():
+    if left.clicked():
+        player.x = player.x - 40
+    if right.clicked():
+        player.x = player.x + 40
+    game.frame()</pre>
+        </section>
+
+        <section id="submits">
+          <h2>Send buttons: submits=</h2>
+          <p>Pair a button with a <code>game.textbox()</code> and clicking the button sends what's typed, just like pressing Enter. That's the easy way to send on a phone. Read what was sent with the text box's <code>.typed()</code>:</p>
+          <pre class="guide-code language-python" id="ex-submits">import game
+
+game.window(480, 360, background="#0b1020")
+
+hello = game.label("What's your name?", 240, 120, size=26)
+name_box = game.textbox("Type your name", 240, 200, width=260)
+send = game.button("OK", 240, 260, width=120, submits=name_box)
+
+while game.playing():
+    name = name_box.typed()        # None until something is sent
+    if name:
+        hello.content = "Hi, " + name + "!"
+        name_box.remove()
+        send.remove()
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-submits">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p>A Send button's own <code>.clicked()</code> stays <code>False</code>: its click goes to the text box instead. Check <code>name_box.typed()</code>, not <code>send.clicked()</code>.</p>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my button working?</h2>
+          <ul>
+            <li><strong>The button is still there after the menu.</strong> A button stays on screen until you take it away, even after the game is over. Call <code>start.remove()</code> (or <code>start.hide()</code>) as soon as it has done its job.</li>
+            <li><strong>The menu is skipped straight away.</strong> You wrote <code>if start.clicked():</code> once, outside a loop. <code>.clicked()</code> never waits: it just answers "was I clicked?" and moves on. Ask it again and again in a loop that calls <code>game.frame()</code>, like <code>wait_for()</code> above.</li>
+            <li><strong>Hundreds of buttons appear.</strong> You made the <code>game.button(...)</code> inside the loop, so there's a new one every frame. Make it once, before the loop.</li>
+            <li><strong>Clicking the button also does something in the game.</strong> A click on a button counts as a click on the game window too, so <code>game.clicked()</code> is also <code>True</code>. If that gets in the way, remove the button and then call <code>game.clicked()</code> once to throw that click away.</li>
+            <li><strong>My Send button never says clicked.</strong> With <code>submits=</code>, read the text box's <code>.typed()</code> instead (see above).</li>
+            <li><strong>The button covers my player.</strong> Buttons always sit on top. Put it where nothing important happens, or hide it while you play.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../clicked/">game.clicked()</a>
+            <a href="../label/">game.label()</a>
+            <a href="../game-over/">game.game_over()</a>
+            <a href="../frame/">game.frame()</a>
+            <a href="../../#sec-game">game.textbox()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step, including text boxes and buttons.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

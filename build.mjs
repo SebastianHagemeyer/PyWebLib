@@ -272,6 +272,122 @@ emit("sitemap.xml",
   urls.map((u) => "  <url>" + NL + "    <loc>" + u + "</loc>" + NL + "  </url>").join(NL) + NL +
   "</urlset>" + NL);
 
+/* llms.txt and llms-full.txt: the docs in plain text, for AI assistants.
+ *
+ * WHY. People ask ChatGPT and Claude for help with `import game`, and without
+ * this the assistant guesses pygame, which is a different library. The Docs
+ * page can't help: it is drawn by docs.js in the browser, and AI crawlers
+ * mostly don't run JavaScript, so to them it is an empty page. These two files
+ * are the llms.txt convention (llmstxt.org): a short map of the site, and the
+ * whole reference in one fetch.
+ *
+ * Both are built from the DOCS array in docs.js, so the reference still lives
+ * in exactly one place. It is a plain data literal, so it can be cut out of the
+ * file and evaluated without a browser. */
+function docsData() {
+  const src = lf(readFileSync("docs.js", "utf8"));
+  const start = src.indexOf("var DOCS = [");
+  const end = src.indexOf(NL + "  ];", start);
+  if (start < 0 || end < 0) throw new Error("could not find the DOCS array in docs.js");
+  return new Function("return " + src.slice(start + "var DOCS = ".length, end + 4))();
+}
+
+/* The one-function pages: src/docs/<library>/<name>.html. */
+function fnPages() {
+  const out = [];
+  for (const srcPath of pages(join(SRC, "docs"))) {
+    const rel = relative(join(SRC, "docs"), srcPath).split(sep);
+    if (rel.length !== 2) continue;
+    const [meta] = split(lf(readFileSync(srcPath, "utf8")));
+    const path = "/docs/" + rel[0] + "/" + rel[1].replace(/\.html$/, "") + "/";
+    out.push({ lib: rel[0], path, title: meta.title.replace(/\s*\|.*$/, ""), description: meta.description });
+  }
+  return out.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+const DOCS = docsData();
+const FNS = fnPages();
+const pageFor = (href) => SITE + "/docs/" + href;
+
+const LLMS_INTRO = [
+  "PyWebLib (https://play.pyweblib.org) runs real Python 3 in the web browser (Pyodide), with no install.",
+  "It is used in schools to learn Python, and adds its own libraries on top of standard Python:",
+  "",
+  "- `game`: a 2D game library (sprites, keys, mouse, collisions, sound, saving, per-game leaderboards).",
+  "- `turtle`: turtle drawing, like desktop Python's turtle.",
+  "- `game3d`: simple 3D games (shapes, a camera, the same game loop).",
+  "- `net`: multiplayer, used together with `game`.",
+  "",
+  "Important when writing code for PyWebLib:",
+  "",
+  "- `import game` is PyWebLib's OWN library. It is NOT pygame and has a different API. Do not use pygame calls.",
+  "- Every game has the same shape: `game.window(w, h)`, make sprites, then `while game.playing():` ... `game.frame()`.",
+  "- Coordinates are pixels from the top-left of the game window; y grows DOWNWARD. Sprites are positioned by their centre.",
+  "- `game.frame()` draws one frame and waits (30 fps by default). Put it at the end of the loop.",
+  "- Code runs in the Playground at https://play.pyweblib.org. Programs can be published to the community gallery.",
+];
+const MIN_GAME = [
+  "```python",
+  "import game",
+  "",
+  "game.window(480, 360)",
+  'player = game.sprite("chicken", 240, 300, size=52)',
+  "",
+  "while game.playing():",
+  '    if game.pressed("left"):',
+  "        player.x = player.x - 5",
+  '    if game.pressed("right"):',
+  "        player.x = player.x + 5",
+  "    game.frame()",
+  "```",
+];
+
+emit("llms.txt", [
+  "# PyWebLib",
+  "",
+  "> Real Python in the browser, with its own beginner-friendly game, turtle, 3D and multiplayer libraries.",
+  "",
+  ...LLMS_INTRO,
+  "",
+  "A minimal game:",
+  "",
+  ...MIN_GAME,
+  "",
+  "## Docs",
+  "",
+  "- [Full reference (plain text)](" + SITE + "/llms-full.txt): every function in every library, with an example each. Read this first.",
+  "- [Game library guide](" + SITE + "/docs/game/): a hands-on walkthrough of making a game.",
+  "- [Turtle guide](" + SITE + "/docs/turtle/): drawing with turtle.",
+  "- [Multiplayer guide](" + SITE + "/docs/net/): the net library.",
+  ...(FNS.length ? ["", "## Function pages", "", ...FNS.map((f) =>
+    "- [" + f.title + "](" + SITE + f.path + "): " + f.description)] : []),
+  "",
+].join(NL));
+
+emit("llms-full.txt", [
+  "# PyWebLib reference",
+  "",
+  ...LLMS_INTRO,
+  "",
+  "A minimal game:",
+  "",
+  ...MIN_GAME,
+  "",
+  ...DOCS.flatMap((sec) => [
+    "## " + sec.name,
+    "",
+    ...(sec.blurb ? [sec.blurb + (sec.blurbLink ? pageFor(sec.blurbLink.href) + "." : ""), ""] : []),
+    ...sec.items.flatMap((it) => [
+      "### `" + it.sig + "`",
+      "",
+      it.desc,
+      ...(it.page ? ["", "Full page: " + pageFor(it.page)] : []),
+      ...(it.ex ? ["", "```python", it.ex, "```"] : []),
+      "",
+    ]),
+  ]),
+].join(NL));
+
 console.log(NL + built + " page(s), " + urls.length + " in the sitemap" +
             (check ? ", " + differs + " differing" : ", written"));
 if (check && differs) process.exit(1);

@@ -1,0 +1,128 @@
+<!--
+{
+  "title": "game.frame() | PyWebLib docs",
+  "description": "game.frame(fps) and game.playing() make the game loop in PyWebLib: why every Python game needs while game.playing() and game.frame(), what fps does, and how to keep speed right.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.frame() and game.playing(): the game loop",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.frame()</code></h1>
+        <p class="lead">The heartbeat of every game. <code>game.frame()</code> draws one picture and waits a moment, and <code>game.playing()</code> keeps the loop going until the game ends. Together they make things move.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">while game.playing():
+    ...
+    game.frame(fps=30)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>fps</dt>
+              <dd>Optional. <strong>Frames per second</strong>: how many pictures to draw each second. Leave it out and you get <code>30</code>. Try <code>60</code> for extra-smooth motion. Decimals are rounded down, and the smallest it goes is <code>1</code>.</dd>
+            </div>
+          </dl>
+          <p><code>game.frame()</code> gives nothing back. <code>game.playing()</code> takes nothing and gives back <code>True</code> while the game is running, and <code>False</code> once it has ended.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>A rocket flies across the screen and wraps round to the other side. Press <kbd>space</kbd> to switch between 30 and 60 frames a second, and watch what happens to its speed:</p>
+          <pre class="guide-code language-python" id="ex-frame">import game
+
+game.window(480, 360, background="#0b1020")
+
+rocket = game.sprite("rocket", 0, 180, size=50)   # it points right
+info = game.label("30 fps", 240, 24, color="#ffffff")
+
+fps = 30
+step = 6                          # pixels per frame
+was_down = False
+
+while game.playing():
+    # Space switches between 30 and 60 fps, once per press
+    down = game.pressed("space")
+    if down and not was_down:
+        if fps == 30:
+            fps = 60
+            step = 3              # half the step, so the speed stays the same
+        else:
+            fps = 30
+            step = 6
+        info.content = str(fps) + " fps"
+    was_down = down
+
+    rocket.x = rocket.x + step
+    if rocket.x &gt; 500:
+        rocket.x = -20            # off the right edge? come back on the left
+
+    game.frame(fps)</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-frame">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">The rocket crosses the screen in the same time at 30 and at 60 fps, because the step is halved when the frames double. At 60 it just looks smoother. Try deleting the two <code>step = </code> lines inside the <code>if</code> and see it zoom off at double speed.</p>
+        </section>
+
+        <section id="how">
+          <h2>Why every game needs this loop</h2>
+          <p>A game is like a flip-book. Each time round the loop you change things a tiny bit (move the player, check for a crash), then <code>game.frame()</code> shows the new picture. Do that 30 times a second and it looks like smooth motion.</p>
+          <ul>
+            <li><strong><code>game.frame()</code> draws.</strong> Sprites only appear on the screen when it runs. Changing <code>hero.x</code> does nothing you can see until the next frame.</li>
+            <li><strong><code>game.frame()</code> waits.</strong> After drawing, it pauses for a moment (1/30 of a second by default). That pause gives the browser time to read the keys and the mouse, and to keep the page working.</li>
+            <li><strong><code>game.playing()</code> knows when to stop.</strong> It turns <code>False</code> when you press <strong>Stop</strong> or when <a href="../game-over/">game.game_over()</a> ends the game, so the loop finishes cleanly.</li>
+            <li><strong>Put <code>game.frame()</code> last</strong>, at the bottom of the loop, after all your moving and checking.</li>
+          </ul>
+          <p>Code above the loop runs once, to set things up. Code inside the loop runs every frame. Code after the loop runs once the game has ended.</p>
+        </section>
+
+        <section id="speed">
+          <h2>Speed and fps</h2>
+          <p>How fast something moves depends on two numbers: <strong>how far it moves each frame</strong>, and <strong>how many frames there are each second</strong>.</p>
+          <ul>
+            <li>6 pixels a frame at 30 fps is <code>6 &times; 30 = 180</code> pixels a second.</li>
+            <li>6 pixels a frame at 60 fps is <code>6 &times; 60 = 360</code> pixels a second: twice as fast!</li>
+            <li>3 pixels a frame at 60 fps is back to 180 pixels a second, but smoother.</li>
+          </ul>
+          <p>So if you switch to <code>game.frame(60)</code>, halve your step sizes. A low number like <code>game.frame(10)</code> makes a jerky, retro look, good for a snake game that moves one square at a time.</p>
+          <p>The fps is a target, not a promise. A game doing lots of work each frame runs a little slower than the number you ask for, so never use frames to time something exactly to the second.</p>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my game loop working?</h2>
+          <ul>
+            <li><strong>The page froze.</strong> The loop has no <code>game.frame()</code>, so it never pauses and the browser gets no chance to do anything else. Close or reload the tab, then add <code>game.frame()</code> as the last line inside the loop.</li>
+            <li><strong>The window is empty.</strong> There is no loop, or no <code>game.frame()</code>, so nothing is ever drawn.</li>
+            <li><strong>I did write <code>game.frame()</code>, but it still froze.</strong> Check the indent. If <code>game.frame()</code> is not pushed in like the other lines in the loop, it sits <em>after</em> the loop and never runs. It must line up with the lines inside.</li>
+            <li><strong>It runs super slowly.</strong> Check for <code>game.frame(1)</code> or <code>game.frame(0)</code>: anything below 1 counts as 1, which is one picture a second.</li>
+            <li><strong>Two loops, and the second never starts.</strong> The first <code>while game.playing():</code> only ends when the game has ended, and then <code>game.playing()</code> is <code>False</code>, so a second loop after it never runs at all. Use one loop, with an <code>if</code> inside to switch between a menu and the game.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../window/">game.window()</a>
+            <a href="../pressed/">game.pressed()</a>
+            <a href="../game-over/">game.game_over()</a>
+            <a href="../sprite/">game.sprite()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step, and the <a href="../../#sec-game">reference</a> lists every game call.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

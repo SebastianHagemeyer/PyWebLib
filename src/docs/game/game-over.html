@@ -1,0 +1,130 @@
+<!--
+{
+  "title": "game.game_over() | PyWebLib docs",
+  "description": "game.game_over(message, retry=False) ends a PyWebLib Python game with a big banner. Line breaks, tap to play again with retry=True, what happens to your loop, and a full example game.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.game_over(): end your Python game with a banner",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.game_over()</code></h1>
+        <p class="lead">End the game with a big banner across the screen. Add <code>retry=True</code> and one tap starts a fresh game, so nobody has to press Run again.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.game_over(message, retry=False)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>message</dt>
+              <dd>The text on the banner. Leave it out and it says <code>Game Over</code>. Put <code>\n</code> in it to start a new line, like <code>"Crash!\nScore: 12"</code>.</dd>
+            </div>
+            <div>
+              <dt>retry</dt>
+              <dd>Optional. <code>True</code> means a tap or click on the game starts it again from the top. Leave it out (or <code>False</code>) and the game just stops on the banner.</dd>
+            </div>
+          </dl>
+          <p>It gives nothing back. After it, <code>game.playing()</code> is <code>False</code>, so your <code>while game.playing():</code> loop ends.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>Dodge the falling rock with the arrow keys. Each rock you dodge scores a point and the next one falls faster. Get hit and it's game over, with a tap to try again:</p>
+          <pre class="guide-code language-python" id="ex-dodge">import game
+import random
+
+game.window(480, 360, background="#0b1020")
+
+player = game.sprite("rocket", 240, 320, size=50)
+player.angle = -90                         # point it up
+rock = game.sprite("asteroid", random.randint(30, 450), 0, size=44)
+board = game.label("Score: 0", 70, 24, color="#ffffff")
+
+score = 0
+speed = 5
+
+while game.playing():
+    if game.pressed("left"):
+        player.x = player.x - 7
+    if game.pressed("right"):
+        player.x = player.x + 7
+
+    rock.y = rock.y + speed
+    if rock.y &gt; 380:                      # dodged it
+        score = score + 1
+        board.content = "Score: " + str(score)
+        speed = speed + 0.5
+        rock.x = random.randint(30, 450)
+        rock.y = 0
+
+    if player.touches(rock):
+        game.sound("explosion")
+        game.game_over("Crash!\nScore: " + str(score) + "\nTap to play again", retry=True)
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-dodge">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">Click the game window first so it hears your arrow keys. When the banner shows, tap or click the game to play again. A key press won't do it: it has to be a tap or click.</p>
+        </section>
+
+        <section id="how">
+          <h2>What happens after it</h2>
+          <ul>
+            <li><strong>The banner stays.</strong> It sits on top of the game, and every frame drawn after it still shows it.</li>
+            <li><strong>The loop ends.</strong> <code>game.playing()</code> becomes <code>False</code>, so <code>while game.playing():</code> stops at its next check. The rest of that pass still runs, which is why the <code>game.frame()</code> after it is fine.</li>
+            <li><strong>Your program doesn't vanish.</strong> Any code after the loop still runs, so a <code>print("Thanks for playing!")</code> at the very bottom shows up in the output.</li>
+            <li><strong>With <code>retry=True</code></strong>, <code>game_over()</code> waits on the banner until the player taps. Then the whole program runs again from the very first line: sprites, score and speed all start fresh. It's great on a phone, where there is no Run button to reach for.</li>
+            <li><strong>Once it's over, it's over for that run.</strong> You can't start a second <code>while game.playing():</code> loop after it, because <code>game.playing()</code> stays <code>False</code>. For a level 2, keep the same loop going and change things inside it instead.</li>
+          </ul>
+        </section>
+
+        <section id="when">
+          <h2>Pairing it with a score</h2>
+          <p>The banner is the perfect place to show the final score. If your game is published, send the score to its leaderboard <strong>right before</strong> the banner:</p>
+          <pre class="guide-code language-python">if player.touches(rock):
+    game.submit_score(score)      # onto the game's leaderboard
+    game.game_over("Score: " + str(score), retry=True)</pre>
+          <p>The order matters with <code>retry=True</code>: the line after <code>game_over()</code> only runs once the player taps, so a score sent after it would be late.</p>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my game over working?</h2>
+          <ul>
+            <li><strong>Things keep moving behind the banner.</strong> Your loop is <code>while True:</code>. It never checks whether the game is over, so it keeps going forever. Use <code>while game.playing():</code>.</li>
+            <li><strong>The line break shows up as text.</strong> It must be a backslash, <code>\n</code>, not a forward slash <code>/n</code>.</li>
+            <li><strong>The score in the banner is wrong.</strong> Join text and numbers with <code>str()</code>: <code>"Score: " + str(score)</code>. Writing <code>"Score: " + score</code> stops with a <code>TypeError</code>.</li>
+            <li><strong>Tapping does nothing.</strong> Did you add <code>retry=True</code>? Without it the game just stops, and you press Run to play again.</li>
+            <li><strong>It ends the moment it starts.</strong> The thing that ends the game is already true on the first frame, like a player and an enemy placed on top of each other. Start them apart.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../submit-score/">game.submit_score()</a>
+            <a href="../sound/">game.sound()</a>
+            <a href="../frame/">game.frame()</a>
+            <a href="../touches/">sprite.touches()</a>
+            <a href="../clicked/">game.clicked()</a>
+          </div>
+          <p>See every game function in the <a href="../../#sec-game">reference</a>, or build a whole game step by step with the <a href="../">game library guide</a>.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

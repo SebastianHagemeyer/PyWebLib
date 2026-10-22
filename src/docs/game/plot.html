@@ -1,0 +1,124 @@
+<!--
+{
+  "title": "game.plot() | PyWebLib docs",
+  "description": "game.plot(x, y, color) stamps a dot that stays on the screen in your PyWebLib Python game. Draw fractals, trails and paintings with hundreds of thousands of dots at full speed.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.plot(): hundreds of thousands of dots, full speed",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.plot()</code></h1>
+        <p class="lead">Stamp a dot that stays on the screen. It is the right tool whenever you want <em>lots</em> of marks: fractals, trails, paintings, starfields. A quarter of a million dots still runs at full speed.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.plot(x, y, color="#ffffff", size=2)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>x, y</dt>
+              <dd>Where the dot goes, in game coordinates: x from the left, y from the top (y grows downward).</dd>
+            </div>
+            <div>
+              <dt>color</dt>
+              <dd>Any CSS colour: a name like <code>"red"</code>, a hex code like <code>"#22d3a5"</code>, or <code>"rgb(255, 120, 0)"</code>. White if you leave it out.</dd>
+            </div>
+            <div>
+              <dt>size</dt>
+              <dd>How wide the dot is, in pixels. It is round. <code>1</code> is a fine grain, <code>2</code> (the default) is easy to see.</dd>
+            </div>
+          </dl>
+          <p>The dot appears at the next <code>game.frame()</code>, and then it stays until you rub it out with <code>game.wipe()</code> or <code>game.fade()</code>.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example: the Sierpinski triangle</h2>
+          <p>This is the "chaos game". Start anywhere, pick one of three corners at random, jump halfway towards it, plot a dot, repeat. Out of pure randomness, a perfect fractal appears:</p>
+          <pre class="guide-code language-python" id="ex-sierpinski">import game
+import random
+
+game.window(480, 420, background="#0b1020")
+
+corners = [(240, 20), (20, 400), (460, 400)]
+colors = ["#ff4d6d", "#4dabf7", "#69db7c"]
+x, y = 240, 200
+dots = 0
+board = game.label("Dots: 0", 70, 20, size=16, color="#ffffff")
+
+while game.playing():
+    for i in range(500):                  # 500 dots every frame
+        c = random.randint(0, 2)
+        cx, cy = corners[c]
+        x = (x + cx) / 2                  # jump halfway to the corner
+        y = (y + cy) / 2
+        game.plot(x, y, colors[c], size=1)
+    dots = dots + 500
+    board.content = "Dots: " + str(dots)
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-sierpinski">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+        </section>
+
+        <section id="why">
+          <h2>Why not just use sprites?</h2>
+          <p>You <em>could</em> make every dot a <code>game.sprite()</code> or a <code>game.circle()</code>. It is perfectly good Python, and it works for the first few hundred. Then it slows down. Then it crawls.</p>
+          <p>That is because <strong>sprites are redrawn from scratch every frame</strong>. That's what lets you move them, spin them and check what they touch. With 5,000 sprites on screen, every single frame draws 5,000 things, even though none of them moved.</p>
+          <p><strong><code>game.plot()</code> is drawn once.</strong> The dot is stamped onto an ink layer under your sprites, and after that it is just pixels: it costs nothing to keep it there. So the 100th dot and the 100,000th dot are just as cheap.</p>
+          <p class="callout"><strong>The rule of thumb:</strong> if a thing needs to move, collide or be clicked, make it a sprite. If it just needs to <em>be there</em>, plot it.</p>
+        </section>
+
+        <section id="family">
+          <h2>The rest of the ink family</h2>
+          <p><code>game.plot()</code> has a few relatives that all draw on the same ink layer:</p>
+          <ul>
+            <li><strong><code>game.line(x1, y1, x2, y2, color, width=2)</code></strong> stamps a straight line. Use it for trails behind something fast: a dot every frame leaves gaps, a line from the old position to the new one doesn't.</li>
+            <li><strong><code>game.fade(0.05)</code></strong> rubs out a little of the ink each time you call it, so trails die away like a comet tail. Call it once a frame.</li>
+            <li><strong><code>game.wipe()</code></strong> rubs out all the ink at once and leaves the sprites alone.</li>
+            <li><strong><code>game.save_image("ink")</code></strong> saves just the drawing as a PNG, with no score or sprites on top.</li>
+          </ul>
+          <pre class="guide-code language-python">game.line(old_x, old_y, ship.x, ship.y, "#4ea8ff")   # a trail behind the ship
+old_x, old_y = ship.x, ship.y
+game.fade(0.03)                                       # that slowly fades away
+game.frame()</pre>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my dot showing?</h2>
+          <ul>
+            <li><strong>There's no <code>game.frame()</code> after it.</strong> Dots are stamped when the frame is drawn. A program that plots and then ends without a frame shows nothing.</li>
+            <li><strong>It's off the screen.</strong> Dots outside the window are drawn, but you can't see them. Print <code>x</code> and <code>y</code> to check.</li>
+            <li><strong>It's the same colour as the background</strong>, or so small you can't see it. Try <code>size=4</code> and <code>"red"</code> while testing.</li>
+            <li><strong>A sprite is on top of it.</strong> Ink sits underneath every sprite and label.</li>
+            <li><strong>Something calls <code>game.wipe()</code> or <code>game.fade()</code></strong> every frame, so the dot is rubbed out as fast as it's drawn.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../sprite/">game.sprite()</a>
+            <a href="../frame/">game.frame()</a>
+            <a href="../window/">game.window()</a>
+            <a href="../../#sec-game">game.line() / game.fade()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step, including drawing that stays.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

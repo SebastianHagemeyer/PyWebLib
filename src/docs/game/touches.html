@@ -1,0 +1,165 @@
+<!--
+{
+  "title": "sprite.touches() | PyWebLib docs",
+  "description": "a.touches(b) tells your PyWebLib Python game when two sprites overlap. How the collision boxes work, game.debug(True) to see them, hitbox, and removing collected coins from a list safely.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "sprite.touches(): collisions in your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>sprite.touches()</code></h1>
+        <p class="lead">Find out when two sprites bump into each other. It is how you catch a coin, get hit by a rock, or crash into a wall.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">a.touches(b)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>a</dt>
+              <dd>Any sprite: something made with <code>game.sprite()</code>, <code>game.box()</code>, <code>game.circle()</code> or <code>game.label()</code>.</dd>
+            </div>
+            <div>
+              <dt>b</dt>
+              <dd>The other sprite to check against. Just one sprite, not a list (see <a href="#lists">lots of enemies</a> below).</dd>
+            </div>
+          </dl>
+          <p>It gives back <code>True</code> if the two overlap right now, and <code>False</code> if they don't. It works both ways round: <code>a.touches(b)</code> and <code>b.touches(a)</code> always give the same answer.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>Move the chicken with the arrow keys. Grab all the coins, and dodge the spinning rocks. The red boxes are switched on with <code>game.debug(True)</code> so you can see exactly what is being checked:</p>
+          <pre class="guide-code language-python" id="ex-touches">import game
+import random
+
+game.window(480, 360, background="#0b1020")
+game.debug(True)            # red boxes: what touches() checks
+
+player = game.sprite("chicken", 240, 300, size=50)
+board = game.label("Coins: 0", 70, 24)
+
+coins = []
+for i in range(8):
+    coin = game.sprite("coin", random.randint(30, 450), random.randint(60, 200), size=30)
+    coins.append(coin)
+
+rocks = []
+for i in range(2):
+    rock = game.sprite("asteroid", random.randint(30, 450), -40 - i * 200, size=44)
+    rocks.append(rock)
+
+score = 0
+
+while game.playing():
+    if game.pressed("left"):
+        player.x = player.x - 6
+    if game.pressed("right"):
+        player.x = player.x + 6
+    if game.pressed("up"):
+        player.y = player.y - 6
+    if game.pressed("down"):
+        player.y = player.y + 6
+
+    for coin in coins[:]:          # [:] loops over a COPY of the list
+        if player.touches(coin):
+            score = score + 1
+            board.content = "Coins: " + str(score)
+            game.sound("coin")
+            coin.remove()          # gone from the screen
+            coins.remove(coin)     # and gone from the list
+
+    for rock in rocks:
+        rock.y = rock.y + 4
+        rock.angle = rock.angle + 5
+        if rock.y &gt; 400:
+            rock.x = random.randint(30, 450)
+            rock.y = -40
+        if player.touches(rock):
+            game.game_over("Bonk! Coins: " + str(score), retry=True)
+
+    if len(coins) == 0:
+        game.game_over("You got them all!", retry=True)
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-touches">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">Happy with the game? Delete the <code>game.debug(True)</code> line (or change it to <code>game.debug(False)</code>) and the red boxes disappear.</p>
+        </section>
+
+        <section id="how">
+          <h2>How it checks</h2>
+          <p><code>touches()</code> does not look at the picture itself. Every sprite has an invisible <strong>collision box</strong> around it, and <code>touches()</code> checks whether two boxes overlap.</p>
+          <ul>
+            <li><strong>Emoji and built-in sprites</strong> get a box a little smaller than their <code>size</code> (about 80%), so a near miss feels fair. Some built-in sprites get a shape that fits them better: the car is wide and low, the egg is tall.</li>
+            <li><strong><code>game.box()</code> and <code>game.circle()</code></strong> use their own width and height. A circle still checks a square box around it.</li>
+            <li><strong>Turning and stretching count.</strong> The box spins with <code>.angle</code> and grows with <code>.size</code>, <code>.scale_x</code> and <code>.scale_y</code>. That is why the rocks in the example have tilted red boxes.</li>
+            <li><strong>Sprites from the Asset studio</strong> get a box that hugs the drawing, not the empty space around it.</li>
+          </ul>
+          <p>Turn on <code>game.debug(True)</code> right after <code>game.window(...)</code> any time a collision feels wrong. Each sprite gets a red outline, and the outline is exactly the box <code>touches()</code> uses.</p>
+        </section>
+
+        <section id="hitbox">
+          <h2>Make the box fit better</h2>
+          <p>If a sprite gets hit when it clearly wasn't, its box is too big. Give it your own size with <code>.hitbox</code>, as (width, height):</p>
+          <pre class="guide-code language-python">player.hitbox = (30, 36)    # a smaller, fairer box
+player.hitbox = None        # back to the automatic size</pre>
+          <p>Your box still spins and stretches with the sprite.</p>
+        </section>
+
+        <section id="lists">
+          <h2>Lots of coins, lots of enemies</h2>
+          <p>Keep many sprites in a <strong>list</strong>, then check each one with a <code>for</code> loop, like the <code>rocks</code> in the example. When something should <strong>disappear</strong> after it's touched (a coin, an egg, a dead alien), do two things:</p>
+          <ul>
+            <li>loop over a <strong>copy</strong> of the list, written <code>coins[:]</code>, and</li>
+            <li>call <strong>both</strong> <code>coin.remove()</code> (off the screen) <strong>and</strong> <code>coins.remove(coin)</code> (out of the list).</li>
+          </ul>
+          <pre class="guide-code language-python">for coin in coins[:]:
+    if player.touches(coin):
+        coin.remove()
+        coins.remove(coin)</pre>
+          <p>Why the copy? Removing things from a list while a <code>for</code> loop is walking through it makes the loop skip the next item. Walking through a copy, while removing from the real list, keeps every coin checked.</p>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my touches() working?</h2>
+          <ul>
+            <li><strong>The score goes up by loads at once.</strong> <code>touches()</code> is <code>True</code> on <em>every frame</em> the two overlap, not just the first one. Move the coin away, or remove it, as soon as it's caught.</li>
+            <li><strong>A hidden or removed sprite still gets hit.</strong> <code>hide()</code> and <code>remove()</code> only take it off the screen. The sprite still has its <code>x</code> and <code>y</code>, so <code>touches()</code> can still say <code>True</code>. Take it out of your list too, so you stop checking it.</li>
+            <li><strong>Only some coins get collected.</strong> You removed from the list while looping over the same list. Loop over <code>coins[:]</code> instead.</li>
+            <li><strong>You wrote <code>player.touches(coins)</code>.</strong> <code>touches()</code> takes one sprite, not a whole list. Loop over the list and check each one.</li>
+            <li><strong>It's hit before the sprites even meet</strong>, or they overlap and nothing happens. Turn on <code>game.debug(True)</code> and look at the red boxes, then fix the size with <code>.hitbox</code>.</li>
+            <li><strong>A long label doesn't seem to collide.</strong> A label's box is a small square in the middle of the text (about 80% of its <code>size</code>), not the whole sentence. Use a <code>game.box()</code> for big targets.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../sprite/">game.sprite()</a>
+            <a href="../pressed/">game.pressed()</a>
+            <a href="../game-over/">game.game_over()</a>
+            <a href="../anchor/">sprite.anchor</a>
+            <a href="../../#sec-game">sprite.hitbox and sprite.remove()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

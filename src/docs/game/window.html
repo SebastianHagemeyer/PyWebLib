@@ -1,0 +1,127 @@
+<!--
+{
+  "title": "game.window() | PyWebLib docs",
+  "description": "game.window(w, h, background) opens the game window in PyWebLib, the first line of every Python game. Width, height, colours, coordinates, a full example and common mistakes.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.window(): open the window for your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.window()</code></h1>
+        <p class="lead">Open the game window: how wide it is, how tall it is, and what colour it is. It is the first thing every game does, right after <code>import game</code>.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.window(width, height, background="#0b1020")</code>
+          <dl class="fn-params">
+            <div>
+              <dt>width</dt>
+              <dd>How wide the window is, in pixels. Leave it out and you get <code>480</code>. Decimals are rounded down to a whole number.</dd>
+            </div>
+            <div>
+              <dt>height</dt>
+              <dd>How tall the window is, in pixels. Leave it out and you get <code>360</code>.</dd>
+            </div>
+            <div>
+              <dt>background</dt>
+              <dd>Optional. The colour behind everything. Use a colour name like <code>"green"</code> or a hex code like <code>"#87ceeb"</code> (sky blue). Leave it out and you get a dark night blue, <code>"#0b1020"</code>.</dd>
+            </div>
+          </dl>
+          <p>It gives nothing back. Call it <strong>once, at the top</strong>, before you make any sprites.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>A tall, phone-shaped window with a ball that bounces off all four walls. The width and height are kept in variables, so the walls are always in the right place, even if you change the size:</p>
+          <pre class="guide-code language-python" id="ex-window">import game
+
+W = 360                    # window width
+H = 560                    # window height
+game.window(W, H, background="#14213d")
+
+ball = game.sprite("🏀", W / 2, H / 2, size=50)
+info = game.label("Window: " + str(W) + " x " + str(H), W / 2, 24, color="#ffffff")
+
+dx = 5                     # how far the ball moves sideways each frame
+dy = 4                     # how far it moves up or down each frame
+
+while game.playing():
+    ball.x = ball.x + dx
+    ball.y = ball.y + dy
+
+    # Bounce off the left and right walls
+    if ball.x &lt; 25 or ball.x &gt; W - 25:
+        dx = -dx
+    # Bounce off the top and bottom walls
+    if ball.y &lt; 25 or ball.y &gt; H - 25:
+        dy = -dy
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-window">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p class="callout">Try changing <code>W</code> and <code>H</code> to <code>600</code> and <code>300</code>. The ball still bounces off every wall, because the code uses the variables instead of fixed numbers.</p>
+        </section>
+
+        <section id="how">
+          <h2>How the window works</h2>
+          <ul>
+            <li><strong>The top-left corner is <code>(0, 0)</code>.</strong> <code>x</code> grows to the right. <code>y</code> grows <em>downward</em>, so a bigger <code>y</code> is lower on the screen. The bottom-right corner is <code>(width, height)</code>.</li>
+            <li><strong>The middle is <code>(width / 2, height / 2)</code>.</strong> In a 480 by 360 window that is <code>(240, 180)</code>. A sprite you make without an <code>x</code> and <code>y</code> starts there.</li>
+            <li><strong>The window stretches to fit the screen</strong>, but your numbers never change. A 480 by 360 game is still 480 by 360 inside, whether it is shown small on a phone or big on a whiteboard.</li>
+            <li><strong>It starts the game fresh.</strong> It sets <code>game.score()</code> back to 0 and clears anything drawn with <code>game.plot()</code> or <code>game.line()</code>.</li>
+            <li><strong>Change the colour later</strong> with <code>game.background("black")</code>. Handy for a flash when the player gets hit, or for day and night.</li>
+          </ul>
+        </section>
+
+        <section id="sizes">
+          <h2>Picking a size</h2>
+          <ul>
+            <li><strong>480 by 360</strong> (the default) is a good size for most games on a computer.</li>
+            <li><strong>Wide, like 800 by 400</strong>, suits racing and side-scrolling games.</li>
+            <li><strong>Tall, like 400 by 640</strong>, fills a phone held upright. Add <code>game.fullscreen()</code> on the next line to fill the whole screen:</li>
+          </ul>
+          <pre class="guide-code language-python">game.window(400, 640)
+game.fullscreen()          # fills the screen, great on phones</pre>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my window working?</h2>
+          <ul>
+            <li><strong>The window is empty.</strong> Sprites are only drawn when <code>game.frame()</code> runs. A game with no loop and no <code>game.frame()</code> shows a blank window. See <a href="../frame/">game.frame()</a>.</li>
+            <li><strong>My sprite is missing.</strong> Check its <code>x</code> and <code>y</code>. In a 480 by 360 window, a sprite at <code>(500, 100)</code> is off the right edge, and one at <code>(100, 400)</code> is below the bottom.</li>
+            <li><strong>Things go up when I wanted down.</strong> Remember that <code>y</code> grows downward. To move down, <em>add</em> to <code>y</code>.</li>
+            <li><strong>The colour didn't change.</strong> Colours are text, so they need quotes: <code>background="red"</code>, not <code>background=red</code>. Spell the word <code>background</code> in full, too.</li>
+            <li><strong>I called it twice.</strong> Every call starts the window again. Keep one <code>game.window()</code> at the top and use <code>game.background()</code> to change the colour.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../frame/">game.frame()</a>
+            <a href="../sprite/">game.sprite()</a>
+            <a href="../label/">game.label()</a>
+            <a href="../../#sec-game">game.fullscreen()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step, and the <a href="../../#sec-game">reference</a> lists every game call.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

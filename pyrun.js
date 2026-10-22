@@ -1113,8 +1113,8 @@ def _pyrun_install_game():
 
     def debug(on=True):
         # Turn on red hit-box outlines to see exactly what touches() checks.
-        # The box is axis-aligned and ignores rotation and scale, on purpose:
-        # that is what collisions really use, so a spun sprite looks off.
+        # The box turns with .angle and stretches with scale, the same box
+        # touches() really uses, so what you see is what collides.
         W["debug"] = bool(on)
 
     def fullscreen(on=True):

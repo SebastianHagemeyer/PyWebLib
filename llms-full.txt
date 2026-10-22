@@ -1,0 +1,1959 @@
+# PyWebLib reference
+
+PyWebLib (https://play.pyweblib.org) runs real Python 3 in the web browser (Pyodide), with no install.
+It is used in schools to learn Python, and adds its own libraries on top of standard Python:
+
+- `game`: a 2D game library (sprites, keys, mouse, collisions, sound, saving, per-game leaderboards).
+- `turtle`: turtle drawing, like desktop Python's turtle.
+- `game3d`: simple 3D games (shapes, a camera, the same game loop).
+- `net`: multiplayer, used together with `game`.
+
+Important when writing code for PyWebLib:
+
+- `import game` is PyWebLib's OWN library. It is NOT pygame and has a different API. Do not use pygame calls.
+- Every game has the same shape: `game.window(w, h)`, make sprites, then `while game.playing():` ... `game.frame()`.
+- Coordinates are pixels from the top-left of the game window; y grows DOWNWARD. Sprites are positioned by their centre.
+- `game.frame()` draws one frame and waits (30 fps by default). Put it at the end of the loop.
+- Code runs in the Playground at https://play.pyweblib.org. Programs can be published to the community gallery.
+
+A minimal game:
+
+```python
+import game
+
+game.window(480, 360)
+player = game.sprite("chicken", 240, 300, size=52)
+
+while game.playing():
+    if game.pressed("left"):
+        player.x = player.x - 5
+    if game.pressed("right"):
+        player.x = player.x + 5
+    game.frame()
+```
+
+## Printing and input
+
+Show things on the screen and ask the user for answers.
+
+### `print(x)`
+
+Show something on the screen.
+
+```python
+print("Hello!")
+print("Score:", 10)
+```
+
+### `print(a, b, c)`
+
+Print several things on one line, separated by spaces.
+
+```python
+print("x", "is", 5)   # x is 5
+```
+
+### `print(x, end="")`
+
+Print without moving to a new line, so the next print carries on.
+
+```python
+print("Load", end="")
+print("ing...")   # Loading...
+```
+
+### `print(x, col="red")`
+
+Colour the text (this works in our Playground). Any CSS colour: a name, hex, rgb() or hsl().
+
+```python
+print("Danger!", col="red")
+print("Ok", col="#22cc88")
+```
+
+### `input(prompt)`
+
+Ask the user to type something. It always gives back a string (text), even if they type a number.
+
+```python
+name = input("Your name? ")
+print("Hi", name)
+```
+
+## Playground extras
+
+A few handy things that work right here in our Playground.
+
+### `clear()`
+
+Wipe the output panel. Print again after it to make animations that redraw each frame.
+
+```python
+import time
+for i in range(3):
+    clear()
+    print(i)
+    time.sleep(0.5)
+```
+
+### `print(x, col="red")`
+
+Colour a line of output. Any CSS colour works: a name, hex, rgb() or hsl().
+
+```python
+print("Win!", col="#22cc88")
+```
+
+### `input() and time.sleep()`
+
+These pause your program, so they need Chrome or Edge in the Playground (the same as the game library).
+
+```python
+name = input("Name? ")
+print("Hi", name)
+```
+
+## Variables and comments
+
+Store values to use later, and leave notes for yourself.
+
+### `x = 5`
+
+Make a variable: a labelled box that holds a value. The name is on the left, the value on the right.
+
+```python
+age = 12
+name = "Sam"
+price = 2.5
+```
+
+### `x = x + 1`
+
+Change a variable using its own value. Here it grows by one.
+
+```python
+score = 0
+score = score + 1   # now 1
+```
+
+### `a, b = 1, 2`
+
+Set more than one variable at once.
+
+```python
+x, y = 100, 200
+```
+
+### `# comment`
+
+A note for humans. Python ignores everything after the #.
+
+```python
+# this line does nothing
+print("hi")   # a note here too
+```
+
+## Numbers and maths
+
+Do sums, and switch between whole numbers and decimals.
+
+### `+  -  *  /`
+
+Add, subtract, multiply and divide. Division always gives a decimal.
+
+```python
+print(3 + 4)   # 7
+print(10 / 4)  # 2.5
+```
+
+### `//`
+
+Whole-number division: divide and throw away the remainder.
+
+```python
+print(10 // 3)  # 3
+```
+
+### `%`
+
+The remainder (modulo). Great for "is this even?" and wrapping around.
+
+```python
+print(10 % 3)  # 1
+print(8 % 2)   # 0, so 8 is even
+```
+
+### `**`
+
+To the power of.
+
+```python
+print(2 ** 3)  # 8
+```
+
+### `int(x)`
+
+Turn text or a decimal into a whole number. Needed after input() for maths.
+
+```python
+n = int(input("Age? "))
+print(int(3.9))   # 3
+```
+
+### `float(x)`
+
+Turn text into a decimal number.
+
+```python
+price = float("2.50")
+```
+
+### `round(x, n)`
+
+Round to n decimal places (or the nearest whole number if you leave n out).
+
+```python
+print(round(3.14159, 2))  # 3.14
+```
+
+### `abs(x)`
+
+The size of a number, ignoring the minus sign.
+
+```python
+print(abs(-7))  # 7
+```
+
+## Strings (text)
+
+Text is a string. Here is how to build it, search it and change it.
+
+### `"hello"`
+
+A string is text in quotes. Single or double quotes both work.
+
+```python
+greeting = 'hi'
+name = "Sam"
+```
+
+### `a + b`
+
+Join strings together (this is called concatenation).
+
+```python
+print("Py" + "thon")  # Python
+```
+
+### `"ab" * 3`
+
+Repeat a string.
+
+```python
+print("=" * 10)  # ==========
+```
+
+### `f"{x}"`
+
+An f-string: drop variables straight into text inside the curly braces.
+
+```python
+age = 12
+print(f"I am {age}")  # I am 12
+```
+
+### `len(s)`
+
+How many characters are in the string.
+
+```python
+print(len("cat"))  # 3
+```
+
+### `s[0]`
+
+Get one character by its position. Counting starts at 0.
+
+```python
+print("cat"[0])  # c
+```
+
+### `s[1:3]`
+
+A slice: the characters from position 1 up to (not including) 3.
+
+```python
+print("python"[0:3])  # pyt
+```
+
+### `s.upper() / s.lower()`
+
+Make a copy in all capitals, or all lowercase. Handy for comparing answers fairly.
+
+```python
+print("Hi".upper())  # HI
+if ans.lower() == "yes": ...
+```
+
+### `s.title()`
+
+Capitalise the first letter of each word.
+
+```python
+print("sam smith".title())  # Sam Smith
+```
+
+### `s.strip()`
+
+Remove spaces from the start and end.
+
+```python
+print("  hi  ".strip())  # "hi"
+```
+
+### `s.replace(a, b)`
+
+Swap every a for b.
+
+```python
+print("cat".replace("c", "b"))  # bat
+```
+
+### `s.split(sep)`
+
+Break a string into a list of pieces. Splits on spaces if you do not say where.
+
+```python
+print("a,b,c".split(","))  # [a, b, c]
+```
+
+### `"x" in s`
+
+Is this piece somewhere inside the string? Gives True or False.
+
+```python
+print("at" in "cat")  # True
+```
+
+### `s.startswith(x) / s.endswith(x)`
+
+Does the string start or end with this?
+
+```python
+print("cat.py".endswith(".py"))  # True
+```
+
+### `s.isdigit() / s.isalpha()`
+
+Is the string all digits, or all letters?
+
+```python
+print("123".isdigit())  # True
+```
+
+### `str(x)`
+
+Turn a number (or anything) into a string, so you can join it to text.
+
+```python
+print("Score: " + str(10))
+```
+
+### `f"{x:.2f}"`
+
+Show a number with an exact number of decimal places. :.2f means 2 decimals, great for money.
+
+```python
+price = 3.14159
+print(f"${price:.2f}")  # $3.14
+```
+
+### `f"{n:>5}"`
+
+Pad a value to a set width so columns line up. > right-aligns, < left-aligns.
+
+```python
+print(f"{7:>5}")   # "    7"
+```
+
+### `"\n"`
+
+A new line inside a string. \t makes a tab. Use \" to put a quote inside a string.
+
+```python
+print("Line 1\nLine 2")
+# Line 1
+# Line 2
+```
+
+## Lists
+
+A list holds many values in order, and you can change it as you go.
+
+### `[1, 2, 3]`
+
+A list. It can hold numbers, strings, anything, in order.
+
+```python
+pets = ["cat", "dog", "fish"]
+```
+
+### `list[0]`
+
+Get an item by position (starting at 0).
+
+```python
+print(pets[0])  # cat
+```
+
+### `list[-1]`
+
+Negative counts from the end, so -1 is the last item.
+
+```python
+print(pets[-1])  # fish
+```
+
+### `len(list)`
+
+How many items are in the list.
+
+```python
+print(len(pets))  # 3
+```
+
+### `list.append(x)`
+
+Add an item onto the end.
+
+```python
+pets.append("bird")
+```
+
+### `list.pop()`
+
+Remove and give back the last item (or list.pop(i) for position i).
+
+```python
+last = pets.pop()
+```
+
+### `list.remove(x)`
+
+Remove the first matching item.
+
+```python
+pets.remove("dog")
+```
+
+### `x in list`
+
+Is this item in the list? True or False.
+
+```python
+print("cat" in pets)  # True
+```
+
+### `sorted(list)`
+
+A new list, sorted smallest to largest (or A to Z).
+
+```python
+print(sorted([3, 1, 2]))  # [1, 2, 3]
+```
+
+### `sum / min / max`
+
+Add up, or find the smallest or largest, of a list of numbers.
+
+```python
+print(sum([1, 2, 3]))  # 6
+print(max([4, 9, 2]))  # 9
+```
+
+### `for x in list`
+
+Do something with each item in turn.
+
+```python
+for pet in pets:
+    print(pet)
+```
+
+## Dictionaries
+
+A dictionary stores pairs: a key, and the value it points to. Like a real dictionary, you look up a word to get its meaning.
+
+### `{"name": "Sam"}`
+
+A dictionary of key: value pairs. Keys are usually strings.
+
+```python
+player = {"name": "Sam", "score": 0}
+```
+
+### `d[key]`
+
+Look up the value for a key.
+
+```python
+print(player["name"])  # Sam
+```
+
+### `d[key] = value`
+
+Add a new pair, or change an existing one.
+
+```python
+player["score"] = 10
+```
+
+### `key in d`
+
+Is this key in the dictionary? True or False.
+
+```python
+print("score" in player)  # True
+```
+
+### `d.get(key, default)`
+
+Look up a key safely: if it is missing you get the default instead of an error.
+
+```python
+player.get("lives", 3)  # 3 if not set
+```
+
+### `for k in d`
+
+Loop over the keys. Use d[k] to reach each value.
+
+```python
+for k in player:
+    print(k, "=", player[k])
+```
+
+### `len(d)`
+
+How many pairs are in the dictionary.
+
+```python
+print(len(player))  # 2
+```
+
+## Tuples
+
+A tuple is like a list, but it cannot be changed after you make it. Handy for pairs that belong together, like an (x, y) point.
+
+### `(1, 2)`
+
+A tuple: values in round brackets, in a fixed order.
+
+```python
+point = (100, 200)
+```
+
+### `a, b = pair`
+
+Unpack a tuple straight into variables.
+
+```python
+x, y = (100, 200)
+print(x)  # 100
+```
+
+### `point[0]`
+
+Get an item by position, just like a list.
+
+```python
+print((100, 200)[1])  # 200
+```
+
+## True / False and if
+
+Make your program decide what to do.
+
+### `True / False`
+
+The two boolean values. Comparisons give you one of these.
+
+```python
+happy = True
+```
+
+### `==  !=`
+
+Equal to, and not equal to. Note the double equals for checking.
+
+```python
+print(3 == 3)  # True
+print(3 != 5)  # True
+```
+
+### `<  >  <=  >=`
+
+Less than, greater than, and the or-equal versions.
+
+```python
+print(5 > 3)   # True
+print(2 <= 2)  # True
+```
+
+### `and  or  not`
+
+Combine conditions. and needs both true, or needs one, not flips it.
+
+```python
+if age > 12 and age < 20:
+    print("teenager")
+```
+
+### `if / elif / else`
+
+Run a block only when a condition is true. elif and else are optional extras.
+
+```python
+if score >= 50:
+    print("Pass")
+else:
+    print("Try again")
+```
+
+## Loops
+
+Repeat things without copy-pasting.
+
+### `for i in range(n)`
+
+Repeat n times. i counts 0, 1, 2, ... up to n-1.
+
+```python
+for i in range(3):
+    print(i)   # 0 1 2
+```
+
+### `range(a, b)`
+
+Count from a up to (not including) b.
+
+```python
+for i in range(1, 4):
+    print(i)   # 1 2 3
+```
+
+### `range(a, b, step)`
+
+Count in steps. A negative step counts down.
+
+```python
+for i in range(5, 0, -1):
+    print(i)   # 5 4 3 2 1
+```
+
+### `while condition`
+
+Keep repeating as long as the condition stays true. Make sure something changes, or it never stops.
+
+```python
+n = 3
+while n > 0:
+    print(n)
+    n = n - 1
+```
+
+### `break`
+
+Jump out of a loop straight away.
+
+```python
+while True:
+    if done: break
+```
+
+### `continue`
+
+Skip the rest of this turn and go back to the top of the loop.
+
+```python
+for i in range(5):
+    if i == 2: continue
+    print(i)
+```
+
+### `enumerate(list)`
+
+Loop with a counter and the item at the same time.
+
+```python
+for i, pet in enumerate(pets):
+    print(i, pet)   # 0 cat, 1 dog...
+```
+
+### `zip(a, b)`
+
+Loop over two lists together, one pair at a time.
+
+```python
+for name, age in zip(names, ages):
+    print(name, "is", age)
+```
+
+## Functions
+
+Give a chunk of code a name so you can reuse it.
+
+### `def name(args):`
+
+Define your own function. The indented lines run when you call it.
+
+```python
+def greet(who):
+    print("Hi", who)
+
+greet("Sam")
+```
+
+### `return x`
+
+Send a value back out of a function so the caller can use it.
+
+```python
+def double(n):
+    return n * 2
+
+print(double(5))  # 10
+```
+
+## Built-in functions
+
+Handy tools that are always available, no import needed.
+
+### `len(x)`
+
+How many items or characters are in something.
+
+```python
+len("cat")  # 3
+len([1, 2])  # 2
+```
+
+### `range(n)`
+
+A sequence of numbers, mostly used with for loops.
+
+```python
+list(range(3))  # [0, 1, 2]
+```
+
+### `type(x)`
+
+What kind of thing is x? Useful for working out a bug.
+
+```python
+print(type(5))    # int
+print(type("a"))  # str
+```
+
+### `int / float / str`
+
+Convert between whole numbers, decimals and text.
+
+```python
+int("5")    # 5
+str(5)      # "5"
+```
+
+### `min / max / sum`
+
+Smallest, largest, and total.
+
+```python
+max(3, 9, 2)   # 9
+```
+
+### `sorted(x)`
+
+A sorted copy of a list or string.
+
+```python
+sorted([3, 1, 2])  # [1, 2, 3]
+```
+
+## When it goes wrong (errors)
+
+Red errors are not the end of the world, they tell you what to fix. Here are the ones you will meet most.
+
+### `NameError`
+
+You used a name Python does not know: a typo, or a variable you have not made yet.
+
+```python
+print(scoer)   # typo of score
+# fix: check the spelling
+```
+
+### `TypeError`
+
+You mixed types that do not go together, often text and numbers.
+
+```python
+print("age " + 5)   # crash
+# fix: "age " + str(5)
+```
+
+### `ValueError`
+
+The right type but a value that will not work, like turning letters into a number.
+
+```python
+int("cat")   # crash
+# fix: only int() actual numbers
+```
+
+### `IndexError`
+
+You asked for a list or string position that does not exist.
+
+```python
+pets = ["cat"]
+pets[5]   # crash, there is no [5]
+```
+
+### `KeyError`
+
+You asked a dictionary for a key it does not have. Use d.get() to be safe.
+
+```python
+player["lives"]   # crash if not set
+# fix: player.get("lives", 3)
+```
+
+### `IndentationError`
+
+Your spaces are wrong: a line is missing its indent, or they do not line up.
+
+```python
+if x > 0:
+print("hi")   # needs 4 spaces in front
+```
+
+### `SyntaxError`
+
+A typo in the shape of the code: a missing colon, bracket or quote.
+
+```python
+if x > 0   # missing the :
+    print("hi")
+```
+
+## random library
+
+Start with "import random". For dice, shuffles and surprises.
+
+### `random.randint(a, b)`
+
+A random whole number from a to b, including both ends.
+
+```python
+import random
+random.randint(1, 6)  # a dice roll
+```
+
+### `random.random()`
+
+A random decimal from 0.0 up to 1.0.
+
+```python
+random.random()  # e.g. 0.37
+```
+
+### `random.choice(seq)`
+
+Pick one random item from a list or string.
+
+```python
+random.choice(["heads", "tails"])
+```
+
+### `random.shuffle(list)`
+
+Shuffle a list into a random order (changes the list itself).
+
+```python
+cards = [1, 2, 3]
+random.shuffle(cards)
+```
+
+### `random.randrange(n)`
+
+A random whole number from 0 up to (not including) n.
+
+```python
+random.randrange(10)  # 0..9
+```
+
+## math library
+
+Start with "import math". For the trickier sums.
+
+### `math.sqrt(x)`
+
+Square root.
+
+```python
+import math
+math.sqrt(144)  # 12.0
+```
+
+### `math.pi`
+
+The number pi (about 3.14159).
+
+```python
+math.pi * r * r   # circle area
+```
+
+### `math.floor(x) / math.ceil(x)`
+
+Round down, or round up, to a whole number.
+
+```python
+math.floor(3.9)  # 3
+math.ceil(3.1)   # 4
+```
+
+### `math.pow(a, b)`
+
+a to the power of b (** does this too).
+
+```python
+math.pow(2, 10)  # 1024.0
+```
+
+### `math.sin / math.cos`
+
+Sine and cosine, in radians. Great for waves and circles.
+
+```python
+math.sin(math.pi / 2)  # 1.0
+```
+
+### `math.factorial(n)`
+
+n! = n * (n-1) * ... * 1.
+
+```python
+math.factorial(5)  # 120
+```
+
+## string library
+
+Start with "import string". Ready-made sets of letters, handy for ciphers and puzzles.
+
+### `string.ascii_uppercase`
+
+The capital letters "A" to "Z" as one string.
+
+```python
+import string
+print(string.ascii_uppercase)  # ABC...Z
+```
+
+### `string.ascii_lowercase`
+
+The lowercase letters "a" to "z".
+
+```python
+print(string.ascii_lowercase)  # abc...z
+```
+
+### `string.digits`
+
+The digits "0" to "9".
+
+```python
+print(string.digits)  # 0123456789
+```
+
+### `string.ascii_letters`
+
+All the letters, lowercase then uppercase.
+
+```python
+print(len(string.ascii_letters))  # 52
+```
+
+## statistics library
+
+Start with "import statistics". Averages and spread for a list of numbers.
+
+### `statistics.mean(data)`
+
+The average: add them all up and divide by how many.
+
+```python
+import statistics
+statistics.mean([2, 4, 6])  # 4
+```
+
+### `statistics.median(data)`
+
+The middle value when they are sorted.
+
+```python
+statistics.median([1, 5, 2])  # 2
+```
+
+### `statistics.mode(data)`
+
+The value that appears most often.
+
+```python
+statistics.mode([3, 3, 1])  # 3
+```
+
+### `statistics.stdev(data)`
+
+The standard deviation: how spread out the numbers are.
+
+```python
+statistics.stdev([2, 4, 6])  # 2.0
+```
+
+## time library
+
+Start with "import time". Slow your program down.
+
+### `time.sleep(seconds)`
+
+Pause for a moment. Great for animations and countdowns. (Needs Chrome or Edge in the Playground.)
+
+```python
+import time
+for i in range(3, 0, -1):
+    print(i)
+    time.sleep(1)
+```
+
+## turtle library
+
+Start with "import turtle" to draw with a little pen. Runs in the Playground.
+
+### `turtle.forward(n)`
+
+Move forward n steps, drawing a line.
+
+```python
+import turtle
+turtle.forward(100)
+```
+
+### `turtle.backward(n)`
+
+Move backwards n steps, still drawing.
+
+```python
+turtle.backward(50)
+```
+
+### `turtle.left(deg) / turtle.right(deg)`
+
+Turn on the spot by a number of degrees.
+
+```python
+turtle.left(90)   # quarter turn
+```
+
+### `turtle.goto(x, y)`
+
+Walk straight to a spot. (0, 0) is the centre of the window. turtle.setx and turtle.sety change just one of them.
+
+```python
+turtle.penup()
+turtle.goto(-100, 50)
+turtle.pendown()
+```
+
+### `turtle.setheading(deg)`
+
+Face an exact direction: 0 is right, 90 is up, 180 is left, 270 is down. turtle.home() walks back to the centre, facing right.
+
+```python
+turtle.setheading(90)   # face up
+```
+
+### `turtle.pencolor(c)`
+
+Change the pen colour.
+
+```python
+turtle.pencolor("red")
+```
+
+### `turtle.pensize(n)`
+
+How thick the line is.
+
+```python
+turtle.pensize(5)
+```
+
+### `turtle.penup() / turtle.pendown()`
+
+Lift the pen to move without drawing, then put it back down.
+
+```python
+turtle.penup()
+turtle.forward(50)
+turtle.pendown()
+```
+
+### `turtle.circle(r)`
+
+Draw a circle of radius r. Add a second number for part of one: circle(40, 180) is a half circle.
+
+```python
+turtle.circle(40)
+```
+
+### `turtle.begin_fill() / turtle.end_fill()`
+
+Colour a shape in: set turtle.fillcolor, call begin_fill, draw the shape, then end_fill pours the paint.
+
+```python
+turtle.fillcolor("gold")
+turtle.begin_fill()
+turtle.circle(40)
+turtle.end_fill()
+```
+
+### `turtle.dot(size, color)`
+
+Stamp a filled dot where the turtle stands, no pen needed.
+
+```python
+turtle.dot(20, "purple")
+```
+
+### `turtle.write(text)`
+
+Write words where the turtle stands. An optional font sets the look: font=("Arial", 20, "normal").
+
+```python
+turtle.write("Hi!", font=("Arial", 20, "normal"))
+```
+
+### `turtle.bgcolor(c)`
+
+Paint the whole window background.
+
+```python
+turtle.bgcolor("#0b1020")
+```
+
+### `turtle.speed(n)`
+
+How fast it draws, from 1 (slow) to 10 (fast).
+
+```python
+turtle.speed(10)
+```
+
+### `turtle.hideturtle() / turtle.showturtle()`
+
+Hide the arrow (the drawing stays), or bring it back. Nice for a clean finished picture.
+
+```python
+turtle.hideturtle()
+```
+
+### `turtle.xcor() / turtle.ycor() / turtle.heading()`
+
+Where the turtle is and which way it is facing. turtle.position() gives (x, y) together.
+
+```python
+if turtle.ycor() > 150:
+    turtle.setheading(270)
+```
+
+### `turtle.clear() / turtle.reset()`
+
+clear() wipes the drawing but leaves the turtle where it is; reset() wipes everything and sends it home.
+
+```python
+turtle.clear()
+```
+
+## game library
+
+Start with "import game" to make games: sprites, keys, the mouse and collisions. Full walkthrough and sprite table in the https://play.pyweblib.org/docs/game/.
+
+### `game.window(w, h)`
+
+Open the game window. Always first. Add background="#0b1020" for a colour.
+
+Full page: https://play.pyweblib.org/docs/game/window/
+
+```python
+import game
+game.window(480, 360)
+```
+
+### `game.fullscreen()`
+
+Fill the whole screen with the game window, great on phones. Put it right after game.window(). On iPhone it is a full-screen overlay (Safari there has no true fullscreen); on a computer or Android it also asks for real fullscreen. Tap the fullscreen button, the on-screen ✕, or press Esc to leave; game.fullscreen(False) exits from code. A portrait window like 400 x 640 fills a phone best.
+
+```python
+game.window(400, 640)
+game.fullscreen()
+```
+
+### `game.sprite(skin, x, y, size=40, asset=False)`
+
+A sprite you can move around. skin can be a built-in number (0 chicken, 1 dog, 2 bird, 3 egg, 4 coin, 5 basket, 6 shocked, 7 calm, 8 turtle, 9 car, 10 mouse, 11 rocket, 12 asteroid, 13 laser, 14 snake, 15 pacman, 16 ghost, 17 pacman2, 18 kid), its name like "chicken", or any emoji. Add asset=True to use a sprite you designed in the Asset studio, by its id number.
+
+Full page: https://play.pyweblib.org/docs/game/sprite/
+
+```python
+hero = game.sprite("chicken", 100, 200)
+mine = game.sprite(5, 300, 200, asset=True)
+foe  = game.sprite("🦖", 300, 200)
+```
+
+### `game.preload(ids)`
+
+Load your custom Asset-studio art up front (pass an id number, several, or a list) so it is ready the instant you show it instead of popping in the first time. Handy when you set sprite.asset = id while the game is running. Call it once near the top, before the loop.
+
+```python
+rots = [7, 8, 9]
+game.preload(rots)
+# ...later...
+plant.asset = random.choice(rots)   # already loaded, no pop-in
+```
+
+### `sprite.animate(frames, every=6)`
+
+Flip a sprite through a list of skins on a timer, like a flip-book. Each frame shows for "every" calls to game.frame() (default 6). Pass None to stop. Pac-Man already chomps this way on its own.
+
+```python
+star = game.sprite("coin", 200, 120)
+star.animate(["🌑", "🌓", "🌕", "🌗"])   # spins
+```
+
+### `game.box(x, y, w, h, color, radius)`
+
+A coloured rectangle, centred on (x, y). radius rounds the corners: 0 is square, and anything past half the short side gives a stadium shape. Settable later with box.radius = 10.
+
+```python
+btn = game.box(400, 40, 160, 44, "#8a4a12", radius=12)
+```
+
+### `game.circle(x, y, w, h, color)`
+
+A coloured circle, centred on (x, y). Leave h out for a round one; give it to squash the circle into an oval, like a hole in the ground.
+
+```python
+hole = game.circle(240, 180, 70, 22, "#3d2a1a")
+```
+
+### `game.label(text, x, y, size, color, background)`
+
+Draw words (a score or a message), centred on (x, y). color is the text colour; the optional background draws a filled box behind the words so they read on any scene. Labels sit on top of other sprites by default (their .layer starts at 1000).
+
+Full page: https://play.pyweblib.org/docs/game/label/
+
+```python
+board = game.label("Score: 0", 80, 24, color="#ffffff", background="#000000")
+```
+
+### `game.plot(x, y, color, size=2)`
+
+Stamp a dot that STAYS on the screen. Sprites are wiped and redrawn every frame, which is why a few thousand of them crawls; ink is stamped once and then it is just pixels, so a quarter of a million dots still runs at full speed. The right tool for fractals, trails and painting.
+
+Full page: https://play.pyweblib.org/docs/game/plot/
+
+```python
+for i in range(400):
+    game.plot(x, y, "#22d3a5")   # builds up a picture
+```
+
+### `game.line(x1, y1, x2, y2, color, width=2)`
+
+A stamped stroke, and it stays put like game.plot() does. Use it instead of plot() for anything that moves quickly, or its trail comes out as separate dashes rather than a line.
+
+```python
+game.line(old_x, old_y, ship.x, ship.y, "#4ea8ff")
+old_x, old_y = ship.x, ship.y
+```
+
+### `game.fade(amount=0.05)`
+
+Rub out a fraction of the ink, so trails die away instead of piling up forever. Call it once a frame: 0.02 leaves a long comet tail, 0.2 a short one. The window background shows through as the ink goes.
+
+```python
+game.line(old_x, old_y, x, y, "#4ea8ff")
+game.fade(0.03)   # the tail behind it decays
+game.frame()
+```
+
+### `game.wipe()`
+
+Erase all the ink at once and leave the sprites alone. Handy when a setting changes and the drawing so far no longer belongs.
+
+```python
+if game.pressed("r"):
+    game.wipe()
+```
+
+### `game.save_image(surface=None, filename=None, ask=False)`
+
+Save the picture as a PNG on the player's computer. It hands the file to the browser and returns immediately, so it is safe to call inside the game loop. surface=None saves what you can see, sprites and all; surface="ink" saves JUST the stamped layer, so artwork comes out clean with no scoreboard over it. ask=True opens a proper "where shall I put it?" dialog (Chrome and Edge, and only while the keypress is still fresh), otherwise it goes to Downloads.
+
+```python
+if game.pressed("s"):
+    game.save_image("ink")        # the drawing, with no UI on top
+    game.save_image()             # or exactly what is on screen
+```
+
+### `game.copy_image(surface=None)`
+
+Put the picture on the clipboard instead of saving it, ready to paste straight into a chat or a post. Same surface choice as game.save_image().
+
+```python
+if game.pressed("c"):
+    game.copy_image("ink")
+```
+
+### `game.pressed(key)`
+
+True while a key is held. "left", "right", "up", "down", "space", or a letter.
+
+Full page: https://play.pyweblib.org/docs/game/pressed/
+
+```python
+if game.pressed("left"):
+    bird.x = bird.x - 5
+```
+
+### `game.mouse_x() / game.mouse_y()`
+
+Where the mouse pointer is, in game coordinates. game.mouse_in() is True while the pointer is over the game window.
+
+```python
+pet.x = game.mouse_x()
+pet.y = game.mouse_y()
+```
+
+### `game.clicked()`
+
+True once per fresh click on the game window, then False until the next click. One tap, one action: great for buttons and menus.
+
+Full page: https://play.pyweblib.org/docs/game/clicked/
+
+```python
+if plant.at_mouse() and game.clicked():
+    plant.size = plant.size + 10
+```
+
+### `game.mouse_down()`
+
+True while the mouse button is held, like pressed() but for the mouse.
+
+```python
+if game.mouse_down():
+    power = power + 1
+```
+
+### `game.hide_cursor()`
+
+Hide the real mouse pointer over the game window, so a sprite can be the pointer instead (a watering can, a crosshair). game.show_cursor() brings it back.
+
+```python
+game.hide_cursor()
+can.x = game.mouse_x()
+```
+
+### `sprite.at_mouse()`
+
+True while the mouse pointer is inside this sprite's collision box. Pair with game.clicked() to make clickable sprites and menu buttons.
+
+```python
+if start_btn.at_mouse() and game.clicked():
+    menu_open = False
+```
+
+### `game.textbox(placeholder="", x=None, y=None, width=None)`
+
+A real text box over the game window, for typing that game.pressed() can't do (and the only way to type on a phone). Returns a handle like a sprite: .x, .y, .width place it (default: bottom centre), .placeholder is the grey hint. Read finished lines with .typed(). You can have several.
+
+```python
+box = game.textbox("say something...")
+while game.playing():
+    line = box.typed()
+    if line:
+        print(line)
+    game.frame()
+```
+
+### `textbox.typed()`
+
+The line just entered, once, when Enter is pressed (or a Send button submits it), else None. Never blocks, so call it every frame in the loop.
+
+```python
+msg = box.typed()
+if msg:
+    log.append(msg)
+```
+
+### `textbox.value / .clear() / .hide() / .show() / .remove()`
+
+value is the current text (read it, or set it to prefill). clear() empties the box; hide(), show() and remove() work like a sprite.
+
+```python
+if box.value:
+    box.clear()
+```
+
+### `game.button(label="", x=None, y=None, width=None, submits=None)`
+
+A clickable button; .clicked() is True once per press. Pass submits=a_textbox and clicking it sends whatever is in that box, the easy way to send on a phone.
+
+Full page: https://play.pyweblib.org/docs/game/button/
+
+```python
+again = game.button("Play again")
+if again.clicked():
+    reset()
+```
+
+### `game.playing()`
+
+The loop condition: true while the game runs.
+
+Full page: https://play.pyweblib.org/docs/game/frame/
+
+```python
+while game.playing():
+    game.frame()
+```
+
+### `game.frame(fps=30)`
+
+Draw one frame and wait. Put it at the end of the loop. It runs at 30 frames a second by default; try game.frame(60) for extra-smooth motion. Things then move twice as far each second, so halve your step sizes to keep the same speed.
+
+Full page: https://play.pyweblib.org/docs/game/frame/
+
+```python
+game.frame()      # smooth
+game.frame(60)    # even smoother
+```
+
+### `game.game_over(message, retry=False)`
+
+Show a banner and stop the game. With retry=True a tap or click restarts the game from the top, so players don't have to press Run again (great on phones). Put \n in the message for line breaks.
+
+Full page: https://play.pyweblib.org/docs/game/game-over/
+
+```python
+game.game_over("Game over!\nTap to play again", retry=True)
+```
+
+### `game.submit_score(points)`
+
+Records the player's score on the game's per-game leaderboard once you publish it, shown on the game's shared page (best score per player). In the Playground it quietly does nothing, so it is safe to leave in.
+
+Full page: https://play.pyweblib.org/docs/game/submit-score/
+
+```python
+game.submit_score(score)
+game.game_over("Score: " + str(score))
+```
+
+### `game.sound(n)`
+
+Play a short built-in arcade sound, no files needed: 0 beep, 1 buzz, 2 coin, 3 powerup, 4 jump, 5 laser, 6 hit, 7 explosion, 8 win, 9 lose. The names work too, like game.sound("coin"). Browsers only allow audio after a click, and a game is clicked to play, so it just works.
+
+Full page: https://play.pyweblib.org/docs/game/sound/
+
+```python
+if basket.touches(egg):
+    game.sound(2)   # coin
+if basket.touches(bomb):
+    game.sound(1)   # buzz
+```
+
+### `game.save(key, value)`
+
+Remember a value between runs, in this browser, for this program: coins, unlocked levels, a garden's state. value can be a number, text, True/False, or lists/dicts of those. Each program keeps its own save (per browser, not synced across devices). Save when something changes, not every frame.
+
+Full page: https://play.pyweblib.org/docs/game/save/
+
+```python
+game.save("coins", 120)
+game.save("plants", ["carrot", "rose"])
+```
+
+### `game.load(key, default=None)`
+
+Read back what game.save() stored under key. Returns default the first time, before anything is saved, so a new player starts fresh.
+
+Full page: https://play.pyweblib.org/docs/game/save/
+
+```python
+coins  = game.load("coins", 0)
+plants = game.load("plants", [])
+```
+
+### `game.clear_save(key=None)`
+
+Forget one saved value, or this whole program's save when you leave the key out (wire it to a "New game" button).
+
+Full page: https://play.pyweblib.org/docs/game/save/
+
+```python
+game.clear_save("coins")   # just the coins
+game.clear_save()          # wipe this game's save
+```
+
+### `game.tone(freq, wave="sine", volume=0.15)`
+
+Start a sustained tone and get a handle to steer it live: engines, sirens, drones. Unlike game.sound() (a one-shot), it keeps playing until you .stop() it (or the game ends). Call handle.pitch(hz) and handle.volume(0..1) each frame to change it; wave is "sine", "square", "sawtooth" or "triangle". A low sawtooth whose pitch rises with speed makes a convincing car engine.
+
+```python
+engine = game.tone(60, "sawtooth", 0.12)   # idle hum
+while game.playing():
+    engine.pitch(55 + speed * 12)   # ramps up with acceleration
+    engine.volume(0.08 + speed * 0.004)
+    game.frame()
+engine.stop()
+```
+
+### `game.debug(True)`
+
+Draw a red outline around every sprite's hit box: the area touches() checks for collisions. Put it after game.window(). The box turns with .angle and stretches with scale_x and scale_y, exactly like the collisions it shows.
+
+```python
+game.window(480, 360)
+game.debug(True)
+```
+
+### `sprite.x / sprite.y`
+
+Where a sprite is. Change these to move it.
+
+```python
+bird.y = bird.y + 5
+```
+
+### `sprite.content`
+
+What a sprite shows. Set it to a new skin number, a name, or an emoji to change the picture. A label uses it for its text.
+
+```python
+player.content = "coin"
+board.content = "Score: " + str(n)
+```
+
+### `sprite.angle`
+
+Spin a sprite, in degrees.
+
+```python
+coin.angle = coin.angle + 6
+```
+
+### `sprite.scale_x / sprite.scale_y`
+
+Stretch or mirror. -1 flips it to face the other way.
+
+```python
+chicken.scale_x = -1   # face left (the art faces right)
+```
+
+### `sprite.anchor`
+
+The sprite's handle: which point of it sits on (x, y), as fractions of its art, AND the point it spins around. The default (0.5, 0.5) is the middle; (0.5, 1) is the bottom middle, so the sprite stands with its feet on y and swings from its feet like a hammer from its handle; (0, 0) is the top-left corner. The collision box moves and turns with it, so touches() and at_mouse() stay honest.
+
+Full page: https://play.pyweblib.org/docs/game/anchor/
+
+```python
+plant.anchor = (0.5, 1)     # stands on its feet
+plant.y = ground_y
+
+hammer.anchor = (0.5, 1)    # swings from the handle
+hammer.angle = swing
+
+can.anchor = (0.12, 0.7)    # the spout is the pointer
+```
+
+### `sprite.layer`
+
+Which things draw on top. Higher sits above lower; same layer keeps creation order. Everything starts at 0, except labels which start at 1000. Give a sprite a bigger number to draw it over the score.
+
+```python
+player.layer = 2000   # over the label
+board.layer = 0       # label behind
+```
+
+### `a.touches(b)`
+
+True if two sprites overlap. The collision box turns with .angle and stretches with scale, so a rotated sprite checks a rotated box. Use game.debug(True) to see the boxes.
+
+Full page: https://play.pyweblib.org/docs/game/touches/
+
+```python
+if basket.touches(egg):
+    game.score(1)
+```
+
+### `sprite.hitbox`
+
+The collision box size as (width, height). Defaults to roughly fit the art (car wide, egg tall); set your own for a tighter fit, or None for automatic.
+
+```python
+car.hitbox = (46, 26)
+car.hitbox = None   # back to auto
+```
+
+### `sprite.remove()`
+
+Delete a sprite for good (once it is collected or destroyed). Keep many in a list and loop over a copy to remove them safely.
+
+```python
+for egg in eggs[:]:
+    if car.touches(egg):
+        egg.remove()
+        eggs.remove(egg)
+```
+
+## net library (multiplayer)
+
+Play together. Everyone who joins the same room name sees each other move. Full walkthrough in the multiplayer guide.
+
+### `import net`
+
+Turn on multiplayer. Use it next to import game.
+
+```python
+import game, net
+```
+
+### `net.join(room)`
+
+Join a room. Anyone who joins the SAME name plays with you. It returns straight away and connects in the background.
+
+```python
+net.join("year9-bombers")
+```
+
+### `net.join(room, name=, rate=)`
+
+name is what others see you called. rate is how many times a second your position may be sent (1-20). The default 5 looks smooth at 30 fps and costs half what 10 does; raise it only for something twitchy.
+
+```python
+net.join("race", name="Sam", rate=8)
+```
+
+### `net.me(sprite)`
+
+Show this sprite to everyone else in the room. Call it once per frame, at the end of your loop. Standing still costs nothing: unchanged positions are not resent.
+
+```python
+net.me(car)
+```
+
+### `net.me(sprite, **extras)`
+
+Send extra facts about yourself along with your position. Others read them back with p.get().
+
+```python
+net.me(car, hp=3, ready=True)
+```
+
+### `net.others()`
+
+The list of other players. Each one already has a sprite, created, moved and removed for you.
+
+```python
+for p in net.others():
+    if car.touches(p):
+        game.game_over("Crash!")
+```
+
+### `player.id`
+
+Who a player is. It does not change while they are playing.
+
+```python
+if net.get("bomb") == p.id:
+    print(p.name, "has it")
+```
+
+### `player.name`
+
+What to call them on screen.
+
+```python
+game.label(p.name, p.x, p.y + 30, 12)
+```
+
+### `player.x / player.y`
+
+Where that player is.
+
+```python
+print(p.name, "is at", p.x, p.y)
+```
+
+### `player.sprite`
+
+The sprite drawing that player, if you want to change it yourself.
+
+```python
+p.sprite.color = "#ff0044"
+```
+
+### `player.get(key, default)`
+
+Read an extra fact they sent with net.me().
+
+```python
+if p.get("hp", 0) <= 0:
+    print(p.name, "is out!")
+```
+
+### `net.set(key, value)`
+
+One fact the whole room shares: who has the bomb, whose turn it is. LAST WRITE WINS, so let only ONE player write each key.
+
+```python
+net.set("bomb", net.id)
+```
+
+### `net.get(key, default)`
+
+Read a shared value. None until somebody has set it.
+
+```python
+if net.get("bomb") == net.id:
+    print("Run!")
+```
+
+### `net.id`
+
+My own player id. Fixed for this browser tab, so a second tab is a second player.
+
+```python
+if net.get("turn") == net.id:
+    my_go()
+```
+
+### `net.count()`
+
+How many players are in the room, me included.
+
+```python
+game.label("Players: " + str(net.count()), 0, 150, 16)
+```
+
+### `net.online()`
+
+True once I am really in the room and can be seen. Joining takes a moment.
+
+```python
+if not net.online():
+    info.content = "Connecting..."
+```
+
+### `net.status()`
+
+One of "offline", "joining", "joined", or "unavailable" when this copy of PyWebLib has no multiplayer backend set up.
+
+```python
+print(net.status())
+```
+
+### `net.room()`
+
+The room name I ended up in. Spaces and punctuation become dashes.
+
+```python
+print("You are in", net.room())
+```
+
+### `net.leave()`
+
+Leave the room and take everyone else's sprites off my screen.
+
+```python
+net.leave()
+```
+
+## game3d library
+
+Start with "import game3d" for games in real 3D: shapes in space, a camera you can move, and the same game loop you already know. It is new and deliberately small, so expect shapes and colours rather than models and textures. Coordinates are x right, y up, z towards you, measured in steps rather than pixels, so a box of size 1 is one step wide. Keyboard only for now, so it suits a computer rather than a phone. Try the 3D snippets on the Playground.
+
+### `game3d.background(color)`
+
+The colour behind everything: your sky.
+
+```python
+import game3d
+game3d.background("#8ec5f0")
+```
+
+### `game3d.ground(size=60, y=0, color)`
+
+A big flat floor to stand things on, centred on (0, 0). Nothing stops you walking off the edge, so make it big enough or keep your player inside it yourself.
+
+```python
+game3d.ground(40, color="#3f8f4f")
+```
+
+### `game3d.box(x, y, z, size=1, color)`
+
+A cube at a point in space. y is how high off the ground it sits, so a size 1 box wants y=0.5 to rest on the floor. Use width, height and depth instead of size to make it a slab or a post.
+
+```python
+cube = game3d.box(0, 0.5, 0, color="#e2483d")
+wall = game3d.box(0, 1, -5, width=8, height=2, depth=0.4)
+```
+
+### `game3d.sphere(x, y, z, size=1, color)`
+
+A ball. size is its width, so it rests on the floor at y = size / 2.
+
+```python
+ball = game3d.sphere(3, 0.7, -2, size=1.4, color="#f6c945")
+```
+
+### `game3d.cylinder(x, y, z, size=1, color)`
+
+A round post or barrel, standing up. Make it a tall pillar with height, or a thin disc.
+
+```python
+post = game3d.cylinder(-2, 1, 0, size=0.6, height=2)
+```
+
+### `game3d.camera(x, y, z, look_at=(x, y, z))`
+
+Where you are watching from, and the point you are looking at. Higher y looks down on the scene; bigger z stands further back. fov=80 gives a wider view.
+
+```python
+game3d.camera(0, 5, 10, look_at=(0, 0, 0))
+```
+
+### `game3d.camera(follow=thing, distance, height)`
+
+Chase a thing instead: the camera sits behind and above it and keeps looking at it, so it follows your player around. Change distance and height to sit closer or higher.
+
+```python
+game3d.camera(follow=player, distance=11, height=7)
+```
+
+### `game3d.pressed(key)`
+
+True while a key is held, exactly like the 2D game: "left", "right", "up", "down", "space", or a letter.
+
+```python
+if game3d.pressed("left"):
+    player.x = player.x - 0.25
+```
+
+### `game3d.frame(fps=60)`
+
+Draw one frame and wait. Put it at the end of your loop, the same as game.frame().
+
+```python
+while True:
+    player.spin(ry=2)
+    game3d.frame(60)
+```
+
+### `thing.x / thing.y / thing.z`
+
+Where a thing is. Change these to move it: x right, y up, z towards the camera (so smaller z is further away).
+
+```python
+player.z = player.z - 0.25   # walk away from the camera
+```
+
+### `thing.rx / thing.ry / thing.rz`
+
+How far a thing is turned around each axis, in degrees. ry is the usual one: spinning on the spot.
+
+```python
+cube.ry = 45
+```
+
+### `thing.spin(rx=0, ry=0, rz=0)`
+
+Turn by this much more, every frame, without doing the addition yourself.
+
+```python
+coin.spin(ry=3)   # slowly rotates
+```
+
+### `thing.move(dx=0, dy=0, dz=0)`
+
+Shift a thing by an amount, instead of setting x, y and z one at a time.
+
+```python
+player.move(dx=0.2, dz=-0.1)
+```
+
+### `thing.color`
+
+The colour of a thing. Change it whenever you like.
+
+```python
+if hurt:
+    player.color = "#ffffff"
+```
+
+### `thing.visible`
+
+Set it to False to hide a thing without deleting it, and True to bring it back.
+
+```python
+ghost.visible = False
+```
+
+### `a.touches(b)`
+
+True when two things overlap, checked as boxes around them. Good enough for collecting coins and bumping into walls.
+
+```python
+if player.touches(coin):
+    coin.remove()
+```
+
+### `a.distance_to(b)`
+
+How far apart two things are, in steps. Handy for a proximity check, or for deciding what is closest.
+
+```python
+if player.distance_to(enemy) < 3:
+    game3d.background("#803030")
+```
+
+### `thing.remove()`
+
+Delete a thing for good. Keep them in a list and loop over a copy to remove them safely, exactly like 2D sprites.
+
+```python
+for c in coins[:]:
+    if player.touches(c):
+        c.remove()
+        coins.remove(c)
+```
+
+### `game3d.tick()`
+
+How many frames have been drawn so far. Useful for timing things without a counter of your own.
+
+```python
+if game3d.tick() % 60 == 0:
+    print("another second")
+```

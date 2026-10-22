@@ -1,0 +1,158 @@
+<!--
+{
+  "title": "game.label() | PyWebLib docs",
+  "description": "game.label() puts words on your PyWebLib Python game: a score, a timer, a message. How to change the text with .content, add a background, and show or hide it, with a full example.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.label(): a scoreboard for your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.label()</code></h1>
+        <p class="lead">Put words on the game window: a score, a timer, a "Level up!" message. Make the label once, then change what it says whenever you like.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.label(text, x, y, size=20, color="#ffffff", background=None)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>text</dt>
+              <dd>What it says. Usually text in quotes, like <code>"Score: 0"</code>. A plain number works too.</dd>
+            </div>
+            <div>
+              <dt>x, y</dt>
+              <dd>Where the <strong>middle</strong> of the words goes. <code>(0, 0)</code> is the top-left corner of the window, so <code>x=70, y=24</code> sits near the top left.</dd>
+            </div>
+            <div>
+              <dt>size</dt>
+              <dd>How tall the letters are, in pixels. Optional, <code>20</code> if you leave it out. The text is always bold.</dd>
+            </div>
+            <div>
+              <dt>color</dt>
+              <dd>The colour of the letters, like <code>"#ffd23f"</code> or <code>"yellow"</code>. Optional, white if you leave it out.</dd>
+            </div>
+            <div>
+              <dt>background</dt>
+              <dd>Optional. A colour for a rounded box behind the words, so they are easy to read on a busy scene. Leave it out for no box.</dd>
+            </div>
+          </dl>
+          <p>It gives back the label, so keep it in a variable (<code>board = game.label(...)</code>). You need that variable to change the words later.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>Catch the eggs with the basket (left and right arrows). Three labels: a score with a dark box behind it, the lives left, and a "Level up!" message that pops up for a second every 5 eggs:</p>
+          <pre class="guide-code language-python" id="ex-label">import game
+import random
+
+game.window(480, 360, background="#13305a")
+
+basket = game.sprite("basket", 240, 320, size=60)
+egg = game.sprite("egg", random.randint(30, 450), 0, size=34)
+
+board = game.label("Score: 0", 70, 24, color="#ffffff", background="#000000")
+lives_label = game.label("Lives: 3", 410, 24, color="#ff8080")
+news = game.label("Level up!", 240, 160, size=40, color="#ffd23f")
+news.hide()                     # only shown now and then
+
+score = 0
+lives = 3
+speed = 4
+news_timer = 0
+
+while game.playing():
+    if game.pressed("left"):
+        basket.x = basket.x - 8
+    if game.pressed("right"):
+        basket.x = basket.x + 8
+
+    egg.y = egg.y + speed
+    if basket.touches(egg):
+        score = score + 1
+        board.content = "Score: " + str(score)
+        egg.x = random.randint(30, 450)
+        egg.y = 0
+        if score % 5 == 0:
+            speed = speed + 1
+            news.show()
+            news_timer = 30     # 30 frames = 1 second
+    if egg.y &gt; 380:
+        lives = lives - 1
+        lives_label.content = "Lives: " + str(lives)
+        egg.x = random.randint(30, 450)
+        egg.y = 0
+        if lives == 0:
+            game.game_over("Score: " + str(score), retry=True)
+
+    if news_timer &gt; 0:
+        news_timer = news_timer - 1
+        if news_timer == 0:
+            news.hide()
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-label">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+        </section>
+
+        <section id="change">
+          <h2>Changing the words</h2>
+          <p>Set the label's <code>.content</code> to new text. It shows on the next <code>game.frame()</code>:</p>
+          <pre class="guide-code language-python">board.content = "Score: " + str(score)</pre>
+          <p>You may see <code>board.text = ...</code> in older programs. That is the old name for the same thing, and it still works, but <code>.content</code> is the one to use.</p>
+          <p>You can also change a label's <code>.color</code>, <code>.size</code>, <code>.background</code>, <code>.x</code> and <code>.y</code> at any time, just like a sprite. Make the timer go red when time is nearly up:</p>
+          <pre class="guide-code language-python">if seconds_left &lt; 5:
+    clock.color = "#ff4040"</pre>
+        </section>
+
+        <section id="how">
+          <h2>Good to know</h2>
+          <ul>
+            <li><strong>Labels sit on top.</strong> A label starts on layer 1000 and sprites start on layer 0, so your scoreboard stays in front of the action. Want a sprite to fly over the score? Give it <code>.layer = 2000</code>.</li>
+            <li><strong>Hide and show.</strong> <code>news.hide()</code> takes a label off the screen and <code>news.show()</code> brings it back, like the "Level up!" message above. <code>news.remove()</code> gets rid of it for good.</li>
+            <li><strong>It's a sprite underneath.</strong> A label moves, hides and layers like any sprite. It even has a collision box, but it is a small square in the middle of the words, so a label makes a poor button. Use <a href="../button/">game.button()</a> for that.</li>
+            <li><strong>Keeping score.</strong> <code>game.score()</code> is a counter only. It never draws anything, so pair it with a label to show it.</li>
+          </ul>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why isn't my label working?</h2>
+          <ul>
+            <li><strong><code>TypeError: can only concatenate str (not "int") to str</code>.</strong> You wrote <code>"Score: " + score</code>. Python won't glue text and a number together. Turn the number into text first: <code>"Score: " + str(score)</code>.</li>
+            <li><strong>The game gets slower and slower, or the words look smudged.</strong> You made a <code>game.label(...)</code> inside the loop, so there's a brand new label every frame, all piled up. Make it <strong>once</strong>, before the loop, and change <code>.content</code> inside it.</li>
+            <li><strong>The number never changes.</strong> Changing the <code>score</code> variable doesn't update the label by itself. Set <code>board.content</code> again every time the score changes.</li>
+            <li><strong>Half the words are off the edge.</strong> <code>x</code> and <code>y</code> are the <strong>middle</strong> of the text. A label at <code>x=0</code> hangs half off the left side. Move it in, for example <code>x=70</code>.</li>
+            <li><strong>I can't read it.</strong> White text on a light background disappears. Pick a different <code>color</code>, or add <code>background="#000000"</code>.</li>
+            <li><strong>Nothing shows at all.</strong> Check the loop ends with <code>game.frame()</code>, and that you didn't call <code>.hide()</code> and forget to <code>.show()</code> it again.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../sprite/">game.sprite()</a>
+            <a href="../button/">game.button()</a>
+            <a href="../touches/">sprite.touches()</a>
+            <a href="../game-over/">game.game_over()</a>
+            <a href="../../#sec-game">game.score()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>

@@ -1,0 +1,152 @@
+<!--
+{
+  "title": "game.pressed() | PyWebLib docs",
+  "description": "game.pressed(key) reads the keyboard in a PyWebLib Python game: key names, held keys vs one action per press, diagonal movement and keeping the player on screen. Full example and fixes.",
+  "card": "og-game.png",
+  "cardAlt": "A chicken sprite walking in a PyWebLib browser game.",
+  "ogTitle": "game.pressed(): keyboard controls for your Python game",
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+    "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "docs-page.js"
+  ]
+}
+-->
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="fn-crumbs"><a href="../../">Docs</a> &rsaquo; <a href="../../#sec-game">game library</a></p>
+        <h1><code>game.pressed()</code></h1>
+        <p class="lead">Read the keyboard. <code>game.pressed("left")</code> is <code>True</code> while the left arrow is held down, so you can steer, jump and shoot.</p>
+      </div>
+    </section>
+
+    <div class="container section">
+      <article class="guide">
+
+        <section id="signature">
+          <h2>How to write it</h2>
+          <code class="fn-sig">game.pressed(key)</code>
+          <dl class="fn-params">
+            <div>
+              <dt>key</dt>
+              <dd>The key's name, as text in quotes. Capitals don't matter: <code>"Left"</code> and <code>"left"</code> are the same.</dd>
+            </div>
+          </dl>
+          <p>It gives back <code>True</code> while that key is held down, and <code>False</code> when it isn't. It never waits for a key, so the game keeps running.</p>
+        </section>
+
+        <section id="keys">
+          <h2>Key names</h2>
+          <ul>
+            <li><strong>Arrow keys:</strong> <code>"left"</code>, <code>"right"</code>, <code>"up"</code>, <code>"down"</code></li>
+            <li><strong>Space bar:</strong> <code>"space"</code></li>
+            <li><strong>Letters:</strong> <code>"a"</code> to <code>"z"</code>. <code>"w"</code>, <code>"a"</code>, <code>"s"</code>, <code>"d"</code> make a second set of arrows for player two.</li>
+            <li><strong>Numbers:</strong> <code>"0"</code> to <code>"9"</code>, the number keys along the top</li>
+            <li><strong>Others:</strong> <code>"enter"</code>, <code>"shift"</code>, <code>"backspace"</code>, <code>"escape"</code></li>
+          </ul>
+          <p>While a game runs, the arrow keys and space bar control the game instead of scrolling the page.</p>
+        </section>
+
+        <section id="example">
+          <h2>A full example</h2>
+          <p>Fly the rocket with the arrow keys, even diagonally. It can't leave the screen. Press <kbd>space</kbd> to fire: one laser per press, however long you hold it.</p>
+          <pre class="guide-code language-python" id="ex-pressed">import game
+
+game.window(480, 360, background="#0b1020")
+
+ship = game.sprite("rocket", 240, 300, size=50)
+ship.angle = -90                                     # turn it to point up
+laser = game.sprite("laser", -100, -100, size=30)    # parked off screen
+laser.angle = -90
+info = game.label("Shots: 0", 240, 24, color="#ffffff")
+
+speed = 5
+shots = 0
+space_was_down = False
+
+while game.playing():
+    # Held keys: move every frame the key is down.
+    # Four separate ifs (not elif), so two arrows at once go diagonally.
+    if game.pressed("left"):
+        ship.x = ship.x - speed
+    if game.pressed("right"):
+        ship.x = ship.x + speed
+    if game.pressed("up"):
+        ship.y = ship.y - speed
+    if game.pressed("down"):
+        ship.y = ship.y + speed
+
+    # Keep the ship on screen
+    ship.x = max(25, min(455, ship.x))
+    ship.y = max(25, min(335, ship.y))
+
+    # One shot per press: only fire when space has JUST gone down
+    space_down = game.pressed("space")
+    if space_down and not space_was_down:
+        laser.x = ship.x
+        laser.y = ship.y - 30
+        shots = shots + 1
+        info.content = "Shots: " + str(shots)
+    space_was_down = space_down
+
+    laser.y = laser.y - 10            # the laser flies up
+
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-pressed">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+        </section>
+
+        <section id="held">
+          <h2>Held down, or once per press?</h2>
+          <p><code>game.pressed()</code> is <code>True</code> for <strong>every frame</strong> the key is held. At 30 frames a second, holding a key for one second makes it <code>True</code> 30 times. That is perfect for walking and steering, but not for things that should happen <strong>once</strong>, like firing, jumping, or pausing.</p>
+          <p>For once per press, remember whether the key was down last frame, and only act when it has <em>just</em> gone down:</p>
+          <pre class="guide-code language-python">was_down = False                 # before the loop
+
+while game.playing():
+    down = game.pressed("space")
+    if down and not was_down:    # it was up last frame, down now
+        game.sound("jump")
+    was_down = down              # remember for next frame
+    game.frame()</pre>
+          <p>The mouse has this built in: <a href="../clicked/">game.clicked()</a> is <code>True</code> once per click, and on-screen <a href="../button/">game.button()</a> buttons work the same way.</p>
+        </section>
+
+        <section id="moving">
+          <h2>Diagonals and edges</h2>
+          <ul>
+            <li><strong>Diagonals:</strong> use a separate <code>if</code> for each arrow. With <code>elif</code>, only the first key that matches counts, so up and right together just goes up.</li>
+            <li><strong>Diagonals are a bit faster:</strong> moving 5 across and 5 up at once is about 7 pixels in a slanted line. In most games nobody notices. If yours is a race, that's a shortcut!</li>
+            <li><strong>Keeping on screen:</strong> <code>max(25, min(455, ship.x))</code> means "no smaller than 25, no bigger than 455". Use half the sprite's size as the gap, so it stops with its edge at the wall, not its middle.</li>
+            <li><strong>Wrapping round:</strong> for a space game, send it to the other side instead: <code>if ship.x &gt; 480: ship.x = 0</code>.</li>
+          </ul>
+        </section>
+
+        <section id="mistakes">
+          <h2>Why aren't my keys working?</h2>
+          <ul>
+            <li><strong>It's only checked once.</strong> <code>game.pressed()</code> must be <em>inside</em> the <code>while game.playing():</code> loop, so it is asked again every frame. Above the loop it is checked once, at the very start, when no key is down.</li>
+            <li><strong>The key name is wrong.</strong> It is <code>"space"</code>, not <code>" "</code>, and <code>"left"</code>, not <code>"arrowleft"</code> or <code>"leftarrow"</code>.</li>
+            <li><strong>I'm typing in a text box.</strong> Keys typed into a <code>game.textbox()</code> or any other box on the page go to that box, not the game. Click the game window, then try again.</li>
+            <li><strong>One press fires lots of times.</strong> That's the held-down behaviour. Use the "just went down" pattern above.</li>
+            <li><strong>It doesn't work on a phone.</strong> Phones have no arrow keys. Use the mouse and touch calls, like <a href="../clicked/">game.clicked()</a>, <code>game.mouse_x()</code>, or <a href="../button/">game.button()</a>, to add on-screen controls.</li>
+          </ul>
+        </section>
+
+        <section id="related">
+          <h2>Related</h2>
+          <div class="fn-related">
+            <a href="../clicked/">game.clicked()</a>
+            <a href="../button/">game.button()</a>
+            <a href="../frame/">game.frame()</a>
+            <a href="../sprite/">game.sprite()</a>
+            <a href="../touches/">sprite.touches()</a>
+          </div>
+          <p>New to making games? The <a href="../">game library guide</a> walks through a whole game step by step, and the <a href="../../#sec-game">reference</a> lists every game call.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>
