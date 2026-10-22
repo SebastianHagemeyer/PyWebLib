@@ -1653,8 +1653,19 @@
       '<img class="asset-card-pic" alt="" title="' + (mine ? "Click to edit" : "Click to remix a copy") + '" src="' + esc(dataUri(a.svg)) + '" />' +
       '<button type="button" class="asset-card-id" title="Copy the game.sprite line">#' + a.id + '</button>' +
       '<span class="asset-card-name"></span>' +
-      (mine ? '<button type="button" class="asset-card-del" title="Delete">×</button>' : "");
+      (mine ? '<button type="button" class="asset-card-del" title="Delete">×</button>' : "") +
+      // Admins get Rename / Delete on everyone else's, plus who made it.
+      (isAdmin && !mine ? '<span class="asset-card-by"></span>' +
+        '<span class="asset-card-mod">' +
+          '<button type="button" class="asset-mod-btn" data-act="rename" title="Rename this asset (admin)">Rename</button>' +
+          '<button type="button" class="asset-mod-btn" data-act="delete" title="Delete this asset (admin)">Delete</button>' +
+        "</span>" : "");
     el.querySelector(".asset-card-name").textContent = a.name || "untitled";
+    if (isAdmin && !mine) {
+      el.querySelector(".asset-card-by").textContent = "by " + ((a.profiles && a.profiles.display_name) || "unknown");
+      el.querySelector('[data-act="rename"]').addEventListener("click", function () { adminRenameAsset(a, el); });
+      el.querySelector('[data-act="delete"]').addEventListener("click", function () { adminDeleteAsset(a); });
+    }
     // Open the sprite in the editor: yours to edit, someone else's as a fresh
     // copy to remix and publish as your own.
     el.querySelector(".asset-card-pic").addEventListener("click", function () { loadIntoEditor(a, !mine); });
@@ -1723,6 +1734,36 @@
 
   // The little count pill on each library heading. It was called but never
   // defined, so loadLibrary threw half way: signed in, Community never loaded.
+  // ---- Admin moderation: rename / delete anyone's asset ----
+  // is_admin() is security-definer, so the page never reads the admins table.
+  // The library loads several times at start-up, so every load awaits the
+  // same check rather than the later ones racing ahead with isAdmin false.
+  let isAdmin = false, adminCheck = null;
+  // RLS doesn't error on a row you may not touch, it just changes nothing.
+  function modError(r) {
+    return r.error ? r.error.message
+      : "not allowed. Run supabase-migration-asset-moderation.sql in the Supabase SQL editor first.";
+  }
+  async function adminRenameAsset(a, el) {
+    const next = window.prompt("Rename asset #" + a.id + ":", a.name || "");
+    if (next == null) return;                     // cancelled
+    const name = next.trim().slice(0, 40);
+    if (!name || name === a.name) return;
+    const r = await sb.from("assets").update({ name: name, updated_at: new Date().toISOString() })
+      .eq("id", a.id).select("id");
+    if (r.error || !r.data || !r.data.length) { alert("Rename failed: " + modError(r)); return; }
+    a.name = name;
+    el.querySelector(".asset-card-name").textContent = name;
+    showMsg("Renamed #" + a.id + ".", true);
+  }
+  async function adminDeleteAsset(a) {
+    if (!confirm('Delete asset #' + a.id + ' "' + (a.name || "untitled") + '"? Games using it will lose it.')) return;
+    const r = await sb.from("assets").delete().eq("id", a.id).select("id");
+    if (r.error || !r.data || !r.data.length) { alert("Delete failed: " + modError(r)); return; }
+    showMsg("Deleted #" + a.id + ".", true);
+    loadLibrary();
+  }
+
   function setLibCount(id, n) {
     const el = document.getElementById(id);
     if (el) el.textContent = n ? String(n) : "";
@@ -1730,6 +1771,12 @@
   async function loadLibrary() {
     if (!PWL.configured || !sb) return;
     const user = PWL.auth && PWL.auth.user();
+    if (user) {
+      if (!adminCheck) adminCheck = sb.rpc("is_admin").then(
+        function (r) { isAdmin = !!(r && r.data === true); },
+        function () { isAdmin = false; });
+      await adminCheck;
+    }
     if (mineEl) {
       if (!user) { mineEl.innerHTML = '<p class="community-empty">Sign in to save and reuse your sprites.</p>'; }
       else {
@@ -1741,7 +1788,8 @@
       }
     }
     if (allEl) {
-      const r = await sb.from("assets").select("id,name,svg").order("created_at", { ascending: false }).limit(60);
+      const r = await sb.from("assets").select(isAdmin ? "id,name,svg,author_id,profiles(display_name)" : "id,name,svg")
+        .order("created_at", { ascending: false }).limit(60);
       allEl.innerHTML = "";
       allCards = [];
       if (r.error || !r.data || !r.data.length) {
