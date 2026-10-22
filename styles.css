@@ -209,6 +209,21 @@ img { max-width: 100%; display: block; }
 }
 .hero-tuck[open] > summary { margin-bottom: 16px; }
 .hero-tuck > .eyebrow { margin-top: 0; }
+/* Community: the "?" on the left and the search bar filling the rest of the
+   strip. Opening the "?" gives its text the whole width and drops the search
+   onto the next line. */
+.community-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 0 14px; }
+.community-strip > .hero-tuck { flex: none; }
+.community-strip > .hero-tuck > summary { margin: 0; }
+.community-strip > .hero-tuck[open] { flex-basis: 100%; padding-bottom: 0; }
+.community-search { flex: 1; min-width: 0; display: flex; gap: 8px; padding: 10px 0; }
+.hero-tuck[open] + .community-search { padding-bottom: 22px; }
+.community-search input {
+  flex: 1; min-width: 0; font: inherit; color: inherit;
+  padding: 7px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg);
+}
+.community-search input:focus { outline: none; border-color: var(--primary); }
+.community-search .btn { padding: 7px 18px; border-radius: 999px; }
 .page-hero h1 {
   font-size: clamp(1.8rem, 3.5vw, 2.6rem);
   margin: 8px 0 12px;

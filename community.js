@@ -27,6 +27,14 @@
   // work, not a feed: Trending's 7-day window hid anything older, so it skips
   // the tabs and shows everything, newest first.
   let sort = mineOnly ? "new" : "trending";
+  // Search box text, cleaned. "" means no search. Seeded from ?q= so a link
+  // like community/?q=chess opens already searched.
+  let search = cleanSearch(params.get("q") || "");
+  // PostgREST's or() filter is a comma list with parentheses, so those (and
+  // the wildcards) can't go in a term. Nobody searches for them anyway.
+  function cleanSearch(t) {
+    return String(t).replace(/[,()"\\*%]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+  }
   const TRENDING_DAYS = 7;   // how far back the Trending tab looks
   function sinceDaysAgo(days) {
     return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -193,6 +201,16 @@
     // it feel parasitic rather than promoted.
     pinned = await loadFeatured();
     if (seq !== refreshSeq) return;
+
+    // Search matches the title, the description, or the author's name. The
+    // name lives on profiles, which or() can't reach through the join, so
+    // look the matching authors up first and match on their ids.
+    let authorIds = [];
+    if (search) {
+      const pr = await sb.from("profiles").select("id").ilike("display_name", "%" + search + "%").limit(50);
+      authorIds = ((pr && pr.data) || []).map(function (r) { return r.id; });
+      if (seq !== refreshSeq) return;
+    }
     featured = page === 0 ? pinned : [];
 
     function build(withViews, withPub) {
@@ -204,7 +222,12 @@
         // On Top, featured posts have their own strip, so keep them out of the
         // paged list rather than printing the same card twice. On Trending and
         // New they stay in their natural spot like any other post.
-        if (featSupported && sort === "top") q = q.eq("featured", false);
+        if (featSupported && sort === "top" && !search) q = q.eq("featured", false);
+      }
+      if (search) {
+        const like = "*" + search + "*";
+        q = q.or("title.ilike." + like + ",description.ilike." + like +
+          (authorIds.length ? ",author_id.in.(" + authorIds.join(",") + ")" : ""));
       }
       // New and Trending go by when a post went PUBLIC, not when it was first
       // saved, so a draft polished for weeks still lands on page one the day
@@ -217,7 +240,9 @@
       } else {
         // Trending is Top with a window on it: only what was shared in the last
         // week, so a new hit isn't buried under the all-time favourites.
-        if (sort === "trending") q = q.gte(when, sinceDaysAgo(TRENDING_DAYS));
+        // A search looks through everything, or "chess" on Trending would
+        // miss every chess game older than a week.
+        if (sort === "trending" && !search) q = q.gte(when, sinceDaysAgo(TRENDING_DAYS));
         // Top: most upvotes first; ties broken by most views, then newest.
         q = q.order("vote_count", { ascending: false });
         if (withViews) q = q.order("view_count", { ascending: false });
@@ -265,7 +290,7 @@
   // pins. Fetched on every page of Top even though only page one shows them,
   // because the count is what the paging is shifted by.
   async function loadFeatured() {
-    if (mineOnly || !featSupported || sort !== "top") return [];
+    if (mineOnly || !featSupported || sort !== "top" || search) return [];
     function run(withViews) {
       let q = sb.from("projects").select(cols(withViews, pubSupported, true)).eq("featured", true);
       if (pubSupported) q = q.eq("published", true);
@@ -310,7 +335,9 @@
     if (!projects.length) {
       const note = document.createElement("p");
       note.className = "community-empty";
-      note.textContent = mineOnly
+      note.textContent = search
+        ? 'Nothing matches "' + search + '". Try a shorter word, or another spelling.'
+        : mineOnly
         ? "You haven't shared anything yet. Open the Playground and hit Share."
         : sort === "trending"
           ? "Nothing new shared in the last " + TRENDING_DAYS + " days. Try Top for the all-time favourites."
@@ -696,6 +723,30 @@
       refresh();
     });
   });
+
+  // ---- Search ----
+  // Filters as you type (after a short pause), or straight away on Enter.
+  const searchForm = document.getElementById("community-search");
+  if (searchForm) {
+    const box = searchForm.querySelector("input");
+    box.value = search;
+    let timer = 0;
+    function apply() {
+      clearTimeout(timer);
+      const next = cleanSearch(box.value);
+      if (next === search) return;
+      search = next;
+      page = 0;
+      // Keep ?q= in the address bar so a search can be shared or reloaded.
+      const u = new URL(location.href);
+      if (search) u.searchParams.set("q", search); else u.searchParams.delete("q");
+      history.replaceState(null, "", u);
+      refresh();
+    }
+    box.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(apply, 350); });
+    searchForm.addEventListener("submit", function (e) { e.preventDefault(); apply(); });
+    if (mineOnly) box.placeholder = "Search your programs";
+  }
 
   // Re-fetch when auth changes (to light up the user's own votes).
   document.addEventListener("pwl:auth", refresh);
