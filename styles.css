@@ -224,6 +224,13 @@ img { max-width: 100%; display: block; }
 }
 .community-search input:focus { outline: none; border-color: var(--primary); }
 .community-search .btn { padding: 7px 18px; border-radius: 999px; }
+.asset-search { display: flex; gap: 8px; margin: 4px 0 14px; max-width: 520px; }
+.asset-search input {
+  flex: 1; min-width: 0; font: inherit; color: inherit;
+  padding: 7px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg);
+}
+.asset-search input:focus { outline: none; border-color: var(--primary); }
+.asset-search .btn { padding: 7px 18px; border-radius: 999px; }
 .page-hero h1 {
   font-size: clamp(1.8rem, 3.5vw, 2.6rem);
   margin: 8px 0 12px;

@@ -43,21 +43,21 @@
   // just-fits import over the database's limit.
   const MAX_IMPORT_CHARS = MAX_ASSET_CHARS - 500;
 
+  // Community assets are paged on the server, so every asset ever published can
+  // be reached, not just the newest few. A search narrows it by name, #number
+  // or maker.
   const ASSETS_PER_PAGE = 20;
-  let allCards = [];      // every community tile, in order, page or not
   let assetPage = 0;
+  let assetTotal = 0;
   let assetPager = null;
+  let assetSearch = "";
+  let assetLoadId = 0;    // only the newest request may draw, so typing fast can't show stale results
 
-  function assetPageCount() { return Math.max(1, Math.ceil(allCards.length / ASSETS_PER_PAGE)); }
+  function assetPageCount() { return Math.max(1, Math.ceil(assetTotal / ASSETS_PER_PAGE)); }
 
   function showAssetPage(n) {
-    const pages = assetPageCount();
-    assetPage = Math.max(0, Math.min(pages - 1, n == null ? assetPage : n));
-    const from = assetPage * ASSETS_PER_PAGE, to = from + ASSETS_PER_PAGE;
-    for (let i = 0; i < allCards.length; i++) {
-      allCards[i].hidden = (i < from || i >= to);
-    }
-    renderAssetPager();
+    assetPage = Math.max(0, Math.min(assetPageCount() - 1, n));
+    loadCommunityAssets();
   }
 
   function renderAssetPager() {
@@ -68,7 +68,7 @@
       assetPager.setAttribute("aria-label", "Community asset pages");
       allEl.parentNode.insertBefore(assetPager, allEl.nextSibling);
     }
-    if (allCards.length <= ASSETS_PER_PAGE) {   // one page: no pager at all
+    if (assetTotal <= ASSETS_PER_PAGE) {   // one page: no pager at all
       assetPager.hidden = true;
       assetPager.innerHTML = "";
       return;
@@ -78,11 +78,69 @@
     assetPager.innerHTML =
       '<button type="button" class="cc-page-btn" data-page="prev"' + (assetPage === 0 ? " disabled" : "") + ">Previous</button>" +
       '<span class="cc-page-info">Page ' + (assetPage + 1) + " of " + pages +
-        " &middot; " + allCards.length + " assets</span>" +
+        " &middot; " + assetTotal + " assets</span>" +
       '<button type="button" class="cc-page-btn" data-page="next"' + (assetPage >= pages - 1 ? " disabled" : "") + ">Next</button>";
     assetPager.querySelector('[data-page="prev"]').addEventListener("click", function () { showAssetPage(assetPage - 1); });
     assetPager.querySelector('[data-page="next"]').addEventListener("click", function () { showAssetPage(assetPage + 1); });
   }
+
+  // Characters that would break a PostgREST or() filter are dropped.
+  function cleanAssetSearch(t) {
+    return String(t).replace(/[,()"\\*%]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+  }
+
+  async function loadCommunityAssets() {
+    if (!allEl || !sb) return;
+    const myLoad = ++assetLoadId;
+    const from = assetPage * ASSETS_PER_PAGE;
+    let q = sb.from("assets")
+      .select(isAdmin ? "id,name,svg,author_id,profiles(display_name)" : "id,name,svg", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, from + ASSETS_PER_PAGE - 1);
+    if (assetSearch) {
+      // "#185" or "185" finds that asset; any word matches names and makers.
+      const num = /^#?(\d{1,9})$/.exec(assetSearch);
+      const ors = ["name.ilike.*" + assetSearch + "*"];
+      if (num) ors.push("id.eq." + num[1]);
+      const people = await sb.from("profiles").select("id").ilike("display_name", "%" + assetSearch + "%").limit(50);
+      if (myLoad !== assetLoadId) return;
+      const ids = (people.data || []).map(function (p) { return p.id; });
+      if (ids.length) ors.push("author_id.in.(" + ids.join(",") + ")");
+      q = q.or(ors.join(","));
+    }
+    const r = await q;
+    if (myLoad !== assetLoadId) return;
+    allEl.innerHTML = "";
+    assetTotal = (!r.error && r.count) || 0;
+    if (r.error || !r.data || !r.data.length) {
+      allEl.innerHTML = '<p class="community-empty">' + (assetSearch
+        ? "No assets match “" + esc(assetSearch) + "”. Try a shorter word, or an asset number."
+        : "No community assets yet. Be the first!") + "</p>";
+    } else {
+      r.data.forEach(function (a) { allEl.appendChild(card(a, false)); });
+    }
+    renderAssetPager();
+    if (!assetSearch) setLibCount("asset-all-count", assetTotal);
+  }
+
+  // The search box above the community grid. Typing waits a moment before it
+  // asks the server, and Enter searches straight away.
+  (function wireAssetSearch() {
+    const form = document.getElementById("asset-search");
+    if (!form) return;
+    const input = form.querySelector("input");
+    let timer = null;
+    function go() {
+      clearTimeout(timer);
+      const next = cleanAssetSearch(input.value);
+      if (next === assetSearch) return;
+      assetSearch = next;
+      assetPage = 0;
+      loadCommunityAssets();
+    }
+    input.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(go, 350); });
+    form.addEventListener("submit", function (e) { e.preventDefault(); go(); });
+  })();
 
   const PALETTE = ["#4f46e5", "#ef4444", "#f59e0b", "#ffd43b", "#22c55e", "#14b8a6",
                    "#3b82f6", "#a855f7", "#ec4899", "#78350f", "#ffffff", "#111827"];
@@ -1787,24 +1845,7 @@
         setLibCount("asset-mine-count", (!r.error && r.data) ? r.data.length : 0);
       }
     }
-    if (allEl) {
-      const r = await sb.from("assets").select(isAdmin ? "id,name,svg,author_id,profiles(display_name)" : "id,name,svg")
-        .order("created_at", { ascending: false }).limit(60);
-      allEl.innerHTML = "";
-      allCards = [];
-      if (r.error || !r.data || !r.data.length) {
-        allEl.innerHTML = '<p class="community-empty">No community assets yet. Be the first!</p>';
-      } else {
-        // Build every tile once; showAssetPage decides which are on screen.
-        r.data.forEach(function (a) {
-          const el = card(a, false);
-          allCards.push(el);
-          allEl.appendChild(el);
-        });
-      }
-      showAssetPage(0);
-      setLibCount("asset-all-count", allCards.length);
-    }
+    if (allEl) await loadCommunityAssets();
   }
 
   // A tiny, forgiving reader that turns our own saved SVG back into shapes so an
