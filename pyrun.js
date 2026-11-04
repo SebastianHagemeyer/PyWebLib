@@ -74,7 +74,7 @@
 import builtins as _b
 def _pyrun_install_input():
     import sys
-    from pyodide.ffi import run_sync
+    from _pyrun_stop import run_sync
     from _sandbox_io import readLine
     def input(prompt=""):
         sys.stdout.flush()
@@ -101,7 +101,7 @@ del _pyrun_install_input, _b
   const PY_PATCH_SLEEP = `
 def _pyrun_install_sleep():
     import time, sys
-    from pyodide.ffi import run_sync
+    from _pyrun_stop import run_sync
     from _sandbox_io import sleepMs
     def _yielding_sleep(seconds):
         sys.stdout.flush()
@@ -113,30 +113,37 @@ _pyrun_install_sleep()
 del _pyrun_install_sleep
 `;
 
+  // Stop, without a trace hook. This used to be sys.settrace(), which calls a
+  // Python function on every line, call and return of the program: it made a
+  // collision-heavy game about 7x slower. It bought almost nothing, because on
+  // the main thread the Stop click can only be handled while Python is parked
+  // in one of our waits (input, sleep, a turtle pause, frame()), and every one
+  // of those goes through run_sync. So run_sync itself checks, on the way out.
+  // It raises StoppedByUser, a BaseException, so it slips past an
+  // "except Exception:" in the program (the rejection's JsException would not).
+  // NOT KeyboardInterrupt: asyncio re-raises that one out of the task, where
+  // nothing awaits it, and it surfaces as an unhandled page error. Any other
+  // BaseException just fails the run's task, which run() reports as
+  // [stopped] (it matches "Stopped by user"). (The worker runtime also has
+  // Pyodide's interrupt buffer, which stops plain number-crunching loops.)
+  // Installed FIRST: the input, sleep, turtle and game installs import it.
   const PY_INSTALL_INTERRUPT = `
 def _pyrun_install_interrupt():
-    import sys
+    import sys, types
+    import pyodide.ffi as _ffi
     from _sandbox_io import shouldStop
-    counter = [0]
-    def trace(frame, event, arg):
-        counter[0] += 1
-        if counter[0] >= 500:
-            counter[0] = 0
-            # Never raise inside the event loop's own machinery. settrace is
-            # global, so the counter can trip while the interpreter is deep in
-            # pyodide's webloop scheduling a callback. The KeyboardInterrupt
-            # then lands in an asyncio Handle that nobody awaits: it escapes as
-            # an unhandled promise rejection, runPythonAsync never settles, and
-            # the run's finally block never runs, so Stop stays stuck as Stop
-            # and the program can't be started again without a reload.
-            # User code is what we want to interrupt, and it is never in here.
-            name = frame.f_code.co_filename
-            if "webloop" in name or "/asyncio/" in name:
-                return trace
+    class StoppedByUser(BaseException):
+        pass
+    def run_sync(awaitable):
+        try:
+            return _ffi.run_sync(awaitable)   # looked up each call: the worker swaps it
+        finally:
             if shouldStop():
-                raise KeyboardInterrupt("Stopped by user")
-        return trace
-    sys.settrace(trace)
+                raise StoppedByUser("Stopped by user") from None
+    mod = types.ModuleType("_pyrun_stop")
+    mod.StoppedByUser = StoppedByUser
+    mod.run_sync = run_sync
+    sys.modules["_pyrun_stop"] = mod
 _pyrun_install_interrupt()
 del _pyrun_install_interrupt
 `;
@@ -185,7 +192,7 @@ def _pyrun_install_turtle():
 
     _animate_ok = bool(_io.animateOk())
     if _animate_ok:
-        from pyodide.ffi import run_sync
+        from _pyrun_stop import run_sync
 
     S = {}
 
@@ -403,7 +410,7 @@ def _pyrun_install_game():
     import _game_io as _io
     _jspi = bool(_io.jspiOk())
     if _jspi:
-        from pyodide.ffi import run_sync
+        from _pyrun_stop import run_sync
 
     W = {"w": 480, "h": 360, "bg": "#0b1020", "score": 0, "over": None,
          "debug": False, "clicks": 0, "tick": 0}
@@ -1275,7 +1282,7 @@ def _pyrun_install_game3d():
     import _game3d_io as _io
     _jspi = bool(_io.jspiOk())
     if _jspi:
-        from pyodide.ffi import run_sync
+        from _pyrun_stop import run_sync
 
     S = {"bg": "#8ec5f0", "tick": 0, "next_id": 0}
     _objs = []
@@ -2737,7 +2744,7 @@ del _pyrun_install_net
     mouseIn: function () { return gameMouse.inside; },
     mouseDown: function () { return gameMouse.down; },
     mouseClicks: function () { return gameMouse.clicks; },
-    nextFrame: function (seconds) { return interruptibleSleep(seconds); },
+    nextFrame: function (seconds) { return interruptibleSleep(frameWait(seconds)); },
     saveImage: function (which, name, ask) { saveGamePicture(which, name, !!ask); },
     copyImage: function (which) { copyGamePicture(which); },
     draw: function (json, isReplay) {
@@ -3102,7 +3109,7 @@ del _pyrun_install_net
   }
   const GAME3D_IO = {
     jspiOk: function () { return jspiSupported(); },
-    nextFrame: function (seconds) { return interruptibleSleep(seconds); },
+    nextFrame: function (seconds) { return interruptibleSleep(frameWait(seconds)); },
     pressed: function (key) { return Boolean(gameKeys[String(key).toLowerCase()]); },
     reset: function () {
       lastG3dScene = null;
@@ -3515,6 +3522,22 @@ del _pyrun_install_net
     });
   }
 
+  /* How long frame(fps) should still wait, in seconds. It used to sleep a full
+   * 1/fps AFTER the frame's work and drawing, so 5 ms of work at frame(60)
+   * gave ~40 fps and even an empty loop couldn't reach 60. Now each frame is
+   * due one period after the last, and only the time left is waited. More than
+   * a whole frame behind (a slow frame, a paused tab) resyncs rather than
+   * bursting to catch up. A wait of 0 still goes through setTimeout, so the
+   * page keeps getting its turn every frame. The worker runtime has a twin. */
+  let nextFrameDue = 0;
+  function frameWait(seconds) {
+    const period = Math.max(0, seconds * 1000), now = performance.now();
+    if (nextFrameDue < now - period) nextFrameDue = now;
+    const wait = Math.max(0, nextFrameDue - now);
+    nextFrameDue += period;
+    return wait / 1000;
+  }
+
   function interruptibleSleep(seconds) {
     return new Promise(function (resolve, reject) {
       const timer = setTimeout(function () {
@@ -3531,11 +3554,9 @@ del _pyrun_install_net
   const SANDBOX_IO = {
     readLine: readLineInteractive,
     sleepMs: interruptibleSleep,
-    shouldStop: function () {
-      if (!stopRequested) return false;
-      stopRequested = false;
-      return true;
-    },
+    // Stays true until the run ends (finalizeRun clears it), so a program that
+    // catches one KeyboardInterrupt is stopped again at its very next wait.
+    shouldStop: function () { return stopRequested; },
     clearOutput: function () {
       if (active) active.opts.output.innerHTML = "";
     },
@@ -3574,7 +3595,7 @@ del _pyrun_install_net
         workerReadyResolve = resolve;
         w.postMessage({
           type: "init", sab: workerMem.sab, interrupt: workerMem.interrupt,
-          installs: [PY_INSTALL_INPUT, PY_PATCH_SLEEP, PY_INSTALL_INTERRUPT, PY_INSTALL_CLEAR, PY_INSTALL_COLOR_PRINT, PY_INSTALL_TURTLE, PY_INSTALL_GAME, PY_INSTALL_GAME3D, PY_INSTALL_NET],
+          installs: [PY_INSTALL_INTERRUPT, PY_INSTALL_INPUT, PY_PATCH_SLEEP, PY_INSTALL_CLEAR, PY_INSTALL_COLOR_PRINT, PY_INSTALL_TURTLE, PY_INSTALL_GAME, PY_INSTALL_GAME3D, PY_INSTALL_NET],
           netId: (window.PWL && window.PWL.net) ? window.PWL.net.id : "",
           netAvailable: !!(window.PWL && window.PWL.net && window.PWL.net.available())
         });
@@ -3682,9 +3703,9 @@ del _pyrun_install_net
       py.registerJsModule("_game3d_io", GAME3D_IO);
       py.registerJsModule("_net_io", NET_IO);
       const useJspi = jspiSupported();
+      await py.runPythonAsync(PY_INSTALL_INTERRUPT);
       await py.runPythonAsync(useJspi ? PY_INSTALL_INPUT : PY_DISABLE_INPUT);
       if (useJspi) await py.runPythonAsync(PY_PATCH_SLEEP);
-      await py.runPythonAsync(PY_INSTALL_INTERRUPT);
       await py.runPythonAsync(PY_INSTALL_CLEAR);
       await py.runPythonAsync(PY_INSTALL_COLOR_PRINT);
       await py.runPythonAsync(PY_INSTALL_TURTLE);

@@ -32,6 +32,16 @@ function post(io, op, args) { self.postMessage({ t: "io", io: io, op: op, args: 
 // Park the worker for `ms`, waking early if the main thread bumps the SLEEP slot
 // (a stop). Reading the value first makes it race-safe: if it already changed,
 // Atomics.wait returns immediately.
+// frame(fps) waits only for what is left of the frame, not a full 1/fps on
+// top of the work (see frameWait in pyrun.js, which this mirrors).
+let nextFrameDue = 0;
+function frameWaitMs(seconds) {
+  const period = Math.max(0, seconds * 1000), now = performance.now();
+  if (nextFrameDue < now - period) nextFrameDue = now;
+  const wait = Math.max(0, nextFrameDue - now);
+  nextFrameDue += period;
+  return wait;
+}
 function blockSleep(ms) {
   const v = Atomics.load(mem.ctrl, CTRL.SLEEP);
   Atomics.wait(mem.ctrl, CTRL.SLEEP, v, Math.max(0, ms | 0));
@@ -112,7 +122,7 @@ const GAME_IO = {
   mouseIn: function () { return Atomics.load(mem.ctrl, CTRL.MIN) === 1; },
   mouseDown: function () { return Atomics.load(mem.ctrl, CTRL.MDOWN) === 1; },
   mouseClicks: function () { return Atomics.load(mem.ctrl, CTRL.MCLICKS); },
-  nextFrame: function (seconds) { blockSleep(seconds * 1000); },
+  nextFrame: function (seconds) { blockSleep(frameWaitMs(seconds)); },
   // Every canvas lives on the main thread, so saving is just a message: no
   // OffscreenCanvas, and no blob has to be handed back across the boundary.
   saveImage: function (which, name, ask) { post("g", "saveImage", [String(which), String(name), !!ask]); },
@@ -140,7 +150,7 @@ const GAME_IO = {
 // blocking and the live input work exactly like the 2D game's.
 const GAME3D_IO = {
   jspiOk: function () { return true; },   // run_sync is a passthrough here
-  nextFrame: function (seconds) { blockSleep(seconds * 1000); },
+  nextFrame: function (seconds) { blockSleep(frameWaitMs(seconds)); },
   pressed: function (key) { return Atomics.load(mem.ctrl, self.PRProto.keyIndex(key)) === 1; },
   reset: function () { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("d", "reset", []); },
   draw: function (json) { post("d", "draw", [String(json)]); }
@@ -181,7 +191,16 @@ const NET_IO = {
 const SANDBOX_IO = {
   readLine: function (prompt) { return blockInput(prompt); },
   sleepMs: function (seconds) { blockSleep(seconds * 1000); },
-  shouldStop: function () { return Atomics.load(mem.ctrl, CTRL.STOP) === 1; },
+  // Asked at every wait (run_sync in PY_INSTALL_INTERRUPT), which then ends the
+  // program itself. So withdraw the interrupt-buffer signal Stop also raised:
+  // left pending, it fires later inside asyncio's own clean-up of the run,
+  // which then never settles and strands the button on Stop. The buffer is
+  // only needed for loops that never wait, and those never get here.
+  shouldStop: function () {
+    if (Atomics.load(mem.ctrl, CTRL.STOP) !== 1) return false;
+    mem.interruptView[0] = 0;
+    return true;
+  },
   clearOutput: function () { post("s", "clearOutput", []); },
   writeColored: function (text, color) { post("s", "writeColored", [String(text), String(color)]); }
 };
