@@ -116,6 +116,12 @@ const GAME_IO = {
     if (id == null || id === "") return "";
     return assetInks[String(id)] || "";
   },
+  // Measured right here on an OffscreenCanvas (pyrun-proto.js), no round trip.
+  // The fallback covers a browser still holding an older cached pyrun-proto.js.
+  textWidth: function (text, size) {
+    if (self.PRProto && self.PRProto.textWidth) return self.PRProto.textWidth(text, size);
+    return String(text).length * (Number(size) || 20) * 0.6;
+  },
   pressed: function (key) { return Atomics.load(mem.ctrl, self.PRProto.keyIndex(key)) === 1; },
   mouseX: function () { return Atomics.load(mem.ctrl, CTRL.MX); },
   mouseY: function () { return Atomics.load(mem.ctrl, CTRL.MY); },

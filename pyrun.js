@@ -465,6 +465,8 @@ def _pyrun_install_game():
             # A custom collision box (width, height), or None to auto-size it
             # from the art. Set it with sprite.hitbox = (w, h).
             self._hitbox = kw.get("hitbox", None)
+            self._tw_key = None     # what the label's text box was last measured for
+            self._tw = (0.0, 0.0)
             self.visible = True
             self._anim = None
             self._anim_every = 6
@@ -572,10 +574,31 @@ def _pyrun_install_game():
                     w, h = dw * ink[2], dh * ink[3]
                 else:
                     w, h = self.size * 0.8, self.size * 0.8   # until the art loads
+            elif self.kind == "text":
+                # A label: the box the text is really drawn in, pill included.
+                w, h = self._text_wh()
             else:
-                # emoji/text: a slightly-smaller-than-size box feels fair.
+                # emoji: a slightly-smaller-than-size box feels fair.
                 w, h = self.size * 0.8, self.size * 0.8
             return w * abs(self.scale_x), h * abs(self.scale_y)
+
+        def _text_wh(self):
+            # A label's drawn size. The width is measured by the browser in the
+            # same font the label is drawn in (_io.textWidth), so a click
+            # anywhere on the text, or on its background pill, counts. It used
+            # to be an emoji-sized square in the middle: about 10 x 10 px for a
+            # size 12 label, so most clicks on a label button missed.
+            # Re-measured only when the text, size or background changes.
+            size = self.size or 20
+            key = (self._display, size, bool(self.background))
+            if key != self._tw_key:
+                w = float(_io.textWidth(self._display, size))
+                h = float(size)
+                if self.background:
+                    w += 16          # the pill's padding: 8 px each side,
+                    h += 10          # 5 px top and bottom (see the draw code)
+                self._tw_key, self._tw = key, (w, h)
+            return self._tw
 
         def _local_offset(self):
             # Where the middle of the art sits relative to the anchor, in the
@@ -2606,6 +2629,11 @@ del _pyrun_install_net
     // The art's width/height, so Python can give an asset a collision box the
     // same shape as the thing you can see. 1 until the art has loaded, which is
     // the old square-box behaviour, and it corrects itself on the next frame.
+    // A label's drawn text width, so its collision box matches what you see.
+    textWidth: function (text, size) {
+      if (window.PRProto && window.PRProto.textWidth) return window.PRProto.textWidth(text, size);
+      return String(text).length * (Number(size) || 20) * 0.6;
+    },
     assetRatio: function (id) {
       if (id == null || id === "") return 1;
       var key = String(id);

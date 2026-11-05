@@ -55,7 +55,42 @@
     return CTRL.KEYS + 46;                                        // misc bucket
   }
 
+  // How wide a game.label() is drawn, in pixels, so its collision box (and so
+  // at_mouse() and touches()) covers the text you can see. It measures with the
+  // browser's own text measurer and the SAME font string the drawing code uses
+  // ("bold <size>px system-ui, sans-serif" in pyrun.js), so the two agree to the
+  // pixel. Lives here because this file is loaded on the page AND in the worker:
+  // the page measures on a spare canvas, the worker on an OffscreenCanvas. Only
+  // a browser with neither falls back to an estimate. Cached per (size, text),
+  // so a score label that changes every frame measures each new value once.
+  const TEXT_W = new Map();
+  let measureCtx;
+  function textWidth(text, size) {
+    text = String(text);
+    size = Number(size) || 20;
+    const key = size + "|" + text;
+    let w = TEXT_W.get(key);
+    if (w !== undefined) return w;
+    if (measureCtx === undefined) {
+      measureCtx = null;
+      try {
+        if (typeof document !== "undefined") measureCtx = document.createElement("canvas").getContext("2d");
+        else if (typeof OffscreenCanvas !== "undefined") measureCtx = new OffscreenCanvas(1, 1).getContext("2d");
+      } catch (e) { measureCtx = null; }
+    }
+    if (measureCtx) {
+      measureCtx.font = "bold " + size + "px system-ui, sans-serif";
+      w = measureCtx.measureText(text).width;
+    } else {
+      w = text.length * size * 0.6;   // rough average for bold system-ui
+    }
+    if (TEXT_W.size > 2000) TEXT_W.clear();   // a ticking timer label can't grow it forever
+    TEXT_W.set(key, w);
+    return w;
+  }
+
   g.PRProto = {
+    textWidth: textWidth,
     CTRL: CTRL,
     CTRL_INTS: CTRL_INTS,
     STR_OFF: STR_OFF,
