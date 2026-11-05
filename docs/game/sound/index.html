@@ -185,10 +185,10 @@ while game.playing():
     score = score + 1
     game.sound("coin")        # once, because the coin moves away straight after
     coin.y = 0</pre>
-          <p>Never play it on <strong>every frame</strong>. The loop runs 30 times a second, so this plays 30 laser sounds a second for as long as the key is held, and they pile into one ugly buzz:</p>
+          <p>Never play it on <strong>every frame</strong>. The loop runs 60 times a second, so this plays 60 laser sounds a second for as long as the key is held, and they pile into one ugly buzz:</p>
           <pre class="guide-code language-python">while game.playing():
     if game.pressed("space"):
-        game.sound("laser")   # 30 lasers a second!
+        game.sound("laser")   # 60 lasers a second!
     game.frame()</pre>
           <p>Fix it by playing the sound only when the key <em>goes</em> down, like the sound board does with <code>was_down</code>, or by adding a short wait (a cool-down) between shots.</p>
           <p>Need a sound that keeps going, like a car engine or a siren that rises and falls? That's <code>game.tone()</code>, which starts a sound that keeps playing until you stop it, and you can change its pitch every frame.</p>

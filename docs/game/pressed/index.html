@@ -162,7 +162,7 @@ while game.playing():
 
         <section id="held">
           <h2>Held down, or once per press?</h2>
-          <p><code>game.pressed()</code> is <code>True</code> for <strong>every frame</strong> the key is held. At 30 frames a second, holding a key for one second makes it <code>True</code> 30 times. That is perfect for walking and steering, but not for things that should happen <strong>once</strong>, like firing, jumping, or pausing.</p>
+          <p><code>game.pressed()</code> is <code>True</code> for <strong>every frame</strong> the key is held. At 60 frames a second, holding a key for one second makes it <code>True</code> 60 times. That is perfect for walking and steering, but not for things that should happen <strong>once</strong>, like firing, jumping, or pausing.</p>
           <p>For once per press, remember whether the key was down last frame, and only act when it has <em>just</em> gone down:</p>
           <pre class="guide-code language-python">was_down = False                 # before the loop
 

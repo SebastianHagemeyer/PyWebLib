@@ -126,7 +126,7 @@ game.game_over("Score: " + str(score) + "\nBest: " + str(best))</pre>
           <h2>Why isn't my save working?</h2>
           <ul>
             <li><strong>It's back to 0 every run.</strong> You load it, but never call <code>game.save()</code> when the value changes. Or the key is spelled differently in the two places: <code>"coins"</code> and <code>"Coins"</code> are different keys.</li>
-            <li><strong>I put <code>game.save()</code> at the bottom of the loop.</strong> That saves the same value 30 times a second, again and again. It works, but it's wasted effort. Save only when something actually changes, like in the example above.</li>
+            <li><strong>I put <code>game.save()</code> at the bottom of the loop.</strong> That saves the same value 60 times a second, again and again. It works, but it's wasted effort. Save only when something actually changes, like in the example above.</li>
             <li><strong>I get <code>None</code> and then an error.</strong> You left out the default. Write <code>game.load("coins", 0)</code>, not <code>game.load("coins")</code>, so <code>coins + 1</code> works the very first time.</li>
             <li><strong>It says it can't store something.</strong> <code>game.save()</code> only takes numbers, text, <code>True</code>/<code>False</code>, and lists and dictionaries of those. A sprite or a set can't be saved: save its numbers instead, like <code>player.x</code>.</li>
             <li><strong>My dictionary's number keys came back as text.</strong> A saved dictionary always comes back with text keys, so <code>{1: "gold"}</code> loads as <code>{"1": "gold"}</code>. Use text keys from the start.</li>

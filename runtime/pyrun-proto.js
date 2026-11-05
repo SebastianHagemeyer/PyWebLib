@@ -31,7 +31,13 @@
     TEXTSEQ: 13,     // game UI (textbox/button): bumped on each submit/click event
     TEXTLEN: 14,     // UTF-8 byte length of the recent-events JSON, held in STR
     KEYS: 16,        // key states live at KEYS .. KEYS+NKEYS-1 (1 = down)
-    NKEYS: 48
+    NKEYS: 48,
+    // Right mouse button, after the key table (KEYS .. KEYS+NKEYS-1 = 16..63).
+    // Code that writes these must check they exist first: a browser still
+    // holding an older copy of this file has no such keys, and
+    // Atomics.store(ctrl, undefined, ...) would write to slot 0 (SLEEP).
+    MRDOWN: 64,      // 1 while the right button is held over the game
+    MRCLICKS: 65     // counts up on each right-click, like MCLICKS
   };
   const CTRL_INTS = 128;                 // 512 bytes of Int32 control
   const STR_OFF = CTRL_INTS * 4;         // input-string byte region starts here

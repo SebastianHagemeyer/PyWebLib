@@ -73,7 +73,7 @@ def play_round():
     coin = game.sprite("coin", random.randint(30, 450), 0, size=36)
     board = game.label("Score: 0", 70, 24)
     score = 0
-    frames = 10 * 30                # 10 seconds at 30 frames a second
+    frames = 10 * 60                # 10 seconds at 60 frames a second
     while game.playing() and frames &gt; 0:
         if game.pressed("left"):
             basket.x = basket.x - 8

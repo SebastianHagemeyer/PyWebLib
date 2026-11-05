@@ -29,8 +29,9 @@
 
         <section id="signature">
           <h2>How to write it</h2>
-          <code class="fn-sig">game.clicked()</code>
-          <p>It takes nothing. It gives back <code>True</code> <strong>once</strong> for each new click on the game window, then <code>False</code> until the player clicks again. One click, one action.</p>
+          <code class="fn-sig">game.clicked(button="left")</code>
+          <p>It gives back <code>True</code> <strong>once</strong> for each new click on the game window, then <code>False</code> until the player clicks again. One click, one action.</p>
+          <p>Leave the brackets empty for the left button, which is what you want almost every time. <code>game.clicked("right")</code> is a right-click (see <a href="#right">Right-click</a> below).</p>
           <p>It comes with a few mouse friends:</p>
           <dl class="fn-params">
             <div>
@@ -43,7 +44,7 @@
             </div>
             <div>
               <dt>game.mouse_down()</dt>
-              <dd><code>True</code> the whole time the mouse button is <strong>held</strong> down, every frame. Like <code>game.pressed()</code>, but for the mouse.</dd>
+              <dd><code>True</code> the whole time the mouse button is <strong>held</strong> down, every frame. Like <code>game.pressed()</code>, but for the mouse. <code>game.mouse_down("right")</code> is the right button.</dd>
             </div>
             <div>
               <dt>game.mouse_in()</dt>
@@ -112,6 +113,23 @@ while game.playing():
     game.frame()</pre>
           <p><button type="button" class="btn btn-primary" data-load="ex-paint">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
           <p>Use <code>game.mouse_down()</code> to pop balloons and one long press would pop every balloon the pointer drifts over. Use <code>game.clicked()</code> to paint and you'd only get one dot per click.</p>
+        </section>
+
+        <section id="right">
+          <h2>Right-click</h2>
+          <p>Give the button's name to tell the two apart: <code>game.clicked("right")</code> for a right-click, and <code>game.clicked()</code> (or <code>game.clicked("left")</code>, which is the same) for a left one. <code>game.mouse_down("right")</code> works the same way. While your game is running, right-clicking it doesn't open the browser's menu, so the click is all yours.</p>
+          <pre class="guide-code language-python" id="ex-right">import game
+
+game.window(480, 360, background="#ffffff")
+
+while game.playing():
+    if game.clicked():                   # left-click: a red dot
+        game.plot(game.mouse_x(), game.mouse_y(), "#e11d48", size=12)
+    if game.clicked("right"):            # right-click: a blue dot
+        game.plot(game.mouse_x(), game.mouse_y(), "#2563eb", size=12)
+    game.frame()</pre>
+          <p><button type="button" class="btn btn-primary" data-load="ex-right">Try it in the Playground <svg class="btn-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h9M8 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></p>
+          <p>Left and right are counted separately, so asking about one never uses up the other. Phones and tablets have no right button: a tap is always a left click, so if your game needs right-click, give phone players another way to do the same thing.</p>
         </section>
 
         <section id="how">

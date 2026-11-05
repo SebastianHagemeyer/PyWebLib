@@ -1345,9 +1345,9 @@ pet.x = game.mouse_x()
 pet.y = game.mouse_y()
 ```
 
-### `game.clicked()`
+### `game.clicked(button="left")`
 
-True once per fresh click on the game window, then False until the next click. One tap, one action: great for buttons and menus.
+True once per fresh click on the game window, then False until the next click. One tap, one action: great for buttons and menus. game.clicked("right") is a right-click.
 
 Full page: https://play.pyweblib.org/docs/game/clicked/
 
@@ -1356,9 +1356,9 @@ if plant.at_mouse() and game.clicked():
     plant.size = plant.size + 10
 ```
 
-### `game.mouse_down()`
+### `game.mouse_down(button="left")`
 
-True while the mouse button is held, like pressed() but for the mouse.
+True while the mouse button is held, like pressed() but for the mouse. game.mouse_down("right") is the right button.
 
 ```python
 if game.mouse_down():
@@ -1438,15 +1438,15 @@ while game.playing():
     game.frame()
 ```
 
-### `game.frame(fps=30)`
+### `game.frame(fps=60)`
 
-Draw one frame and wait. Put it at the end of the loop. It runs at 30 frames a second by default; try game.frame(60) for extra-smooth motion. Things then move twice as far each second, so halve your step sizes to keep the same speed.
+Draw one frame and wait. Put it at the end of the loop. It runs at 60 frames a second by default. A lower number like game.frame(30) means fewer frames, so things move half as far each second: double your step sizes to keep the same speed.
 
 Full page: https://play.pyweblib.org/docs/game/frame/
 
 ```python
-game.frame()      # smooth
-game.frame(60)    # even smoother
+game.frame()      # 60 a second
+game.frame(30)    # 30 a second
 ```
 
 ### `game.game_over(message, retry=False)`

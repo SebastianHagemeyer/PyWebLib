@@ -413,7 +413,7 @@ def _pyrun_install_game():
         from _pyrun_stop import run_sync
 
     W = {"w": 480, "h": 360, "bg": "#0b1020", "score": 0, "over": None,
-         "debug": False, "clicks": 0, "tick": 0}
+         "debug": False, "clicks": 0, "rclicks": 0, "tick": 0}
     _sprites = []
     # Ink: marks stamped onto a layer that is NOT wiped between frames, unlike
     # sprites. Each entry is a short list (an op letter plus its numbers) that
@@ -686,7 +686,7 @@ def _pyrun_install_game():
                 "Games need Chrome or Edge in this sandbox. Open this page there to play."
             )
         W["w"] = int(width); W["h"] = int(height); W["score"] = 0; W["over"] = None
-        W["clicks"] = 0
+        W["clicks"] = 0; W["rclicks"] = 0   # _io.setup zeroes the browser's counts too
         if background is not None:
             W["bg"] = str(background)
         _io.setup(W["w"], W["h"], W["bg"])
@@ -1029,16 +1029,27 @@ def _pyrun_install_game():
         # True while the pointer is over the game window.
         return bool(_io.mouseIn())
 
-    def mouse_down():
-        # True while the mouse button is held, like pressed() but for clicks.
-        return bool(_io.mouseDown())
+    def _mouse_button(button):
+        b = str(button).lower()
+        if b not in ("left", "right"):
+            raise ValueError('the mouse button is "left" or "right", not ' + repr(button))
+        return b
 
-    def clicked():
+    def mouse_down(button="left"):
+        # True while the mouse button is held, like pressed() but for clicks.
+        # mouse_down("right") is the right button. A finger or pen is "left".
+        return bool(_io.mouseDown(_mouse_button(button)))
+
+    def clicked(button="left"):
         # True once per fresh click on the game window, then False until the
         # next click. Use it for buttons and menus so one tap fires one action.
-        cur = int(_io.mouseClicks())
-        if cur != W["clicks"]:
-            W["clicks"] = cur
+        # clicked("right") is a right-click. Left and right are counted
+        # separately, so asking about one never uses up the other.
+        b = _mouse_button(button)
+        key = "clicks" if b == "left" else "rclicks"
+        cur = int(_io.mouseClicks(b))
+        if cur != W[key]:
+            W[key] = cur
             return True
         return False
 
@@ -1204,7 +1215,10 @@ def _pyrun_install_game():
                              "sprites": arr, "banner": shown, "ink": ink,
                              "debug": W["debug"]}))
 
-    def frame(fps=30):
+    def frame(fps=60):
+        # 60 by default, the refresh rate of nearly every screen. It was 30
+        # until November 2026, so an older game written for game.frame()
+        # runs twice as fast now; game.frame(30) brings it back.
         W["tick"] += 1
         _draw()
         if _jspi:
@@ -1852,7 +1866,9 @@ del _pyrun_install_net
   // converted from screen pixels to game coordinates, so a CSS-scaled canvas
   // still reports the numbers the game logic uses. clicks only ever counts up;
   // the Python side notices it changing to fire game.clicked() once per press.
-  let gameMouse = { x: 0, y: 0, inside: false, down: false, clicks: 0 };
+  // down/clicks are the LEFT button (and every touch or pen tap); rdown/rclicks
+  // the right one, for game.clicked("right") and game.mouse_down("right").
+  let gameMouse = { x: 0, y: 0, inside: false, down: false, clicks: 0, rdown: false, rclicks: 0 };
   function gameMouseTrack(e) {
     if (!gameActive()) return;
     const c = gameCtx();
@@ -1873,21 +1889,64 @@ del _pyrun_install_net
       Atomics.store(c, K.MIN, gameMouse.inside ? 1 : 0);
     }
   }
-  window.addEventListener("pointermove", gameMouseTrack);
+  // A press of one button. e.button is 0 for the left button and for every
+  // touch or pen tap, 2 for the right button. Middle (1) and the side buttons
+  // are ignored.
+  function gamePress(e) {
+    const K = window.PRProto && window.PRProto.CTRL, c = workerMem && workerMem.ctrl;
+    if (e.button === 0) {
+      gameMouse.down = true;
+      gameMouse.clicks += 1;
+      if (c) { Atomics.store(c, K.MDOWN, 1); Atomics.add(c, K.MCLICKS, 1); }
+    } else if (e.button === 2) {
+      gameMouse.rdown = true;
+      gameMouse.rclicks += 1;
+      // An older cached pyrun-proto.js has no right-button slots; see there.
+      if (c && K.MRCLICKS != null) { Atomics.store(c, K.MRDOWN, 1); Atomics.add(c, K.MRCLICKS, 1); }
+    }
+  }
+  // Let go of whichever buttons e.buttons says are no longer held. This only
+  // ever releases: a press has to start over the game to count.
+  function gameRelease(e) {
+    const held = e.type === "pointercancel" ? 0 : (e.buttons || 0);
+    const K = window.PRProto && window.PRProto.CTRL, c = workerMem && workerMem.ctrl;
+    if (!(held & 1) && gameMouse.down) {
+      gameMouse.down = false;
+      if (c) Atomics.store(c, K.MDOWN, 0);
+    }
+    if (!(held & 2) && gameMouse.rdown) {
+      gameMouse.rdown = false;
+      if (c && K.MRDOWN != null) Atomics.store(c, K.MRDOWN, 0);
+    }
+  }
+  window.addEventListener("pointermove", function (e) {
+    gameMouseTrack(e);
+    // Pressing a second button while one is held is not a pointerdown: the
+    // browser sends a pointermove with e.button set to the button that
+    // changed. Without this, a right-click while holding left was lost.
+    if ((e.button === 0 || e.button === 2) && (e.buttons & (e.button === 0 ? 1 : 2)) &&
+        gameActive() && gameMouse.inside) {
+      gamePress(e);
+    }
+    gameRelease(e);
+  });
   window.addEventListener("pointerdown", function (e) {
     gameMouseTrack(e);
     if (!gameActive() || !gameMouse.inside) return;
-    gameMouse.down = true;
-    gameMouse.clicks += 1;
-    if (workerMem) {
-      const K = window.PRProto.CTRL, c = workerMem.ctrl;
-      Atomics.store(c, K.MDOWN, 1);
-      Atomics.add(c, K.MCLICKS, 1);
-    }
+    gamePress(e);
   });
-  window.addEventListener("pointerup", function () {
-    gameMouse.down = false;
-    if (workerMem) Atomics.store(workerMem.ctrl, window.PRProto.CTRL.MDOWN, 0);
+  window.addEventListener("pointerup", gameRelease);
+  window.addEventListener("pointercancel", gameRelease);
+  // No browser menu over a running game, so right-click (and a long press on a
+  // phone) belongs to the game. Everywhere else, and on a stopped game, the
+  // menu works as normal ("Save image as" and all). Text boxes keep theirs,
+  // for paste.
+  window.addEventListener("contextmenu", function (e) {
+    gameMouseTrack(e);
+    if (!gameActive() || !gameMouse.inside) return;
+    const t = e.target;
+    if (t && t.closest && t.closest("input, textarea, [contenteditable]")) return;
+    e.preventDefault();
   });
 
   // ---- Fullscreen games. A full-viewport CSS overlay is the workhorse (the ONLY
@@ -2660,7 +2719,7 @@ del _pyrun_install_net
       GAME_IO.uiReset();
       gameKeys = {};
       gamePlaying = true;
-      gameMouse.down = false; gameMouse.clicks = 0;
+      gameMouse.down = false; gameMouse.clicks = 0; gameMouse.rdown = false; gameMouse.rclicks = 0;
       // Back to the Python module's default window (_reset_all does the same to
       // W), so a game that never calls game.window() can't inherit the last
       // game's coordinate space.
@@ -2751,7 +2810,7 @@ del _pyrun_install_net
     setup: function (w, h, bg) {
       gamePlaying = true;
       gameKeys = {};
-      gameMouse.down = false; gameMouse.clicks = 0;
+      gameMouse.down = false; gameMouse.clicks = 0; gameMouse.rdown = false; gameMouse.rclicks = 0;
       const c = gameCtx();
       if (!c) return;
       // The requested size is the game's coordinate space; fitGameCanvas turns it
@@ -2780,8 +2839,8 @@ del _pyrun_install_net
     mouseX: function () { return gameMouse.x; },
     mouseY: function () { return gameMouse.y; },
     mouseIn: function () { return gameMouse.inside; },
-    mouseDown: function () { return gameMouse.down; },
-    mouseClicks: function () { return gameMouse.clicks; },
+    mouseDown: function (which) { return which === "right" ? gameMouse.rdown : gameMouse.down; },
+    mouseClicks: function (which) { return which === "right" ? gameMouse.rclicks : gameMouse.clicks; },
     nextFrame: function (seconds) { return interruptibleSleep(frameWait(seconds)); },
     saveImage: function (which, name, ask) { saveGamePicture(which, name, !!ask); },
     copyImage: function (which) { copyGamePicture(which); },
@@ -3619,6 +3678,7 @@ del _pyrun_install_net
     for (let i = 0; i < K.NKEYS; i++) Atomics.store(c, K.KEYS + i, 0);
     Atomics.store(c, K.MX, 0); Atomics.store(c, K.MY, 0);
     Atomics.store(c, K.MDOWN, 0); Atomics.store(c, K.MCLICKS, 0); Atomics.store(c, K.MIN, 0);
+    if (K.MRCLICKS != null) { Atomics.store(c, K.MRDOWN, 0); Atomics.store(c, K.MRCLICKS, 0); }
     Atomics.store(c, K.TEXTSEQ, 0); Atomics.store(c, K.TEXTLEN, 0);
   }
   function ensureWorker() {

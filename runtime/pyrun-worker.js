@@ -79,7 +79,16 @@ const GAME_IO = {
   stop: function () { Atomics.store(mem.ctrl, CTRL.PLAYING, 0); },
   restart: function () { Atomics.store(mem.ctrl, CTRL.RESTART, 1); },
   reset: function () { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("g", "reset", []); },
-  setup: function (w, h, bg) { Atomics.store(mem.ctrl, CTRL.PLAYING, 1); post("g", "setup", [w, h, bg]); },
+  setup: function (w, h, bg) {
+    Atomics.store(mem.ctrl, CTRL.PLAYING, 1);
+    // game.window() zeroes its click counts, as the page's setup does for the
+    // other runtime. Left alone, the next clicked() after window() saw the old
+    // count as a fresh click: a game that builds each level with window() got
+    // a phantom click every time.
+    Atomics.store(mem.ctrl, CTRL.MCLICKS, 0);
+    if (CTRL.MRCLICKS != null) Atomics.store(mem.ctrl, CTRL.MRCLICKS, 0);
+    post("g", "setup", [w, h, bg]);
+  },
   setCursor: function (hidden) { post("g", "setCursor", [hidden]); },
   fullscreen: function (on) { post("g", "fullscreen", [!!on]); },
   submitScore: function (points) { post("g", "submitScore", [points]); },
@@ -126,8 +135,16 @@ const GAME_IO = {
   mouseX: function () { return Atomics.load(mem.ctrl, CTRL.MX); },
   mouseY: function () { return Atomics.load(mem.ctrl, CTRL.MY); },
   mouseIn: function () { return Atomics.load(mem.ctrl, CTRL.MIN) === 1; },
-  mouseDown: function () { return Atomics.load(mem.ctrl, CTRL.MDOWN) === 1; },
-  mouseClicks: function () { return Atomics.load(mem.ctrl, CTRL.MCLICKS); },
+  // which is "left" or "right". The right slots are missing from an older
+  // cached pyrun-proto.js; then the right button just reads as never pressed.
+  mouseDown: function (which) {
+    if (which === "right") return CTRL.MRDOWN != null && Atomics.load(mem.ctrl, CTRL.MRDOWN) === 1;
+    return Atomics.load(mem.ctrl, CTRL.MDOWN) === 1;
+  },
+  mouseClicks: function (which) {
+    if (which === "right") return CTRL.MRCLICKS != null ? Atomics.load(mem.ctrl, CTRL.MRCLICKS) : 0;
+    return Atomics.load(mem.ctrl, CTRL.MCLICKS);
+  },
   nextFrame: function (seconds) { blockSleep(frameWaitMs(seconds)); },
   // Every canvas lives on the main thread, so saving is just a message: no
   // OffscreenCanvas, and no blob has to be handed back across the boundary.

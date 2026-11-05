@@ -92,11 +92,11 @@
           <h2>How to write it</h2>
           <code class="fn-sig">while game.playing():
     ...
-    game.frame(fps=30)</code>
+    game.frame(fps=60)</code>
           <dl class="fn-params">
             <div>
               <dt>fps</dt>
-              <dd>Optional. <strong>Frames per second</strong>: how many pictures to draw each second. Leave it out and you get <code>30</code>. Try <code>60</code> for extra-smooth motion. Decimals are rounded down, and the smallest it goes is <code>1</code>.</dd>
+              <dd>Optional. <strong>Frames per second</strong>: how many pictures to draw each second. Leave it out and you get <code>60</code>, which matches nearly every screen. A lower number like <code>30</code> draws fewer pictures. Decimals are rounded down, and the smallest it goes is <code>1</code>.</dd>
             </div>
           </dl>
           <p><code>game.frame()</code> gives nothing back. <code>game.playing()</code> takes nothing and gives back <code>True</code> while the game is running, and <code>False</code> once it has ended.</p>
@@ -140,10 +140,10 @@ while game.playing():
 
         <section id="how">
           <h2>Why every game needs this loop</h2>
-          <p>A game is like a flip-book. Each time round the loop you change things a tiny bit (move the player, check for a crash), then <code>game.frame()</code> shows the new picture. Do that 30 times a second and it looks like smooth motion.</p>
+          <p>A game is like a flip-book. Each time round the loop you change things a tiny bit (move the player, check for a crash), then <code>game.frame()</code> shows the new picture. Do that 60 times a second and it looks like smooth motion.</p>
           <ul>
             <li><strong><code>game.frame()</code> draws.</strong> Sprites only appear on the screen when it runs. Changing <code>hero.x</code> does nothing you can see until the next frame.</li>
-            <li><strong><code>game.frame()</code> waits.</strong> After drawing, it pauses for a moment (1/30 of a second by default). That pause gives the browser time to read the keys and the mouse, and to keep the page working.</li>
+            <li><strong><code>game.frame()</code> waits.</strong> After drawing, it pauses for a moment (1/60 of a second by default). That pause gives the browser time to read the keys and the mouse, and to keep the page working.</li>
             <li><strong><code>game.playing()</code> knows when to stop.</strong> It turns <code>False</code> when you press <strong>Stop</strong> or when <a href="../game-over/">game.game_over()</a> ends the game, so the loop finishes cleanly.</li>
             <li><strong>Put <code>game.frame()</code> last</strong>, at the bottom of the loop, after all your moving and checking.</li>
           </ul>
@@ -158,7 +158,7 @@ while game.playing():
             <li>6 pixels a frame at 60 fps is <code>6 &times; 60 = 360</code> pixels a second: twice as fast!</li>
             <li>3 pixels a frame at 60 fps is back to 180 pixels a second, but smoother.</li>
           </ul>
-          <p>So if you switch to <code>game.frame(60)</code>, halve your step sizes. A low number like <code>game.frame(10)</code> makes a jerky, retro look, good for a snake game that moves one square at a time.</p>
+          <p>So if you go from <code>game.frame(30)</code> to <code>game.frame(60)</code>, halve your step sizes. An older game that suddenly runs twice as fast was written when the default was 30: change its <code>game.frame()</code> to <code>game.frame(30)</code>. A low number like <code>game.frame(10)</code> makes a jerky, retro look, good for a snake game that moves one square at a time.</p>
           <p>The fps is a target, not a promise. A game doing lots of work each frame runs a little slower than the number you ask for, so never use frames to time something exactly to the second.</p>
         </section>
 

@@ -152,7 +152,7 @@ while game.playing():
         if score % 5 == 0:
             speed = speed + 1
             news.show()
-            news_timer = 30     # 30 frames = 1 second
+            news_timer = 60     # 60 frames = 1 second
     if egg.y &gt; 380:
         lives = lives - 1
         lives_label.content = "Lives: " + str(lives)
