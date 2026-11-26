@@ -52,6 +52,8 @@
   let assetPager = null;
   let assetSearch = "";
   let assetLoadId = 0;    // only the newest request may draw, so typing fast can't show stale results
+  let votesOn = null;     // null until we know; false when the asset-votes migration hasn't run
+  let votedAssets = new Set();   // ids the signed-in person has upvoted
 
   function assetPageCount() { return Math.max(1, Math.ceil(assetTotal / ASSETS_PER_PAGE)); }
 
@@ -93,10 +95,18 @@
     if (!allEl || !sb) return;
     const myLoad = ++assetLoadId;
     const from = assetPage * ASSETS_PER_PAGE;
-    let q = sb.from("assets")
-      .select(isAdmin ? "id,name,svg,author_id,profiles(display_name)" : "id,name,svg", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(from, from + ASSETS_PER_PAGE - 1);
+    // Every card says who made it (and links to them), so the maker always
+    // comes along. vote_count and remix_of only exist once
+    // supabase-migration-asset-votes.sql has run: until then, ask without them.
+    const COLS = "id,name,svg,author_id,profiles!author_id(display_name)";
+    const build = function (withVotes) {
+      return sb.from("assets")
+        .select(COLS + (withVotes ? ",vote_count,remix_of" : ""), { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, from + ASSETS_PER_PAGE - 1);
+    };
+    let assetOr = null;
+    const withOr = function (q) { return assetOr ? q.or(assetOr) : q; };
     if (assetSearch) {
       // "#185" or "185" finds that asset; any word matches names and makers.
       const num = /^#?(\d{1,9})$/.exec(assetSearch);
@@ -106,10 +116,22 @@
       if (myLoad !== assetLoadId) return;
       const ids = (people.data || []).map(function (p) { return p.id; });
       if (ids.length) ors.push("author_id.in.(" + ids.join(",") + ")");
-      q = q.or(ors.join(","));
+      assetOr = ors.join(",");
     }
-    const r = await q;
+    // Decided per request: start-up fires several loads at once, and a sibling
+    // finding out first must not stop this one retrying its own failure.
+    let asked = votesOn !== false;
+    let r = await withOr(build(asked));
+    if (r.error && asked && /vote_count|remix_of/i.test(r.error.message || "")) {
+      votesOn = false; asked = false;
+      r = await withOr(build(false));
+    }
     if (myLoad !== assetLoadId) return;
+    if (!r.error && r.data && r.data.length && asked) {
+      votesOn = true;
+      await markVoted(r.data);
+      if (myLoad !== assetLoadId) return;
+    }
     allEl.innerHTML = "";
     assetTotal = (!r.error && r.count) || 0;
     if (r.error || !r.data || !r.data.length) {
@@ -157,6 +179,7 @@
   let showFrame = true;   // draw the box the artwork actually fills
   const history = [];     // JSON snapshots for undo
   let editingId = null;   // the asset id we're updating, or null for a new one
+  let remixOf = null;     // the asset this drawing was copied from, saved with a new publish
   let pathPts = [];        // vertices of the path currently being drawn
   let importedSvg = null;  // an uploaded SVG, published as-is (not shape-based)
   let recent = [];
@@ -1262,7 +1285,7 @@
         // switch can then trace it onto the pixel grid if that's what you want.
         const fromPixels = mode === "pixels";
         if (fromPixels) setMode("shapes");
-        importedSvg = clean; shapes = []; setSel([]); pathPts = []; editingId = null;
+        importedSvg = clean; shapes = []; setSel([]); pathPts = []; editingId = null; forgetSource();
         if (!nameInput.value) nameInput.value = (f.name || "sprite").replace(/\.svg$/i, "").slice(0, 40);
         setPublishLabel(); render();
         showMsg((fromPixels ? "Switched to Shapes mode for the import (flip back to Pixels to trace it onto the grid). " : "") +
@@ -1455,11 +1478,11 @@
   document.getElementById("asset-clear").addEventListener("click", function () {
     if (mode === "pixels") {
       if (!hasArt()) return;
-      snapshot(); px = { n: px.n, cells: blankCells(px.n) }; editingId = null; setPublishLabel(); render();
+      snapshot(); px = { n: px.n, cells: blankCells(px.n) }; editingId = null; forgetSource(); setPublishLabel(); render();
       return;
     }
     if (!shapes.length && !importedSvg) return;
-    snapshot(); shapes = []; setSel([]); editingId = null; importedSvg = null; pathPts = []; setPublishLabel(); render();
+    snapshot(); shapes = []; setSel([]); editingId = null; forgetSource(); importedSvg = null; pathPts = []; setPublishLabel(); render();
   });
 
   // ---- copy / duplicate / paste + right-click menu ----------------------------
@@ -1694,7 +1717,14 @@
     if (editingId) {
       res = await sb.from("assets").update({ name: name, svg: svg, updated_at: new Date().toISOString() }).eq("id", editingId).select("id").single();
     } else {
-      res = await sb.from("assets").insert({ author_id: user.id, name: name, svg: svg }).select("id").single();
+      const row = { author_id: user.id, name: name, svg: svg };
+      if (remixOf && votesOn !== false) row.remix_of = remixOf;
+      res = await sb.from("assets").insert(row).select("id").single();
+      // A database without the remix_of column still publishes, just uncredited.
+      if (res.error && row.remix_of && /remix_of/i.test(res.error.message || "")) {
+        delete row.remix_of;
+        res = await sb.from("assets").insert(row).select("id").single();
+      }
     }
     publishBtn.disabled = false;
     if (res.error) { showMsg("Couldn't save: " + res.error.message, false); return; }
@@ -1712,15 +1742,20 @@
       '<button type="button" class="asset-card-id" title="Copy the game.sprite line">#' + a.id + '</button>' +
       '<span class="asset-card-name"></span>' +
       (mine ? '<button type="button" class="asset-card-del" title="Delete">×</button>' : "") +
-      // Admins get Rename / Delete on everyone else's, plus who made it.
-      (isAdmin && !mine ? '<span class="asset-card-by"></span>' +
-        '<span class="asset-card-mod">' +
+      (!mine ? '<a class="asset-card-by pwl-user-link"></a>' : "") +
+      // Admins get Rename / Delete on everyone else's.
+      (isAdmin && !mine ? '<span class="asset-card-mod">' +
           '<button type="button" class="asset-mod-btn" data-act="rename" title="Rename this asset (admin)">Rename</button>' +
           '<button type="button" class="asset-mod-btn" data-act="delete" title="Delete this asset (admin)">Delete</button>' +
         "</span>" : "");
     el.querySelector(".asset-card-name").textContent = a.name || "untitled";
+    if (!mine) {
+      const by = el.querySelector(".asset-card-by");
+      by.textContent = "by " + ((a.profiles && a.profiles.display_name) || "Someone");
+      if (a.author_id) { by.href = "../user/?id=" + encodeURIComponent(a.author_id); by.title = "See everything they've made"; }
+    }
+    if (votesOn && PWL.assetVotes && typeof a.vote_count === "number") el.appendChild(PWL.assetVotes.button(a, votedAssets));
     if (isAdmin && !mine) {
-      el.querySelector(".asset-card-by").textContent = "by " + ((a.profiles && a.profiles.display_name) || "unknown");
       el.querySelector('[data-act="rename"]').addEventListener("click", function () { adminRenameAsset(a, el); });
       el.querySelector('[data-act="delete"]').addEventListener("click", function () { adminDeleteAsset(a); });
     }
@@ -1753,10 +1788,64 @@
     if (/\sd\s*=\s*["'][^"']*[CcSsQqTtAa]/.test(svg)) return false;   // path curves
     return true;
   }
+  // ---- credit: whose art you're looking at ----
+  // Opening someone else's sprite says whose it is (linked to their page), and
+  // a remix carries that credit with it when it's published (assets.remix_of).
+  const creditEl = document.getElementById("asset-credit");
+  let creditSeq = 0;      // a slow lookup must not paint over a newer credit
+  function hideCredit() {
+    creditSeq++;
+    if (creditEl) { creditEl.hidden = true; creditEl.innerHTML = ""; }
+  }
+  function forgetSource() { remixOf = null; hideCredit(); }
+  function creditRow(label, a) {
+    const row = document.createElement("p");
+    row.className = "asset-credit-row";
+    const lab = document.createElement("span");
+    lab.className = "asset-credit-label";
+    lab.textContent = label;
+    const what = document.createElement("span");
+    what.className = "asset-credit-what";
+    what.textContent = "“" + (a.name || "untitled") + "” #" + a.id + " by ";
+    const who = document.createElement(a.author_id ? "a" : "span");
+    who.className = "pwl-user-link";
+    who.textContent = (a.profiles && a.profiles.display_name) || "Someone";
+    if (a.author_id) { who.href = "../user/?id=" + encodeURIComponent(a.author_id); who.title = "See everything they've made"; }
+    what.appendChild(who);
+    row.appendChild(lab); row.appendChild(what);
+    return row;
+  }
+  function fetchAssetInfo(id) {
+    return sb.from("assets").select("id,name,author_id,profiles!author_id(display_name)").eq("id", id).maybeSingle()
+      .then(function (r) { return (r && r.data) || null; }, function () { return null; });
+  }
+  async function showCredit(a, asTemplate) {
+    hideCredit();
+    if (!creditEl || !sb) return;
+    const mine = creditSeq;
+    if (asTemplate) {
+      let info = a;
+      if (!a.profiles && a.author_id) info = (await fetchAssetInfo(a.id)) || a;
+      if (mine !== creditSeq) return;
+      creditEl.appendChild(creditRow("Art by", info));
+      creditEl.hidden = false;
+    }
+    if (a.remix_of) {
+      const parent = await fetchAssetInfo(a.remix_of);
+      if (mine !== creditSeq || !parent) return;
+      creditEl.appendChild(creditRow(asTemplate ? "Based on" : "Remix of", parent));
+      creditEl.hidden = false;
+    }
+  }
+
   function loadIntoEditor(a, asTemplate) {
     snapshot();
     setSel([]); pathPts = [];
     editingId = asTemplate ? null : a.id;   // a remix publishes as a NEW asset
+    // A remix credits the asset it came from. Editing your own keeps whatever
+    // it was already a remix of.
+    remixOf = asTemplate ? a.id : (a.remix_of || null);
+    showCredit(a, asTemplate);
     // A pixel sprite reopens as pixels; anything else opens in Shapes mode.
     const grid = parsePixelSvg(a.svg);
     if (grid) {
@@ -1826,8 +1915,15 @@
     const el = document.getElementById(id);
     if (el) el.textContent = n ? String(n) : "";
   }
+  // One set for both lists, so your own sprite shows the same arrow in Your
+  // assets and in Community. Each button keeps a reference to it.
+  async function markVoted(rows) {
+    const got = await PWL.assetVotes.mine(rows.map(function (a) { return a.id; }));
+    got.forEach(function (id) { votedAssets.add(id); });
+  }
   async function loadLibrary() {
     if (!PWL.configured || !sb) return;
+    votedAssets = new Set();   // signing out must not leave arrows lit
     const user = PWL.auth && PWL.auth.user();
     if (user) {
       if (!adminCheck) adminCheck = sb.rpc("is_admin").then(
@@ -1838,7 +1934,12 @@
     if (mineEl) {
       if (!user) { mineEl.innerHTML = '<p class="community-empty">Sign in to save and reuse your sprites.</p>'; }
       else {
-        const r = await sb.from("assets").select("id,name,svg").eq("author_id", user.id).order("created_at", { ascending: false });
+        let r = await sb.from("assets").select("id,name,svg,vote_count,remix_of").eq("author_id", user.id).order("created_at", { ascending: false });
+        if (r.error) r = await sb.from("assets").select("id,name,svg").eq("author_id", user.id).order("created_at", { ascending: false });
+        if (!r.error && r.data && r.data.length && PWL.assetVotes.supported(r.data)) {
+          votesOn = true;
+          await markVoted(r.data);
+        }
         mineEl.innerHTML = "";
         if (r.error || !r.data || !r.data.length) mineEl.innerHTML = '<p class="community-empty">No assets yet. Draw one above and publish it.</p>';
         else r.data.forEach(function (a) { mineEl.appendChild(card(a, true)); });
@@ -2057,7 +2158,21 @@
   renderRecent();
   setPublishLabel();
   reflectImport();
+  // /assets/?remix=<id>, from a creator page: open that sprite. Yours opens to
+  // edit, anyone else's as a credited copy to remix.
+  async function openFromLink() {
+    const id = Number(new URLSearchParams(location.search).get("remix"));
+    if (!id || id < 1) return;
+    let r = await sb.from("assets").select("id,name,svg,author_id,remix_of,profiles!author_id(display_name)").eq("id", id).maybeSingle();
+    if (r.error) r = await sb.from("assets").select("id,name,svg,author_id,profiles!author_id(display_name)").eq("id", id).maybeSingle();
+    if (r.error || !r.data) { showMsg("Couldn't find asset #" + id + ". It may have been deleted.", false); return; }
+    let me = null;
+    try { const s = await sb.auth.getSession(); me = s && s.data && s.data.session && s.data.session.user; } catch (e) {}
+    // Undo still goes back to whatever draft was on the canvas before.
+    loadIntoEditor(r.data, !(me && me.id === r.data.author_id));
+  }
   if (PWL.configured && sb) {
+    openFromLink();
     loadLibrary();
     if (PWL.auth && PWL.auth.onChange) PWL.auth.onChange(function () { loadLibrary(); });
   }

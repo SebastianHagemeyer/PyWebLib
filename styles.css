@@ -1709,6 +1709,57 @@ body.sandbox-maxed { overflow: hidden; }
 .asset-mod-btn { border: 1px solid var(--danger); color: var(--danger); background: none; border-radius: 999px; font: inherit; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; cursor: pointer; }
 .asset-mod-btn:hover { background: var(--danger-bg); }
 
+/* An author's name anywhere on the site opens their creator page (/user/). */
+.pwl-user-link { color: inherit; font-weight: 600; text-decoration: none; }
+.pwl-user-link:hover { color: var(--primary); text-decoration: underline; }
+a.asset-card-by { color: var(--muted); font-weight: 500; }
+a.asset-card-by:hover { color: var(--primary); }
+.asset-card-link { display: block; line-height: 0; }
+
+/* The updoot on an asset card: one arrow and a count, no downvote. */
+.asset-vote {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+  border-radius: 999px; padding: 2px 9px 2px 7px; font: inherit; font-size: 0.72rem; font-weight: 700;
+  cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.asset-vote-arrow { display: inline-flex; transition: transform 0.12s ease; }
+.asset-vote-arrow svg { display: block; }
+.asset-vote:hover { border-color: var(--primary); color: var(--primary); }
+.asset-vote:hover .asset-vote-arrow { transform: translateY(-1px); }
+.asset-vote.voted { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* Under Undo / Clear: whose art is on the canvas. */
+.asset-credit {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 9px 11px; border: 1px solid var(--border); border-left: 3px solid var(--primary);
+  border-radius: 10px; background: var(--surface); font-size: 0.82rem;
+}
+.asset-credit[hidden] { display: none; }
+.asset-credit-row { margin: 0; overflow-wrap: anywhere; color: var(--text); }
+.asset-credit-label { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+
+/* ===== Creator page (/user/?id=) ===== */
+.up-head { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.up-avatar-big { width: 64px; height: 64px; font-size: 1.4rem; }
+.up-name { margin: 0; font-size: 1.8rem; }
+.up-stats { margin: 2px 0 0; color: var(--muted); }
+.up-section { margin-top: 28px; }
+.up-section h2 { margin: 0 0 12px; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+.up-section h2 .asset-lib-count { margin-left: 0; }
+a.lb-name { font-weight: 700; }
+.up-programs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.up-programs .community-empty { grid-column: 1 / -1; text-align: center; }
+.up-prog {
+  display: flex; flex-direction: column; overflow: hidden; color: inherit; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+}
+.up-prog:hover { border-color: var(--primary); }
+.up-prog .cc-thumb { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.up-prog-body { display: flex; align-items: center; gap: 8px; padding: 9px 11px; }
+.up-prog-title { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.up-prog-votes { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); font-size: 0.8rem; font-weight: 700; }
+
 .asset-download {
   display: inline-flex;
   align-items: center;

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creator | PyWebLib</title>
+  <meta name="description" content="A PyWebLib creator's page: the Python programs and sprite assets they have shared with the community." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#4f46e5" />
+  <!-- Inline and blocking on purpose. The theme has to be on <html> before the
+       stylesheet paints, or a dark-mode visitor gets a white flash on every
+       single page load. Anything loaded with the other scripts is far too late.
+       Kept to the one decision; theme.js owns the rest. -->
+  <script>
+    try {
+      var t = localStorage.getItem("pwl-theme");
+      if (!t || t === "system") {
+        t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="stylesheet" href="../styles.css" />
+  <!-- Canonical, Open Graph and Twitter tags, written by build.mjs from the
+       page's own title, description and card. See social() there. -->
+  <link rel="canonical" href="https://play.pyweblib.org/user/" />
+  <meta name="robots" content="noindex, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="PyWebLib" />
+  <meta property="og:url" content="https://play.pyweblib.org/user/" />
+  <meta property="og:title" content="Creator | PyWebLib" />
+  <meta property="og:description" content="A PyWebLib creator's page: the Python programs and sprite assets they have shared with the community." />
+  <meta property="og:image" content="https://play.pyweblib.org/assets/og/og-community.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Python programs shared by the PyWebLib community." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Creator | PyWebLib" />
+  <meta name="twitter:description" content="A PyWebLib creator's page: the Python programs and sprite assets they have shared with the community." />
+  <meta name="twitter:image" content="https://play.pyweblib.org/assets/og/og-community.png" />
+  <meta name="twitter:image:alt" content="Python programs shared by the PyWebLib community." />
+
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-mark" src="/favicon.svg?v=3" alt="" width="32" height="32" />
+        <span>PyWebLib</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="header-link" href="/">Playground</a>
+        <div class="nav-dd">
+          <a class="header-link" href="/community/">Community<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <div class="nav-dd-menu">
+            <a href="/assets/">Assets</a>
+            <a href="/leaderboard/">Leaderboard</a>
+          </div>
+        </div>
+        <div class="nav-dd">
+          <a class="header-link" href="/about/">About<svg class="nav-caret" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <div class="nav-dd-menu">
+            <a href="/docs/">Docs</a>
+            <a href="/docs/guide/">Guide</a>
+            <a href="/docs/turtle/">Turtle guide</a>
+            <a href="/docs/game/">Game guide</a>
+            <a href="/docs/net/">Multiplayer guide</a>
+          </div>
+        </div>
+        <span id="pwl-account" class="pwl-account" data-root="../"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container section">
+      <p class="community-notice" id="up-notice" hidden></p>
+      <div class="up-view" id="up-view" hidden>
+        <header class="up-head">
+          <span class="up-avatar" id="up-avatar"></span>
+          <div>
+            <h1 class="up-name" id="up-name"></h1>
+            <p class="up-stats" id="up-stats"></p>
+          </div>
+        </header>
+
+        <section class="up-section">
+          <h2>Programs<span class="asset-lib-count" id="up-prog-count"></span></h2>
+          <div class="up-programs" id="up-programs"><p class="community-empty">Loading…</p></div>
+        </section>
+
+        <section class="up-section">
+          <h2>Assets<span class="asset-lib-count" id="up-asset-count"></span></h2>
+          <div class="asset-grid" id="up-assets"><p class="community-empty">Loading…</p></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>PyWebLib: real Python in your browser, powered by
+        <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>. MIT licensed.
+        &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
+    </div>
+  </footer>
+
+  <script src="../theme.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script src="../auth.js"></script>
+  <script src="../sprites.js"></script>
+  <script src="../preview.js"></script>
+  <script src="../asset-votes.js"></script>
+  <script src="../user.js"></script>
+
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "418c9dadd19b4d168004f4e47076039c"}'></script>
+</body>
+</html>

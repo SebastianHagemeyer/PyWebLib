@@ -78,6 +78,11 @@
     return '<span class="pwl-avatar sm"><svg class="pwl-avatar-person" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4.2"/><path d="M12 14.4c-4.3 0-7.8 2.7-7.8 6.1V24h15.6v-3.5c0-3.4-3.5-6.1-7.8-6.1z"/></svg>' + photo + "</span>";
   }
   function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
+  // A name that opens the person's creator page, with everything they've made.
+  function nameLink(profile, uid) {
+    if (!uid) return nameOf(profile);
+    return '<a class="pwl-user-link" href="../user/?id=' + encodeURIComponent(uid) + '" title="See everything they made">' + nameOf(profile) + "</a>";
+  }
   const EYE_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
   function viewsHtml(n) { return '<span class="pg-views" title="Views">' + EYE_SVG + " " + (Number(n) || 0) + "</span>"; }
   // Opening the program page is a view: count it once per browser session (so a
@@ -166,7 +171,7 @@
         box.innerHTML = rows.map(function (r, i) {
           const me = user && r.user_id === user.id ? " me" : "";
           return '<div class="pg-lb-row' + me + '"><span class="pg-lb-rank">' + (i + 1) + "</span>" +
-            avatarOf(r.profiles) + '<span class="pg-lb-name">' + nameOf(r.profiles) +
+            avatarOf(r.profiles) + '<span class="pg-lb-name">' + nameLink(r.profiles, r.user_id) +
             '</span><span class="pg-lb-score">' + Number(r.score) + "</span></div>";
         }).join("");
       }
@@ -198,7 +203,7 @@
         (p.featured === true ? '<span class="cc-kind cc-featured" title="Pinned to the top of the community gallery">★ Featured</span>' : "") +
         '<h1 class="pg-title"></h1>' +
       "</div>" +
-      '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
+      '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameLink(p.profiles, p.author_id) +
         " &middot; " + esc(whenLabel(p)) + "</span>" + viewsHtml(p.view_count) + "</div>" +
       '<div class="pg-stage">' +
         '<div class="pg-play" id="pg-play"></div>' +
@@ -386,7 +391,7 @@
         row.className = "pwl-comment";
         row.innerHTML =
           avatarOf(c.profiles) +
-          '<div class="pwl-comment-body"><span class="pwl-comment-name">' + nameOf(c.profiles) +
+          '<div class="pwl-comment-body"><span class="pwl-comment-name">' + nameLink(c.profiles, c.user_id) +
           ' <span class="pwl-comment-when">' + esc(timeAgo(c.created_at)) + "</span></span>" +
           '<span class="pwl-comment-text"></span></div>' +
           (user && c.user_id === user.id ? '<button type="button" class="pwl-comment-del" title="Delete">&times;</button>' : "");

@@ -48,11 +48,14 @@
       el.innerHTML =
         '<span class="lb-rank">' + (i + 1) + "</span>" +
         avatarOf(row) +
-        '<span class="lb-name"></span>' +
+        '<a class="lb-name pwl-user-link"></a>' +
         '<span class="lb-stats"><strong>' + row.total_votes + "</strong> upvote" +
           (Number(row.total_votes) === 1 ? "" : "s") + " &middot; " +
           row.project_count + " program" + (Number(row.project_count) === 1 ? "" : "s") + "</span>";
-      el.querySelector(".lb-name").textContent = row.display_name || "Someone";
+      const nm = el.querySelector(".lb-name");
+      nm.textContent = row.display_name || "Someone";
+      nm.href = "../user/?id=" + encodeURIComponent(row.id);
+      nm.title = "See everything they've made";
       list.appendChild(el);
     });
   }

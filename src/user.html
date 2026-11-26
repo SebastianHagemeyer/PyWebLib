@@ -1,0 +1,44 @@
+<!--
+{
+  "title": "Creator | PyWebLib",
+  "description": "A PyWebLib creator's page: the Python programs and sprite assets they have shared with the community.",
+  "active": "",
+  "card": "og-community.png",
+  "cardAlt": "Python programs shared by the PyWebLib community.",
+  "noindex": true,
+  "scripts": [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+    "supabase-config.js",
+    "auth.js",
+    "sprites.js",
+    "preview.js",
+    "asset-votes.js",
+    "user.js"
+  ]
+}
+-->
+  <main>
+    <div class="container section">
+      <p class="community-notice" id="up-notice" hidden></p>
+      <div class="up-view" id="up-view" hidden>
+        <header class="up-head">
+          <span class="up-avatar" id="up-avatar"></span>
+          <div>
+            <h1 class="up-name" id="up-name"></h1>
+            <p class="up-stats" id="up-stats"></p>
+          </div>
+        </header>
+
+        <section class="up-section">
+          <h2>Programs<span class="asset-lib-count" id="up-prog-count"></span></h2>
+          <div class="up-programs" id="up-programs"><p class="community-empty">Loading…</p></div>
+        </section>
+
+        <section class="up-section">
+          <h2>Assets<span class="asset-lib-count" id="up-asset-count"></span></h2>
+          <div class="asset-grid" id="up-assets"><p class="community-empty">Loading…</p></div>
+        </section>
+      </div>
+    </div>
+  </main>
+

@@ -148,6 +148,11 @@
     try { sb.rpc("increment_view", { pid: p.id }).then(null, function () {}); } catch (e) {}
   }
   function nameOf(profile) { return esc((profile && profile.display_name) || "Someone"); }
+  // A name that opens the person's creator page, with everything they've made.
+  function nameLink(profile, uid) {
+    if (!uid) return nameOf(profile);
+    return '<a class="pwl-user-link" href="../user/?id=' + encodeURIComponent(uid) + '" title="See everything they made">' + nameOf(profile) + "</a>";
+  }
 
   // Pins sit on page one and count toward its six, so page one holds fewer
   // ordinary programs and every later page starts that much earlier. Without
@@ -370,7 +375,7 @@
         "</button>" +
       "</div>" +
       '<p class="cc-desc"></p>' +
-      '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
+      '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameLink(p.profiles, p.author_id) +
         ' &middot; ' + esc(whenLabel(p)) + "</span>" + viewsHtml(p.view_count) + "</div>" +
       '<div class="cc-actions">' +
         '<button type="button" class="cc-vote' + (voted ? " voted" : "") + '" data-act="vote" title="Upvote">' +
@@ -543,7 +548,7 @@
         '<button type="button" class="pwl-modal-x" aria-label="Close">&times;</button>' +
         '<span class="cc-kind cc-kind-' + esc(p.kind) + '">' + esc(p.kind) + "</span>" +
         '<h2 class="pwl-modal-title"></h2>' +
-        '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameOf(p.profiles) +
+        '<div class="cc-author">' + avatarOf(p.profiles) + "<span>" + nameLink(p.profiles, p.author_id) +
           ' &middot; ' + esc(whenLabel(p)) + "</span></div>" +
         '<p class="pwl-modal-desc"></p>' +
         '<pre class="pwl-modal-code"></pre>' +
@@ -614,7 +619,7 @@
         row.className = "pwl-comment";
         row.innerHTML =
           avatarOf(c.profiles) +
-          '<div class="pwl-comment-body"><span class="pwl-comment-name">' + nameOf(c.profiles) +
+          '<div class="pwl-comment-body"><span class="pwl-comment-name">' + nameLink(c.profiles, c.user_id) +
           ' <span class="pwl-comment-when">' + esc(timeAgo(c.created_at)) + "</span></span>" +
           '<span class="pwl-comment-text"></span></div>' +
           (user && c.user_id === user.id ? '<button type="button" class="pwl-comment-del" title="Delete">&times;</button>' : "");

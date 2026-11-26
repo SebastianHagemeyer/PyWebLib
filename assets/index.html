@@ -162,6 +162,9 @@
             <button type="button" class="btn btn-ghost" id="asset-undo" title="Undo (Ctrl+Z)">Undo</button>
             <button type="button" class="btn btn-ghost" id="asset-clear" title="Clear the canvas">Clear</button>
           </div>
+          <!-- Whose art this is, when you open someone else's sprite (or your
+               own remix of one). Filled in by assets.js. -->
+          <div class="asset-credit" id="asset-credit" aria-live="polite" hidden></div>
         </div>
 
         <div class="asset-stage-wrap">
@@ -219,6 +222,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="../supabase-config.js"></script>
   <script src="../auth.js"></script>
+  <script src="../asset-votes.js"></script>
   <script src="../assets.js"></script>
 
   <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
